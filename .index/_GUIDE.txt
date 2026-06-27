@@ -1,0 +1,29 @@
+.index/ — per-file source notes for THIS repo's own code.
+Plain text only, not markdown.
+
+Convention
+----------
+One flat file per class, named by the fully-qualified class name:
+  .index/{fully.qualified.ClassName}.txt
+  e.g. com.testing.ModEntry  ->  .index/com.testing.ModEntry.txt
+No package subdirectories, and no version subdirectory here (unlike the
+decompiled .index dirs, which do carry a version segment).
+
+Each entry's FIRST line is a date stamp:
+  Updated: YYYY-MM-DD
+Then terse, verified notes: what the class is for, key methods/fields, the
+entrypoint or mixin it backs, and any non-obvious behavior. One fact per line.
+
+Rules
+-----
+- Plain text, terse. No markdown.
+- Add a line only after you've verified it against the actual source.
+- Fill incrementally as files are touched — don't pre-populate.
+- When you change code, update its entry and bump the Updated: date in the
+  same pass (see CLAUDE.md / .github/copilot-instructions.md "keep docs fresh").
+
+Example
+-------
+  .index/com.testing.ModEntry.txt
+    Updated: 2026-06-03
+    ModInitializer, "main" entrypoint.

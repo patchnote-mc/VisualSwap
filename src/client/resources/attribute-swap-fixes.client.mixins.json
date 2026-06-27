@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "package": "com.testing.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "HudAttackIndicatorMixin",
+    "HudSelectionMixin",
+    "MinecraftSwapCommitMixin",
+    "MouseHandlerScrollMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

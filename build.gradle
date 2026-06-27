@@ -1,0 +1,157 @@
+import groovy.json.JsonSlurper
+import javax.imageio.ImageIO
+import java.awt.image.BufferedImage
+
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+repositories {
+	// Add repositories to retrieve artifacts from in here.
+	// You should only use this when depending on other mods because
+	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
+	// for more information about repositories.
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"visual-swap" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+
+}
+
+fabricApi {
+	configureDataGeneration {
+		client = true
+	}
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Fabric API. This is technically optional, but you probably want it anyway.
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Unit tests for the Minecraft-free swap hit logic (SwapHitState). Plain JUnit 5 —
+	// these never load Minecraft, so no fabric-loader-junit needed.
+	testImplementation "org.junit.jupiter:junit-jupiter-api:5.10.0"
+	testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.10.0"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.10.0"
+}
+
+test {
+	useJUnitPlatform()
+}
+
+// Rasterize the swap-hit glyph masks (the single source of truth in
+// src/main/resources/assets/.../swap_hit_masks.json — also read at runtime by SwapHitGlyph)
+// into the particle sprite PNGs. Filled '#' cells use the mask's opaque particleColor;
+// empty cells are transparent. Each cell is scaled up (CELL_PX) so the atlas sprite isn't a
+// tiny 7x7. Output lands in a generated resources dir wired into the main source set below,
+// so the PNGs ship in the jar without being committed.
+def maskSource = file("src/main/resources/assets/visual-swap/swap_hit_masks.json")
+def generatedParticleDir = layout.buildDirectory.dir("generated/particle-sprites")
+
+tasks.register("bakeParticleSprites") {
+	description = "Rasterize swap_hit_masks.json into particle sprite PNGs."
+	def cellPx = 8
+	inputs.file maskSource
+	inputs.property "cellPx", cellPx
+	outputs.dir generatedParticleDir
+	doLast {
+		def outDir = generatedParticleDir.get().dir("assets/visual-swap/textures/particle").asFile
+		outDir.mkdirs()
+		def root = new JsonSlurper().parse(maskSource)
+		root.masks.each { name, mask ->
+			List<String> rows = mask.rows as List<String>
+			int cols = rows.isEmpty() ? 0 : rows[0].length()
+			int h = rows.size()
+			int argb = (int) Long.parseLong(((String) mask.particleColor).replaceFirst(/(?i)^0x/, ""), 16)
+			def img = new BufferedImage(cols * cellPx, h * cellPx, BufferedImage.TYPE_INT_ARGB)
+			for (int r = 0; r < h; r++) {
+				String line = rows[r]
+				for (int c = 0; c < cols; c++) {
+					boolean filled = c < line.length() && line.charAt(c) == ('#' as char)
+					if (!filled) continue
+					for (int dy = 0; dy < cellPx; dy++) {
+						for (int dx = 0; dx < cellPx; dx++) {
+							img.setRGB(c * cellPx + dx, r * cellPx + dy, argb)
+						}
+					}
+				}
+			}
+			def outFile = new File(outDir, "${mask.particle}.png")
+			ImageIO.write(img, "png", outFile)
+			logger.lifecycle("Baked particle sprite ${outFile.name} (${cols * cellPx}x${h * cellPx}) from mask '${name}'")
+		}
+	}
+}
+
+sourceSets.main.resources.srcDir generatedParticleDir
+
+// The generated dir is part of main resources, so every task that reads them
+// (processResources for the jar, sourcesJar for the -sources artifact) must run the bake first.
+tasks.named("processResources") { dependsOn tasks.named("bakeParticleSprites") }
+tasks.matching { it.name == "sourcesJar" }.configureEach { dependsOn tasks.named("bakeParticleSprites") }
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName"}
+	}
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+	}
+}
