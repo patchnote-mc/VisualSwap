@@ -1,4 +1,4 @@
-package com.testing;
+package com.patchnote.visualswap;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -6,7 +6,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AttributeSwapFixes implements ModInitializer
+public class VisualSwap implements ModInitializer
 {
     public static final String MOD_ID = "visual-swap";
 

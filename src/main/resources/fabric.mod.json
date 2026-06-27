@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "id": "attribute-swap-fixes",
+  "id": "visual-swap",
   "version": "${version}",
-  "name": "Attribute Swap Fixes",
+  "name": "Visual Swap",
   "description": "This is an example description! Tell everyone what your mod is about!",
   "authors": [
     "Me!"
@@ -12,23 +12,20 @@
     "sources": "https://github.com/FabricMC/fabric-example-mod"
   },
   "license": "CC0-1.0",
-  "icon": "assets/attribute-swap-fixes/icon.png",
+  "icon": "assets/visual-swap/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
-      "com.testing.AttributeSwapFixes"
+      "com.patchnote.visualswap.VisualSwap"
     ],
     "client": [
-      "com.testing.client.AttributeSwapFixesClient"
-    ],
-    "fabric-datagen": [
-      "com.testing.client.AttributeSwapFixesDataGenerator"
+      "com.patchnote.visualswap.client.VisualSwapClient"
     ]
   },
   "mixins": [
-    "attribute-swap-fixes.mixins.json",
+    "visual-swap.mixins.json",
     {
-      "config": "attribute-swap-fixes.client.mixins.json",
+      "config": "visual-swap.client.mixins.json",
       "environment": "client"
     }
   ],

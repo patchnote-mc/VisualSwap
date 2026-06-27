@@ -5,7 +5,7 @@ Convention
 ----------
 One flat file per class, named by the fully-qualified class name:
   .index/{fully.qualified.ClassName}.txt
-  e.g. com.testing.ModEntry  ->  .index/com.testing.ModEntry.txt
+  e.g. com.patchnote.visualswap.ModEntry  ->  .index/com.patchnote.visualswap.ModEntry.txt
 No package subdirectories, and no version subdirectory here (unlike the
 decompiled .index dirs, which do carry a version segment).
 
@@ -24,6 +24,6 @@ Rules
 
 Example
 -------
-  .index/com.testing.ModEntry.txt
+  .index/com.patchnote.visualswap.ModEntry.txt
     Updated: 2026-06-03
     ModInitializer, "main" entrypoint.
