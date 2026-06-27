@@ -1,14 +1,14 @@
 package com.patchnote.visualswap.client;
 
+import com.patchnote.visualswap.VisualSwap;
+
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.event.client.player.ClientPreAttackCallback;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 
 public class VisualSwapClient implements ClientModInitializer
 {
     @Override
     public void onInitializeClient()
     {
+        VisualSwap.LOGGER.info("Visual Swap (client-only) initializing.");
     }
 }

@@ -1,0 +1,6 @@
+Updated: 2026-06-27
+ClientModInitializer; the mod's only entrypoint ("client" in fabric.mod.json).
+Lives in src/client (client-only source set).
+onInitializeClient(): currently just logs init via VisualSwap.LOGGER.
+Will own swap-hit detection + HUD glyph / particle rendering registration.
+Keep all net.minecraft.client.* and client Fabric event usage here.

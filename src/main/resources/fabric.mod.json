@@ -3,7 +3,7 @@
   "id": "visual-swap",
   "version": "${version}",
   "name": "Visual Swap",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "description": "Client-side visualizer for Minecraft's attribute-swapping behavior.",
   "authors": [
     "Me!"
   ],
@@ -13,11 +13,8 @@
   },
   "license": "CC0-1.0",
   "icon": "assets/visual-swap/icon.png",
-  "environment": "*",
+  "environment": "client",
   "entrypoints": {
-    "main": [
-      "com.patchnote.visualswap.VisualSwap"
-    ],
     "client": [
       "com.patchnote.visualswap.client.VisualSwapClient"
     ]
