@@ -1,6 +1,0 @@
-Updated: 2026-06-27
-Final, non-instantiable shared holder. NOT an entrypoint (client-only mod).
-Lives in src/main (common source set), side-agnostic; no client imports.
-MOD_ID = "visual-swap".
-LOGGER = SLF4J logger named MOD_ID; used across the mod.
-Private ctor; do not add a ModInitializer here (no main entrypoint by design).

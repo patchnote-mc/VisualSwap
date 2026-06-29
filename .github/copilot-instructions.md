@@ -64,7 +64,7 @@ Where docs live (don't scatter new instruction files in the repo root):
 * **This file** (`.github/copilot-instructions.md`) — working strategy. Stays in `.github`.
 * **`AGENTS.md`** (repo root) — architecture/flows guide. Stays at root (auto-discovered convention).
 * **`.llm/`** — other agent/design docs. New instruction-style docs go under an appropriately-named `.llm/<name>/` subdir.
-* **`.index/`** (repo root) — per-file source notes for this repo's own code. Same flat `{fully.qualified.ClassName}.txt` plain-text convention as the decompiled indexes (no package subdirectories), but NO version subdir; each entry carries an `Updated: YYYY-MM-DD` first line. Filled incrementally as files are touched. See `.index/_GUIDE.txt`.
+* **`.index/`** (repo root) — source notes for this repo's own code, consolidated in a single `.index/INDEX.txt` (NOT one file per class, unlike the decompiled indexes). Each class is one entry: a header `<fully.qualified.ClassName>  [Updated: YYYY-MM-DD]` followed by 2-3 terse note lines, sorted by class name. Plain text, filled incrementally as files are touched. See `.index/_GUIDE.txt`.
 
 **Keep docs from going stale:** every doc that tracks the codebase (`AGENTS.md`,
 `.llm/**`, `.index/**` entries, and this file) carries a date. When you change

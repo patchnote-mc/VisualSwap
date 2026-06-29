@@ -1,10 +1,10 @@
-<!-- last updated: 2026-06-27 -->
+<!-- last updated: 2026-06-28 -->
 
 # AGENTS.md — Visual Swap architecture & flows
 
 Authoritative architecture/flow guide for this repo. Working strategy lives in
 `.github/copilot-instructions.md`; the pointer/essentials live in `CLAUDE.md`;
-longer design notes in `.llm/`; per-file source notes in `.index/`.
+longer design notes in `.llm/`; source notes in `.index/INDEX.txt`.
 
 ## What this mod is
 
@@ -15,10 +15,11 @@ mod's job is purely cosmetic/diagnostic: surface when a swap-hit happens via an
 on-screen glyph and a world particle. It changes no gameplay and runs entirely
 on the client.
 
-> **Status:** the swap-detection and rendering features are **NOT YET
-> IMPLEMENTED** — see [Roadmap](#roadmap). What exists today is the client-only
-> mod skeleton plus the build pipeline that bakes glyph art from
-> `swap_hit_masks.json`.
+> **Status (2026-06-29):** swap-window detection + visualizations are
+> **IMPLEMENTED** — see [Swap-window detection & rendering](#swap-window-detection--rendering).
+> Switching the held item opens a short window during which a glyph shows below the
+> hotbar (attacked variant if *use* is pressed); using on an entity during the
+> window spawns a world particle burst. All driven from `swap_hit_masks.json`.
 
 ## Client-only contract (important)
 
@@ -49,10 +50,18 @@ there are two source sets, both registered as the `visual-swap` mod:
   (assets, `fabric.mod.json`, mixin configs, the mask JSON).
   - `com.patchnote.visualswap.VisualSwap` — final, non-instantiable holder of
     `MOD_ID` (`"visual-swap"`) and `LOGGER`. **Not** an entrypoint.
+  - `com.patchnote.visualswap.SwapWindow` — the pure, Minecraft-free swap-window
+    state (arm on swap, use→consecutive, active/expiry); unit-tested in `src/test`.
+  - `com.patchnote.visualswap.SwapHitMasks` — shared reader of
+    `swap_hit_masks.json` (the glyph shapes/colours), used by both the HUD glyph
+    and the particle tint. Ported from AttributeSwapFixes.
 - `src/client/` — client-only source set; everything that touches the client.
   - `com.patchnote.visualswap.client.VisualSwapClient` — the `client`
-    entrypoint (`ClientModInitializer`). Today it just logs init; it will own
-    the swap-hit detection + rendering registration.
+    entrypoint (`ClientModInitializer`). Registers the particle types/factories
+    and HUD glyph, and drives the swap-window detection (see below).
+  - `com.patchnote.visualswap.client.{VisualSwapParticles, SwapGlyphParticle,
+    SwapHitGlyph}` — particle registration, the two-tier in-world particle, and
+    the below-the-hotbar glyph HUD element. Ported from AttributeSwapFixes.
 
 Mixins (configs present, both currently empty):
 
@@ -71,7 +80,7 @@ Standard Loom build (`./gradlew build`) with one project-specific wrinkle: the
 - Single source of truth: `src/main/resources/assets/visual-swap/swap_hit_masks.json`.
   Each entry is a 7×7 (`#` = filled) glyph with a `particle` name, a HUD `color`
   (ARGB) and an opaque `particleColor` (RGB) for the baked sprite. Two masks
-  today: `normal` (→ `swap_hit`) and `consecutive` (→ `swap_hit_consecutive`).
+  today: `possible` (→ `swap_possible`) and `attacked` (→ `swap_attacked`).
 - `tasks.bakeParticleSprites` (in `build.gradle`) rasterizes each mask into
   `build/generated/particle-sprites/assets/visual-swap/textures/particle/<particle>.png`,
   scaling each cell by `cellPx = 8`. Filled cells use `particleColor`; empty
@@ -83,8 +92,8 @@ Standard Loom build (`./gradlew build`) with one project-specific wrinkle: the
 - `processResources` also expands `${version}` in `fabric.mod.json` from
   `project.version` (`mod_version` in `gradle.properties`).
 
-Edit a mask in the JSON and **both** the (future) HUD glyph and the baked
-particle update from the same data.
+Edit a mask in the JSON and **both** the HUD glyph (read at runtime by
+`SwapHitGlyph`) and the baked particle update from the same data.
 
 ## Toolchain / versions
 
@@ -99,22 +108,53 @@ the `*_decompiled/.index` / `.knowledge` dirs (see `.github/copilot-instructions
 ## Tests
 
 `build.gradle` wires plain JUnit 5 (`useJUnitPlatform()`) for Minecraft-free
-unit tests of the swap-hit logic (the planned `SwapHitState`). These tests must
-never load Minecraft, so no `fabric-loader-junit` is needed. No test sources
-exist yet.
+unit tests of the swap logic. These tests must never load Minecraft, so no
+`fabric-loader-junit` is needed. `src/test/java/.../SwapWindowTest.java` covers
+`SwapWindow` (inactive before swap, active within window then expiry, use
+in/out of window → consecutive, new swap resets, clear).
 
-## Roadmap (not yet implemented)
+## Swap-window detection & rendering
 
-The build wiring and asset pipeline anticipate these pieces; treat the names
-below as the intended design, not existing code:
+Revamped 2026-06-28 to a **switch/use-driven window** model (replacing the earlier
+attack-time attribute-discrepancy detection, now removed). No mixins — Fabric
+events + plain API cover everything.
 
-- `SwapHitState` — pure, Minecraft-free state machine that decides when a swap
-  hit (and a *consecutive* swap hit) occurred. Unit-tested in isolation.
-- `SwapHitGlyph` — client-side reader of `swap_hit_masks.json` that drives the
-  HUD glyph rendering (the masks' `color`/`rows`), paired with the baked
-  particle sprites.
-- The `VisualSwapClient` entrypoint wiring detection → HUD glyph + world
-  particle, plus any mixins needed to observe attack/attribute application.
+**Detection (`SwapWindow`, pure + unit-tested; driven by `VisualSwapClient`).**
+The window clock is `player.tickCount` (consistent across the tick handler and the
+attack handler, since `tickCount` increments in `tickEntities` between
+`handleKeybinds` and `END_CLIENT_TICK`).
 
-When you implement these, add `.index/` entries, fill the mixin configs, and
-update this file (bumping the date above) in the same pass.
+- **Switch** — in `END_CLIENT_TICK`, if the main-hand item differs from the
+  previous-tick snapshot (`ItemStack.matches`), `SwapWindow.onSwap(tick)` arms the
+  window for `WINDOW_TICKS` (= `SwapWindow.DEFAULT_WINDOW_TICKS` = **2**). Attribute
+  swapping is a *same-tick* effect — held-item attributes lag the slot by exactly
+  one reconciliation (`detectEquipmentUpdates`, once/entity-tick), and the client
+  only observes the swap at end-of-tick — so 2 = 1-tick lag + 1-tick observation is
+  the tight, mechanically-grounded span (not the old arbitrary 5). Switching to an
+  empty hand clears it.
+  Watching the *item* covers hotbar keys and scroll; offhand is best-effort.
+- **Use** — a rising edge of `options.keyUse.isDown()` during an active window
+  marks it `consecutive` (`SwapWindow.onUse`).
+- **Use (sub-condition)** — `UseEntityCallback` on an entity, while the
+  window is active (or a same-tick switch is detected via the snapshot), spawns the
+  attacked particle burst on the target. No use-on-entity is required for the glyph.
+
+**Rendering** (particle + glyph ported from AttributeSwapFixes).
+- **Glyph** — `SwapHitGlyph` shows **while the window is active** (pushed each tick
+  via `update(visible, consecutive)`), rasterizing the mask `rows`/`color` (shared
+  `SwapHitMasks`) to the HUD (`GuiGraphicsExtractor.fill`) centred **below the
+  hotbar** (`attachElementAfter(HOTBAR)`); the consecutive variant once use was
+  pressed.
+- **Particle burst** — on the attack sub-condition, a gaussian cloud of
+  `SwapGlyphParticle` at the target's mid-height (`getY(0.5)`), count/spread per
+  tier (9/0.35 normal, 18/0.45 consecutive); each particle's motion is injected by
+  its tier provider (gentle float vs crit-spray), tinted with the mask
+  `particleColor`. (The particle wiring is expected to be repurposed later.)
+
+Particle types + client factories register from the client entrypoint — built-in
+registries are still unfrozen at client-init time (Fabric freezes them later in
+`Minecraft.<init>`), so no main entrypoint is added.
+
+Tunable constants: `SwapWindow.DEFAULT_WINDOW_TICKS`, `VisualSwapClient.WINDOW_TICKS`
++ burst count/spread, `SwapHitGlyph.SCALE`/`BOTTOM_MARGIN`,
+`SwapGlyphParticle.Provider.normal`/`consecutive` motion params.

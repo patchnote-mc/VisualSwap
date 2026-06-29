@@ -9,7 +9,8 @@ to them and states the essentials):
 - **`AGENTS.md`** (repo root) — arch itecture, runtime flows, project-specific patterns.
 - **`.github/copilot-instructions.md`** — full working strategy.
 - **`.llm/`** — agent/design docs.
-- **`.index/`** — per-file source notes (replaces the old `file-descriptions.md`).
+- **`.index/`** — source notes for this repo's code, consolidated in one
+  `.index/INDEX.txt` (replaces the old `file-descriptions.md`).
 
 ## Stack (see `AGENTS.md` for detail)
 
@@ -33,8 +34,9 @@ to them and states the essentials):
    - MC/Fabric: `*_decompiled/.index/{version}/{fully.qualified.ClassName}.txt`
      (flat, no package dirs; version `26.2` for MC, `0.153.0+26.2` for
      Fabric) and `*_decompiled/.knowledge/{topic}.txt`. See each dir's `_GUIDE.txt`.
-   - This repo's own code: `.index/{fully.qualified.ClassName}.txt` (flat, no
-     package dirs), each entry stamped `Updated: YYYY-MM-DD`. See `.index/_GUIDE.txt`.
+   - This repo's own code: a single `.index/INDEX.txt`, one 2-3 line entry per
+     class (header `<fully.qualified.ClassName>  [Updated: YYYY-MM-DD]`), sorted
+     by class name. See `.index/_GUIDE.txt`.
 5. **Match Mojang mappings exactly**; never use Yarn names or mix namespaces;
    don't invent APIs — verify against the decompilation if unsure.
 

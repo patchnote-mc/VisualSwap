@@ -3,27 +3,31 @@ Plain text only, not markdown.
 
 Convention
 ----------
-One flat file per class, named by the fully-qualified class name:
-  .index/{fully.qualified.ClassName}.txt
-  e.g. com.patchnote.visualswap.ModEntry  ->  .index/com.patchnote.visualswap.ModEntry.txt
-No package subdirectories, and no version subdirectory here (unlike the
-decompiled .index dirs, which do carry a version segment).
+ALL entries live in ONE file: .index/INDEX.txt (not one file per class).
+Each entry is a header line followed by 2-3 indented lines of notes:
 
-Each entry's FIRST line is a date stamp:
-  Updated: YYYY-MM-DD
-Then terse, verified notes: what the class is for, key methods/fields, the
-entrypoint or mixin it backs, and any non-obvious behavior. One fact per line.
+  <fully.qualified.ClassName>  [Updated: YYYY-MM-DD]
+    terse note line 1
+    terse note line 2 (3 max)
+
+Sort entries by fully-qualified class name. The header date is stamped/bumped
+whenever you change that class (see "keep docs fresh"). Notes cover what the
+class is for, key methods/fields, the entrypoint or mixin it backs, and any
+non-obvious behavior — packed into 2-3 lines, one concern per line.
+
+(Unlike the decompiled .index dirs — mc_decompiled/, fabric_decompiled/ — which
+still keep one flat {fully.qualified.ClassName}.txt file per class under a
+version segment. This repo's own index is a single consolidated file.)
 
 Rules
 -----
-- Plain text, terse. No markdown.
+- Plain text, terse. No markdown. Keep each entry to 2-3 note lines.
 - Add a line only after you've verified it against the actual source.
 - Fill incrementally as files are touched — don't pre-populate.
-- When you change code, update its entry and bump the Updated: date in the
+- When you change code, update its entry and bump its [Updated:] date in the
   same pass (see CLAUDE.md / .github/copilot-instructions.md "keep docs fresh").
 
 Example
 -------
-  .index/com.patchnote.visualswap.ModEntry.txt
-    Updated: 2026-06-03
+  com.patchnote.visualswap.ModEntry  [Updated: 2026-06-03]
     ModInitializer, "main" entrypoint.

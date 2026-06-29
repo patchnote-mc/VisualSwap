@@ -1,10 +1,24 @@
 {
   "_comment": "Single source of truth for the swap-hit glyph shapes. Read at build time by the bakeParticleSprites Gradle task, which rasterizes each mask into assets/.../textures/particle/<particle>.png. '#' = filled cell. 'color' is the ARGB HUD tint; 'particleColor' is the opaque RGB used for the baked sprite (the particle's own alpha fades it at render time). Edit a mask here and BOTH the HUD glyph and the particle update.",
   "masks": {
-    "normal": {
-      "particle": "swap_hit",
+    "possible": {
+      "particle": "swap_possible",
       "color": "0xAA9D97A4",
       "particleColor": "0xAA9D97A4",
+      "rows": [
+        "...#...",
+        "...#...",
+        "...#...",
+        "#######",
+        "...#...",
+        "...#...",
+        "...#..."
+      ]
+    },
+    "attacked": {
+      "particle": "swap_attacked",
+      "color": "0xAA9D97B8",
+      "particleColor": "0xAA9D97BB",
       "rows": [
         "...#...",
         ".#.#.#.",
@@ -13,20 +27,6 @@
         "..###..",
         ".#.#.#.",
         "...#..."
-      ]
-    },
-    "consecutive": {
-      "particle": "swap_hit_consecutive",
-      "color": "0x559D97A4",
-      "particleColor": "0x559D97A4",
-      "rows": [
-        ".#...#.",
-        "##.#.##",
-        ".#####.",
-        "#######",
-        ".#####.",
-        "##.#.##",
-        ".#...#."
       ]
     }
   }
