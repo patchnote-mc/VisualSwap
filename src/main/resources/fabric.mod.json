@@ -17,6 +17,9 @@
   "entrypoints": {
     "client": [
       "com.patchnote.visualswap.client.VisualSwapClient"
+    ],
+    "modmenu": [
+      "com.patchnote.visualswap.client.config.ModMenuIntegration"
     ]
   },
   "mixins": [

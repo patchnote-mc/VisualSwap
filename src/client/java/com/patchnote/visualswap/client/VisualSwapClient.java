@@ -1,10 +1,13 @@
 package com.patchnote.visualswap.client;
 
 import com.patchnote.visualswap.VisualSwap;
+import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.hud.HUDHandler;
 import com.patchnote.visualswap.client.hud.SwapHotbarHighlight;
 import com.patchnote.visualswap.client.hud.SwapWindowState;
 import com.patchnote.visualswap.client.particles.ParticlesHandler;
+import me.shedaniel.autoconfig.AutoConfig;
+import me.shedaniel.autoconfig.serializer.Toml4jConfigSerializer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
@@ -47,6 +50,7 @@ public class VisualSwapClient implements ClientModInitializer
         VisualSwap.LOGGER.info("Visual Swap initializing ...");
 
         // registration
+        AutoConfig.register(ModConfig.class, Toml4jConfigSerializer::new);
         ParticlesHandler.register();
         HUDHandler.register();
 

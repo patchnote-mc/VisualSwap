@@ -16,6 +16,8 @@ repositories {
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
+	maven { url "https://maven.shedaniel.me/" }
+	maven { url "https://maven.terraformersmc.com/releases/" }
 }
 
 loom {
@@ -38,6 +40,11 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Loom 1.17 on MC 26.x no longer remaps mods (Mojang mappings ship deobfuscated),
+	// so mod deps use plain implementation — there is no modImplementation/modApi.
+	implementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
+	implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
 
 	// Unit tests for the Minecraft-free swap hit logic (SwapHitState). Plain JUnit 5 —
 	// these never load Minecraft, so no fabric-loader-junit needed.
