@@ -21,11 +21,11 @@ public final class SwapHotbarHighlight
 
     // Stun slam (chain >= 2): a "heat" gradient walked along the chain trail, origin slot -> latest slot.
     // Vanilla stays restrained but warms to gold so it still reads apart from the single-hit gray.
-    private static final int SLAM_START_VANILLA = 0x70F0E0A0;
-    private static final int SLAM_END_VANILLA = 0xE0FFC83C;
+    private static final int SLAM_START_VANILLA = 0x7FFFFFFF;
+    private static final int SLAM_END_VANILLA = 0xB0FFFFFF;
     // Practice ramps hot: deep red origin -> bright gold latest hit.
-    private static final int SLAM_START_PRACTICE = 0xFFFF3000;
-    private static final int SLAM_END_PRACTICE = 0xFFFFE000;
+    private static final int SLAM_START_PRACTICE = 0xFFFF0000;
+    private static final int SLAM_END_PRACTICE = 0xFF00FF00;
 
     private boolean active;
     /// Ordered hotbar slots touched by the current chain (origin first, latest hit last). Length {@link #trailLen}.
