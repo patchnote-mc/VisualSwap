@@ -60,6 +60,11 @@ public class VisualSwapClient implements ClientModInitializer
         UseEntityCallback.EVENT.register(this::onInteractEntity);
     }
 
+    public static ModConfig getConfig()
+    {
+        return AutoConfig.getConfigHolder(ModConfig.class).getConfig();
+    }
+
     /* CLIENT TICK CALLBACK */
 
     private void onEndClientTick(Minecraft client)

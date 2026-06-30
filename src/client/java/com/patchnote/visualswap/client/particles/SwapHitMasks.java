@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.patchnote.visualswap.VisualSwap;
+import com.patchnote.visualswap.client.config.ModConfig;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -54,10 +55,17 @@ public final class SwapHitMasks
     private static Mask parse(JsonObject mask)
     {
         String particle = mask.get("particle").getAsString();
-        int color = parseArgb(mask.get("color").getAsString());
-        int particleColor = parseArgb(mask.get("particleColor").getAsString());
+        JsonObject color = mask.getAsJsonObject("color");
+        JsonObject particleColor = mask.getAsJsonObject("particleColor");
         List<String> rows = mask.getAsJsonArray("rows").asList().stream().map(JsonElement::getAsString).toList();
-        return new Mask(particle, color, particleColor, rows);
+        return new Mask(
+                particle,
+                parseArgb(color.get("vanilla").getAsString()),
+                parseArgb(color.get("practice").getAsString()),
+                parseArgb(particleColor.get("vanilla").getAsString()),
+                parseArgb(particleColor.get("practice").getAsString()),
+                rows
+        );
     }
 
     private static int parseArgb(String hex)
@@ -68,8 +76,20 @@ public final class SwapHitMasks
 
     /* HELPERS */
 
-    public record Mask(String particle, int color, int particleColor, List<String> rows)
+    public record Mask(String particle, int colorVanilla, int colorPractice, int particleColorVanilla,
+                       int particleColorPractice, List<String> rows)
     {
+        /// @return the ARGB HUD tint for the active {@link ModConfig.IndicatorType}.
+        public int color() { return select(this.colorVanilla, this.colorPractice); }
+
+        /// @return the ARGB particle tint for the active {@link ModConfig.IndicatorType}.
+        public int particleColor() { return select(this.particleColorVanilla, this.particleColorPractice); }
+
+        private static int select(int vanilla, int practice)
+        {
+            return ModConfig.get().indicatorType == ModConfig.IndicatorType.PRACTICE ? practice : vanilla;
+        }
+
         public int width() { return rows.isEmpty() ? 0 : rows.getFirst().length(); }
 
         public int height() { return rows.size(); }

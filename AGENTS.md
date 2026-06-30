@@ -85,13 +85,17 @@ Standard Loom build (`./gradlew build`) with one project-specific wrinkle: the
 
 - Single source of truth: `src/main/resources/assets/visual-swap/swap_hit_masks.json`.
   Each entry is a 7×7 (`#` = filled) glyph with a `particle` name, a HUD `color`
-  (ARGB) and an opaque `particleColor` (RGB) for the baked sprite. Three masks
-  today: `possible` (→ `swap_possible`), `attacked` (→ `swap_attacked`) and
+  (ARGB) and a `particleColor` (ARGB) runtime tint. `color` and `particleColor`
+  are each objects carrying a `vanilla` and a `practice` variant, selected at
+  runtime by `ModConfig.indicatorType` (`IndicatorType.{VANILLA,PRACTICE}`, read
+  live by `SwapHitMasks.Mask.color()`/`particleColor()`). Three masks today:
+  `possible` (→ `swap_possible`), `attacked` (→ `swap_attacked`) and
   `lunge_failed` (HUD glyph only — no particle type is registered for it).
 - `tasks.bakeParticleSprites` (in `build.gradle`) rasterizes each mask into
   `build/generated/particle-sprites/assets/visual-swap/textures/particle/<particle>.png`,
-  scaling each cell by `cellPx = 8`. Filled cells use `particleColor`; empty
-  cells are transparent.
+  scaling each cell by `cellPx = 8`. Filled cells are baked **opaque white** and
+  tinted at render time by the mask's `particleColor` (so one static sprite
+  serves both the vanilla and practice variants); empty cells are transparent.
 - That generated dir is wired into the **main** resources
   (`sourceSets.main.resources.srcDir generatedParticleDir`), so the PNGs ship in
   the jar **without being committed**. `processResources` and `sourcesJar`
@@ -167,9 +171,12 @@ attack handler, since `tickCount` increments in `tickEntities` between
   (the swapped-from slot, plus the now-selected swapped-to slot it records at swap
   time) and pushes them to `SwapHotbarHighlight` for the flash's duration.
   `HudHotbarHighlightMixin` (`@Inject` at the head of `Hud.extractSlot`) then fills
-  a vanilla-cooldown-style gray box (`0x7FFFFFFF`; the swapped-to slot a little more
-  opaque) **behind each involved item** — after the hotbar bar blits but before the
-  item icon, so the item stays visible over the highlight. A HUD element can only
+  a box **behind each involved item** — after the hotbar bar blits but before the
+  item icon, so the item stays visible over the highlight. In `VANILLA` it's a
+  cooldown-style gray (`0x7FFFFFFF`; the swapped-to slot a little more opaque); in
+  `PRACTICE` the two slots scream the from->to direction with full-opacity hues
+  (red from, green to) instead of an opacity ramp, selected live from
+  `ModConfig.indicatorType` in `SwapHotbarHighlight`. A HUD element can only
   attach before/after the whole hotbar, never between the bar and the items, which
   is why this one path uses a mixin.
 - **Particle burst** — on the attack sub-condition, a gaussian cloud of

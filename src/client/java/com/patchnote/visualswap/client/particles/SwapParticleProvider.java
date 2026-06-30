@@ -8,11 +8,13 @@ import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.NonNull;
 
+import java.util.function.IntSupplier;
+
 /// Provider for each particle in {@code swap_hit_masks.json}
 public final class SwapParticleProvider implements ParticleProvider<SimpleParticleType>
 {
     private final SpriteSet sprites;
-    private final int rgb;
+    private final IntSupplier rgb;
     private final float baseSize;
     private final int minLifetime;
     private final int maxLifetime;
@@ -21,7 +23,7 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
     private final float speed;
     private final float upBias;
 
-    private SwapParticleProvider(SpriteSet sprites, int rgb, float baseSize, int minLifetime, int maxLifetime,
+    private SwapParticleProvider(SpriteSet sprites, IntSupplier rgb, float baseSize, int minLifetime, int maxLifetime,
                                  float gravity, float friction, float speed, float upBias)
     {
         this.sprites = sprites;
@@ -55,7 +57,7 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
                 dy,
                 dz,
                 this.sprites.get(random),
-                this.rgb,
+                this.rgb.getAsInt(),
                 size,
                 lifetime,
                 this.gravity,
@@ -67,12 +69,12 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
 
     /* PARTICLES */
 
-    public static SwapParticleProvider possible(SpriteSet sprites, int rgb)
+    public static SwapParticleProvider possible(SpriteSet sprites, IntSupplier rgb)
     {
         return new SwapParticleProvider(sprites, rgb, 0.15f, 18, 26, 0.012f, 0.92f, 0.05f, 0.045f);
     }
 
-    public static SwapParticleProvider attacked(SpriteSet sprites, int rgb)
+    public static SwapParticleProvider attacked(SpriteSet sprites, IntSupplier rgb)
     {
         return new SwapParticleProvider(sprites, rgb, 0.12f, 10, 16, 0.18f, 0.70f, 0.22f, 0.10f);
     }

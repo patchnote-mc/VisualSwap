@@ -39,12 +39,13 @@ public final class ParticlesHandler
 
     private static void registerFactories()
     {
-        int possibleRgb = SwapHitMasks.possible().particleColor() & 0xFFFFFF;
-        int attackedRgb = SwapHitMasks.attacked().particleColor() & 0xFFFFFF;
+        // Masks parsed once; the tint is read live per spawn so the IndicatorType config takes effect immediately.
+        SwapHitMasks.Mask possible = SwapHitMasks.possible();
+        SwapHitMasks.Mask attacked = SwapHitMasks.attacked();
 
         ParticleProviderRegistry registry = ParticleProviderRegistry.getInstance();
-        registry.register(SWAP_POSSIBLE, sprites -> SwapParticleProvider.possible(sprites, possibleRgb));
-        registry.register(SWAP_ATTACKED, sprites -> SwapParticleProvider.attacked(sprites, attackedRgb));
+        registry.register(SWAP_POSSIBLE, sprites -> SwapParticleProvider.possible(sprites, () -> possible.particleColor() & 0xFFFFFF));
+        registry.register(SWAP_ATTACKED, sprites -> SwapParticleProvider.attacked(sprites, () -> attacked.particleColor() & 0xFFFFFF));
     }
 
     private static Identifier getId(String path) { return Identifier.fromNamespaceAndPath(VisualSwap.MOD_ID, path); }

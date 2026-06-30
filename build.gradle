@@ -59,10 +59,11 @@ test {
 
 // Rasterize the swap-hit glyph masks (the single source of truth in
 // src/main/resources/assets/.../swap_hit_masks.json — also read at runtime by SwapHitGlyph)
-// into the particle sprite PNGs. Filled '#' cells use the mask's opaque particleColor;
-// empty cells are transparent. Each cell is scaled up (CELL_PX) so the atlas sprite isn't a
-// tiny 7x7. Output lands in a generated resources dir wired into the main source set below,
-// so the PNGs ship in the jar without being committed.
+// into the particle sprite PNGs. Filled '#' cells are baked OPAQUE WHITE; the particle's
+// runtime tint (the mask's particleColor, vanilla/practice per the IndicatorType config) colors
+// them, so one static sprite serves both variants. Empty cells are transparent. Each cell is
+// scaled up (CELL_PX) so the atlas sprite isn't a tiny 7x7. Output lands in a generated resources
+// dir wired into the main source set below, so the PNGs ship in the jar without being committed.
 def maskSource = file("src/main/resources/assets/visual-swap/swap_hit_masks.json")
 def generatedParticleDir = layout.buildDirectory.dir("generated/particle-sprites")
 
@@ -80,7 +81,7 @@ tasks.register("bakeParticleSprites") {
 			List<String> rows = mask.rows as List<String>
 			int cols = rows.isEmpty() ? 0 : rows[0].length()
 			int h = rows.size()
-			int argb = (int) Long.parseLong(((String) mask.particleColor).replaceFirst(/(?i)^0x/, ""), 16)
+			int argb = 0xFFFFFFFF // baked white; tinted at runtime by the mask's particleColor
 			def img = new BufferedImage(cols * cellPx, h * cellPx, BufferedImage.TYPE_INT_ARGB)
 			for (int r = 0; r < h; r++) {
 				String line = rows[r]
