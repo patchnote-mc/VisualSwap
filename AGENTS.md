@@ -1,4 +1,4 @@
-<!-- last updated: 2026-06-28 -->
+<!-- last updated: 2026-06-29 -->
 
 # AGENTS.md — Visual Swap architecture & flows
 
@@ -19,7 +19,9 @@ on the client.
 > **IMPLEMENTED** — see [Swap-window detection & rendering](#swap-window-detection--rendering).
 > Switching the held item opens a short window during which a glyph shows below the
 > hotbar (attacked variant if *use* is pressed); using on an entity during the
-> window spawns a world particle burst. All driven from `swap_hit_masks.json`.
+> window spawns a world particle burst. When the glyph turns *attacked*, the two
+> hotbar slots involved in the swap are also highlighted with a gray box behind
+> the items. All driven from `swap_hit_masks.json`.
 
 ## Client-only contract (important)
 
@@ -63,11 +65,15 @@ there are two source sets, both registered as the `visual-swap` mod:
     SwapHitGlyph}` — particle registration, the two-tier in-world particle, and
     the below-the-hotbar glyph HUD element. Ported from AttributeSwapFixes.
 
-Mixins (configs present, both currently empty):
+Mixins:
 
-- `visual-swap.mixins.json` — package `com.patchnote.visualswap.mixin`.
+- `visual-swap.mixins.json` — package `com.patchnote.visualswap.mixin` (empty).
 - `visual-swap.client.mixins.json` — package
-  `com.patchnote.visualswap.client.mixin`, `"environment": "client"`.
+  `com.patchnote.visualswap.client.mixin`, `"environment": "client"`. Holds the
+  one active mixin, `HudHotbarHighlightMixin` (see
+  [the hotbar highlight](#swap-window-detection--rendering)). The swap-window
+  *detection* still uses no mixins; this one is purely for drawing a HUD
+  highlight behind the hotbar items, which the HUD-element API can't reach.
 
 Both target `compatibilityLevel: JAVA_25` and require annotations
 (`overwrites.requireAnnotations = true`, `injectors.defaultRequire = 1`).
@@ -145,6 +151,16 @@ attack handler, since `tickCount` increments in `tickEntities` between
   `SwapHitMasks`) to the HUD (`GuiGraphicsExtractor.fill`) centred **below the
   hotbar** (`attachElementAfter(HOTBAR)`); the consecutive variant once use was
   pressed.
+- **Hotbar highlight** — when the glyph turns **attacked** (the rising edge of
+  `possible → attacked`), `VisualSwapClient` freezes the swap's two hotbar slots
+  (the swapped-from slot, plus the now-selected swapped-to slot it records at swap
+  time) and pushes them to `SwapHotbarHighlight` for the flash's duration.
+  `HudHotbarHighlightMixin` (`@Inject` at the head of `Hud.extractSlot`) then fills
+  a vanilla-cooldown-style gray box (`0x7FFFFFFF`; the swapped-to slot a little more
+  opaque) **behind each involved item** — after the hotbar bar blits but before the
+  item icon, so the item stays visible over the highlight. A HUD element can only
+  attach before/after the whole hotbar, never between the bar and the items, which
+  is why this one path uses a mixin.
 - **Particle burst** — on the attack sub-condition, a gaussian cloud of
   `SwapGlyphParticle` at the target's mid-height (`getY(0.5)`), count/spread per
   tier (9/0.35 normal, 18/0.45 consecutive); each particle's motion is injected by

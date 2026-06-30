@@ -2,7 +2,9 @@
   "required": true,
   "package": "com.patchnote.visualswap.client.mixin",
   "compatibilityLevel": "JAVA_25",
-  "client": [],
+  "client": [
+    "HudHotbarHighlightMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   },

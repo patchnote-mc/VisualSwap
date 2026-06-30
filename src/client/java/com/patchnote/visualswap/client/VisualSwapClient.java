@@ -24,6 +24,8 @@ import net.minecraft.world.phys.HitResult;
 
 public class VisualSwapClient implements ClientModInitializer
 {
+    private static final int NO_SLOT = -1;
+
     private final SwapWindow swapWindow = new SwapWindow();
     private final SwapHitGlyph glyph = new SwapHitGlyph();
 
@@ -33,6 +35,13 @@ public class VisualSwapClient implements ClientModInitializer
     private boolean previousUseDown;
     private boolean previousSwinging;
     private int previousSwingTime;
+
+    private int previousSelectedSlot;
+    private int swapFromSlot = NO_SLOT;
+    private int swapToSlot = NO_SLOT;
+    private int highlightFromSlot = NO_SLOT;
+    private int highlightToSlot = NO_SLOT;
+    private boolean previousAttacked;
 
     @Override
     public void onInitializeClient()
@@ -61,15 +70,23 @@ public class VisualSwapClient implements ClientModInitializer
         {
             reset();
             this.glyph.updateState(false, false);
+            SwapHotbarHighlight.INSTANCE.clear();
             return;
         }
 
         int tick = player.tickCount;
+        int selectedSlot = player.getInventory().getSelectedSlot();
 
         ItemStack held = player.getMainHandItem();
         if (!this.primed) this.primed = true;
-        else if (!ItemStack.isSameItem(this.previousMainHand, held)) this.swapWindow.onSwap(tick);
+        else if (!ItemStack.isSameItem(this.previousMainHand, held))
+        {
+            this.swapWindow.onSwap(tick);
+            this.swapFromSlot = this.previousSelectedSlot;
+            this.swapToSlot = selectedSlot;
+        }
         this.previousMainHand = held.copy();
+        this.previousSelectedSlot = selectedSlot;
 
         // A fresh attack/use fires the attacked variant (onClick gates it to the swap window).
         // The spear jab takes a special path: startAttack() -> piercingAttack() (so AttackEntityCallback never
@@ -86,7 +103,18 @@ public class VisualSwapClient implements ClientModInitializer
         this.previousSwingTime = player.swingTime;
         if (clicked) this.swapWindow.onClick(tick);
 
-        this.glyph.updateState(this.swapWindow.visible(tick), this.swapWindow.attacked(tick));
+        boolean attacked = this.swapWindow.attacked(tick);
+        this.glyph.updateState(this.swapWindow.visible(tick), attacked);
+
+        // The glyph turning attacked (from possible) freezes that swap's two hotbar slots for the flash's duration.
+        if (attacked && !this.previousAttacked)
+        {
+            this.highlightFromSlot = this.swapFromSlot;
+            this.highlightToSlot = this.swapToSlot;
+        }
+        this.previousAttacked = attacked;
+        SwapHotbarHighlight.INSTANCE.update(attacked, this.highlightFromSlot, this.highlightToSlot);
+
         this.swapWindow.endTick(tick);
     }
 
@@ -118,6 +146,12 @@ public class VisualSwapClient implements ClientModInitializer
         this.previousUseDown = false;
         this.previousSwinging = false;
         this.previousSwingTime = 0;
+        this.previousSelectedSlot = 0;
+        this.swapFromSlot = NO_SLOT;
+        this.swapToSlot = NO_SLOT;
+        this.highlightFromSlot = NO_SLOT;
+        this.highlightToSlot = NO_SLOT;
+        this.previousAttacked = false;
         this.swapWindow.clear();
     }
 
