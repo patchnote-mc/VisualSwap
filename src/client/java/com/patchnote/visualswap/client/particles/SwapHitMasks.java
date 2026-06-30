@@ -22,6 +22,9 @@ public final class SwapHitMasks
     /// @return the attacked / chained swap-hit mask.
     public static Mask attacked() { return load("attacked"); }
 
+    /// @return the failed lunge-swap mask (swap to a lunge spear before the previous item's cooldown finished).
+    public static Mask lungeFailed() { return load("lunge_failed"); }
+
     /// Load and parse a named mask from {@code swap_hit_masks.json}
     ///
     /// @throws IllegalStateException if the resource or the named mask is missing/malformed.

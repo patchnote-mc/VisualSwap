@@ -14,17 +14,20 @@ public final class SwapHitGlyph implements HudElement
     // state
     private boolean visible;
     private boolean attacked;
+    private boolean lungeFailed;
 
     // cache
     private boolean loaded;
     private SwapHitMasks.Mask possibleMask;
     private SwapHitMasks.Mask attackedMask;
+    private SwapHitMasks.Mask lungeFailedMask;
 
     /// Update Each Tick
-    public void updateState(boolean visible, boolean attacked)
+    public void updateState(boolean visible, boolean attacked, boolean lungeFailed)
     {
         this.visible = visible;
         this.attacked = attacked;
+        this.lungeFailed = lungeFailed;
     }
 
     @Override
@@ -33,7 +36,9 @@ public final class SwapHitGlyph implements HudElement
         if (!this.visible) { return; }
 
         ensureLoaded();
-        SwapHitMasks.Mask mask = this.attacked ? this.attackedMask : this.possibleMask;
+        SwapHitMasks.Mask mask = this.lungeFailed ? this.lungeFailedMask
+                : this.attacked ? this.attackedMask
+                : this.possibleMask;
         if (!mask.canDraw()) return;
 
         // draw
@@ -67,5 +72,6 @@ public final class SwapHitGlyph implements HudElement
         this.loaded = true;
         this.possibleMask = SwapHitMasks.possible();
         this.attackedMask = SwapHitMasks.attacked();
+        this.lungeFailedMask = SwapHitMasks.lungeFailed();
     }
 }

@@ -1,4 +1,4 @@
-<!-- last updated: 2026-06-29 -->
+<!-- last updated: 2026-06-30 -->
 
 # AGENTS.md — Visual Swap architecture & flows
 
@@ -85,8 +85,9 @@ Standard Loom build (`./gradlew build`) with one project-specific wrinkle: the
 
 - Single source of truth: `src/main/resources/assets/visual-swap/swap_hit_masks.json`.
   Each entry is a 7×7 (`#` = filled) glyph with a `particle` name, a HUD `color`
-  (ARGB) and an opaque `particleColor` (RGB) for the baked sprite. Two masks
-  today: `possible` (→ `swap_possible`) and `attacked` (→ `swap_attacked`).
+  (ARGB) and an opaque `particleColor` (RGB) for the baked sprite. Three masks
+  today: `possible` (→ `swap_possible`), `attacked` (→ `swap_attacked`) and
+  `lunge_failed` (HUD glyph only — no particle type is registered for it).
 - `tasks.bakeParticleSprites` (in `build.gradle`) rasterizes each mask into
   `build/generated/particle-sprites/assets/visual-swap/textures/particle/<particle>.png`,
   scaling each cell by `cellPx = 8`. Filled cells use `particleColor`; empty
@@ -147,10 +148,20 @@ attack handler, since `tickCount` increments in `tickEntities` between
 
 **Rendering** (particle + glyph ported from AttributeSwapFixes).
 - **Glyph** — `SwapHitGlyph` shows **while the window is active** (pushed each tick
-  via `update(visible, consecutive)`), rasterizing the mask `rows`/`color` (shared
-  `SwapHitMasks`) to the HUD (`GuiGraphicsExtractor.fill`) centred **below the
-  hotbar** (`attachElementAfter(HOTBAR)`); the consecutive variant once use was
-  pressed.
+  via `updateState(visible, attacked, lungeFailed)`), rasterizing the mask
+  `rows`/`color` (shared `SwapHitMasks`) to the HUD (`GuiGraphicsExtractor.fill`)
+  centred **below the hotbar** (`attachElementAfter(HOTBAR)`). Mask priority is
+  `lungeFailed > attacked > possible`.
+- **Lunge-failed glyph** — *not* a separate state; it is the **`attacked` flash
+  rendered with the `lunge_failed` mask**. `onSwap(tick, lungeFail)` records whether
+  the swap landed on a **lunge spear** (`PIERCING_WEAPON` component +
+  `Enchantments.LUNGE` level > 0) while the **previous item's attack-strength bar was
+  still charging** (`getAttackStrengthScale(0) < 1.0`, read from the previous-tick
+  snapshot since the swap itself resets the ticker). When `onClick` arms the attacked
+  flash it freezes that bit into `flashLungeFailed`; `lungeFailed(tick)` is then
+  `attacked(tick) && flashLungeFailed`. So the variant is locked in for the single
+  flash's lifetime — there is one flash with one timeline, and switching items mid-flash
+  cannot retroactively change which mask it shows. No `lunge_failed` particle/flash exists.
 - **Hotbar highlight** — when the glyph turns **attacked** (the rising edge of
   `possible → attacked`), `VisualSwapClient` freezes the swap's two hotbar slots
   (the swapped-from slot, plus the now-selected swapped-to slot it records at swap
