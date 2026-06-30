@@ -80,12 +80,12 @@ public final class SwapHitMasks
                        int particleColorPractice, List<String> rows)
     {
         /// @return the ARGB HUD tint for the active {@link ModConfig.IndicatorType}.
-        public int color() { return select(this.colorVanilla, this.colorPractice); }
+        public int color() { return selectColor(this.colorVanilla, this.colorPractice); }
 
         /// @return the ARGB particle tint for the active {@link ModConfig.IndicatorType}.
-        public int particleColor() { return select(this.particleColorVanilla, this.particleColorPractice); }
+        public int particleColor() { return selectColor(this.particleColorVanilla, this.particleColorPractice); }
 
-        private static int select(int vanilla, int practice)
+        private static int selectColor(int vanilla, int practice)
         {
             return ModConfig.get().indicatorType == ModConfig.IndicatorType.PRACTICE ? practice : vanilla;
         }
