@@ -11,9 +11,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 
 /**
- * The mod's custom particle types and their client sprite factories. Registered from the client entrypoint; the
- * built-in registries are still unfrozen at client-init time (Fabric freezes them later in {@code Minecraft.<init>}),
- * so no separate common/main entrypoint is needed.
+ * The mod's custom particle types and their client sprite factories.
  *
  * <p>Sprites come from the build-time {@code bakeParticleSprites} task: each type's sprite is loaded
  * from {@code assets/visual-swap/particles/<name>.json} -> {@code textures/particle/<name>.png}.
@@ -25,13 +23,19 @@ public final class VisualSwapParticles
 
     private VisualSwapParticles() { }
 
-    public static void registerTypes()
+    public static void register()
+    {
+        registerTypes();
+        registerFactories();
+    }
+
+    private static void registerTypes()
     {
         Registry.register(BuiltInRegistries.PARTICLE_TYPE, id("swap_possible"), SWAP_POSSIBLE);
         Registry.register(BuiltInRegistries.PARTICLE_TYPE, id("swap_attacked"), SWAP_ATTACKED);
     }
 
-    public static void registerFactories()
+    private static void registerFactories()
     {
         int possibleRgb = SwapHitMasks.possible().particleColor() & 0xFFFFFF;
         int attackedRgb = SwapHitMasks.attacked().particleColor() & 0xFFFFFF;

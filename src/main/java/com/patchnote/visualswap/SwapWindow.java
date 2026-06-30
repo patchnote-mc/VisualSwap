@@ -74,10 +74,7 @@ public final class SwapWindow
     public boolean attacked(int tick) { return this.flashUntilTick != NO_TICK && tick < this.flashUntilTick; }
 
     /** Whether the glyph should be drawn at {@code tick} (possible window open, or attacked flash running). */
-    public boolean visible(int tick)
-    {
-        return possible(tick) || attacked(tick);
-    }
+    public boolean visible(int tick) { return possible(tick) || attacked(tick); }
 
     /** Advance per-tick bookkeeping; call once at the end of each tick so {@link #onClick}'s test stays correct. */
     public void endTick(int tick) { this.possibleLastTick = possible(tick); }

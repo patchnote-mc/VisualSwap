@@ -4,6 +4,8 @@ import com.patchnote.visualswap.client.mixin.HudHotbarHighlightMixin;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 
+import static com.patchnote.visualswap.client.VisualSwapClient.NO_SLOT;
+
 /**
  * Highlights the two hotbar slots involved in a swap-hit while the attacked flash runs. The boxes are drawn by
  * {@code HudHotbarHighlightMixin} at the head of each hotbar slot render — in front of the hotbar bar but behind the
@@ -12,17 +14,11 @@ import net.minecraft.client.renderer.RenderPipelines;
  */
 public final class SwapHotbarHighlight
 {
+    // singleton
     public static final SwapHotbarHighlight INSTANCE = new SwapHotbarHighlight();
 
-    /**
-     * Vanilla item-cooldown overlay colour ({@code Gui#itemCooldown} fills with {@code Integer.MAX_VALUE} = 50%
-     * white).
-     */
     private static final int FROM_COLOR = 0x7FFFFFFF;
-    /** The swapped-to slot, a little more opaque than the cooldown box. */
     private static final int TO_COLOR = 0xB0FFFFFF;
-
-    private static final int NO_SLOT = -1;
 
     private boolean active;
     private int fromSlot = NO_SLOT;
