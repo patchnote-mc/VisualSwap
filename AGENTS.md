@@ -21,7 +21,11 @@ on the client.
 > hotbar (attacked variant if *use* is pressed); using on an entity during the
 > window spawns a world particle burst. When the glyph turns *attacked*, the two
 > hotbar slots involved in the swap are also highlighted with a gray box behind
-> the items. All driven from `swap_hit_masks.json`.
+> the items. All driven from `swap_hit_masks.json`. **Stun slam (2026-06-30):** two
+> or more swap-hits chained back-to-back (a second qualifying swap landing while the
+> first's flash is still on screen) escalate the display — the glyph switches to the
+> `stun_slam` mask with an `xN` chain counter, and the hotbar lights the whole chain
+> of slots as a heat gradient (origin → latest hit) instead of the single from→to pair.
 
 ## Client-only contract (important)
 
@@ -88,9 +92,10 @@ Standard Loom build (`./gradlew build`) with one project-specific wrinkle: the
   (ARGB) and a `particleColor` (ARGB) runtime tint. `color` and `particleColor`
   are each objects carrying a `vanilla` and a `practice` variant, selected at
   runtime by `ModConfig.indicatorType` (`IndicatorType.{VANILLA,PRACTICE}`, read
-  live by `SwapHitMasks.Mask.color()`/`particleColor()`). Three masks today:
+  live by `SwapHitMasks.Mask.color()`/`particleColor()`). Four masks today:
   `possible` (→ `swap_possible`), `attacked` (→ `swap_attacked`) and
-  `lunge_failed` (HUD glyph only — no particle type is registered for it).
+  `lunge_failed` and `stun_slam` (both HUD glyph only — no particle type is
+  registered for them; their sprites still bake, harmlessly, but go unused).
 - `tasks.bakeParticleSprites` (in `build.gradle`) rasterizes each mask into
   `build/generated/particle-sprites/assets/visual-swap/textures/particle/<particle>.png`,
   scaling each cell by `cellPx = 8`. Filled cells are baked **opaque white** and
@@ -152,10 +157,12 @@ attack handler, since `tickCount` increments in `tickEntities` between
 
 **Rendering** (particle + glyph ported from AttributeSwapFixes).
 - **Glyph** — `SwapHitGlyph` shows **while the window is active** (pushed each tick
-  via `updateState(visible, attacked, lungeFailed)`), rasterizing the mask
-  `rows`/`color` (shared `SwapHitMasks`) to the HUD (`GuiGraphicsExtractor.fill`)
+  via `updateState(visible, attacked, lungeFailed, stunSlam, chainCount)`), rasterizing
+  the mask `rows`/`color` (shared `SwapHitMasks`) to the HUD (`GuiGraphicsExtractor.fill`)
   centred **below the hotbar** (`attachElementAfter(HOTBAR)`). Mask priority is
-  `lungeFailed > attacked > possible`.
+  `stunSlam > lungeFailed > attacked > possible`. When `chainCount >= 2` an `xN`
+  counter (`GuiGraphicsExtractor.text`, `Minecraft.font`) is drawn to the right of
+  the glyph in the mask's colour.
 - **Lunge-failed glyph** — *not* a separate state; it is the **`attacked` flash
   rendered with the `lunge_failed` mask**. `onSwap(tick, lungeFail)` records whether
   the swap landed on a **lunge spear** (`PIERCING_WEAPON` component +
@@ -176,7 +183,17 @@ attack handler, since `tickCount` increments in `tickEntities` between
   cooldown-style gray (`0x7FFFFFFF`; the swapped-to slot a little more opaque); in
   `PRACTICE` the two slots scream the from->to direction with full-opacity hues
   (red from, green to) instead of an opacity ramp, selected live from
-  `ModConfig.indicatorType` in `SwapHotbarHighlight`. A HUD element can only
+  `ModConfig.indicatorType` in `SwapHotbarHighlight`.
+- **Stun-slam chain** — detection lives in `SwapWindowState.onClick`: each swap is
+  credited once (`lastCreditedSwapTick`); a new credited swap landing while a flash is
+  still on screen increments `chainCount` (else resets it to 1). `chainCount(tick)`/
+  `stunSlam(tick)` (`>= 2`) are valid only while `attacked`. `VisualSwapClient`
+  accumulates the ordered slot trail (`chainTrail`/`chainTrailLen`): seeded with
+  `from,to` on the rising edge of `attacked`, appending the latest `to` whenever
+  `chainCount` rises. `SwapHotbarHighlight.update(active, trail, len, chainCount)`
+  then, for `chainCount >= 2`, lights **every** slot in the trail as a heat gradient
+  (origin → latest hit; gold-warmed gray in `VANILLA`, red→gold in `PRACTICE`)
+  instead of the single from→to pair. A HUD element can only
   attach before/after the whole hotbar, never between the bar and the items, which
   is why this one path uses a mixin.
 - **Particle burst** — on the attack sub-condition, a gaussian cloud of

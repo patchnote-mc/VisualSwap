@@ -26,6 +26,9 @@ public final class SwapHitMasks
     /// @return the failed lunge-swap mask (swap to a lunge spear before the previous item's cooldown finished).
     public static Mask lungeFailed() { return load("lunge_failed"); }
 
+    /// @return the stun-slam mask (two or more swap-hits chained in a row). HUD glyph only.
+    public static Mask stunSlam() { return load("stun_slam"); }
+
     /// Load and parse a named mask from {@code swap_hit_masks.json}
     ///
     /// @throws IllegalStateException if the resource or the named mask is missing/malformed.

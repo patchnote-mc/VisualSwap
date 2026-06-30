@@ -3,6 +3,8 @@ package com.patchnote.visualswap.client.hud;
 import com.patchnote.visualswap.client.particles.SwapHitMasks;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.NonNull;
 
@@ -10,24 +12,32 @@ public final class SwapHitGlyph implements HudElement
 {
     private static final int SCALE = 1;
     private static final int VERTICAL_OFFSET = 20;
-    
+
+    /// Horizontal gap (px) between the glyph and the `xN` chain counter.
+    private static final int COUNTER_GAP = 2;
+
     // state
     private boolean visible;
     private boolean attacked;
     private boolean lungeFailed;
+    private boolean stunSlam;
+    private int chainCount;
 
     // cache
     private boolean loaded;
     private SwapHitMasks.Mask possibleMask;
     private SwapHitMasks.Mask attackedMask;
     private SwapHitMasks.Mask lungeFailedMask;
+    private SwapHitMasks.Mask stunSlamMask;
 
     /// Update Each Tick
-    public void updateState(boolean visible, boolean attacked, boolean lungeFailed)
+    public void updateState(boolean visible, boolean attacked, boolean lungeFailed, boolean stunSlam, int chainCount)
     {
         this.visible = visible;
         this.attacked = attacked;
         this.lungeFailed = lungeFailed;
+        this.stunSlam = stunSlam;
+        this.chainCount = chainCount;
     }
 
     @Override
@@ -36,7 +46,9 @@ public final class SwapHitGlyph implements HudElement
         if (!this.visible) { return; }
 
         ensureLoaded();
-        SwapHitMasks.Mask mask = this.lungeFailed ? this.lungeFailedMask
+        // Stun slam (a chained swap-hit) takes priority over the single-hit masks.
+        SwapHitMasks.Mask mask = this.stunSlam ? this.stunSlamMask
+                : this.lungeFailed ? this.lungeFailedMask
                 : this.attacked ? this.attackedMask
                 : this.possibleMask;
         if (!mask.canDraw()) return;
@@ -61,6 +73,15 @@ public final class SwapHitGlyph implements HudElement
                 graphics.fill(x, y, x + SCALE, y + SCALE, color);
             }
         }
+
+        // Chain counter ("x2", "x3", ...) drawn to the right of the glyph, vertically centred on it.
+        if (this.chainCount >= 2)
+        {
+            Font font = Minecraft.getInstance().font;
+            int textX = left + cols * SCALE + COUNTER_GAP;
+            int textY = top + (rows * SCALE - font.lineHeight) / 2;
+            graphics.text(font, "x" + this.chainCount, textX, textY, color);
+        }
     }
 
     /* HELPERS */
@@ -73,5 +94,6 @@ public final class SwapHitGlyph implements HudElement
         this.possibleMask = SwapHitMasks.possible();
         this.attackedMask = SwapHitMasks.attacked();
         this.lungeFailedMask = SwapHitMasks.lungeFailed();
+        this.stunSlamMask = SwapHitMasks.stunSlam();
     }
 }

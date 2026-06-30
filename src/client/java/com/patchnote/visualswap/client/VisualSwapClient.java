@@ -40,9 +40,11 @@ public class VisualSwapClient implements ClientModInitializer
     // Derived state carried across ticks (not part of the per-tick sensor snapshot).
     private int swapFromSlot = NO_SLOT;
     private int swapToSlot = NO_SLOT;
-    private int highlightFromSlot = NO_SLOT;
-    private int highlightToSlot = NO_SLOT;
+    /// Ordered hotbar slots touched by the active chain (origin first, latest hit last).
+    private final int[] chainTrail = new int[9];
+    private int chainTrailLen;
     private boolean attackedLastTick;
+    private int lastChainCount;
 
     @Override
     public void onInitializeClient()
@@ -103,13 +105,13 @@ public class VisualSwapClient implements ClientModInitializer
     {
         this.lastState = State.EMPTY;
         this.swapWindowState.clear();
-        HUDHandler.GLYPH.updateState(false, false, false);
+        HUDHandler.GLYPH.updateState(false, false, false, false, 0);
         SwapHotbarHighlight.INSTANCE.clear();
         this.swapFromSlot = NO_SLOT;
         this.swapToSlot = NO_SLOT;
-        this.highlightFromSlot = NO_SLOT;
-        this.highlightToSlot = NO_SLOT;
+        this.chainTrailLen = 0;
         this.attackedLastTick = false;
+        this.lastChainCount = 0;
     }
 
     private void detectSwap(State previous, State current)
@@ -146,24 +148,43 @@ public class VisualSwapClient implements ClientModInitializer
 
     private void updateAttackState(State current)
     {
-        boolean attacked = this.swapWindowState.attacked(current.tick());
+        int tick = current.tick();
+        boolean attacked = this.swapWindowState.attacked(tick);
+        int chainCount = this.swapWindowState.chainCount(tick);
         HUDHandler.GLYPH.updateState(
-                this.swapWindowState.visible(current.tick()),
+                this.swapWindowState.visible(tick),
                 attacked,
-                this.swapWindowState.lungeFailed(current.tick())
+                this.swapWindowState.lungeFailed(tick),
+                this.swapWindowState.stunSlam(tick),
+                chainCount
         );
-        highlightSlot(attacked);
+        highlightSlot(attacked, chainCount);
         this.attackedLastTick = attacked;
+        this.lastChainCount = chainCount;
     }
 
-    private void highlightSlot(boolean attacked)
+    private void highlightSlot(boolean attacked, int chainCount)
     {
         if (attacked && !this.attackedLastTick)
         {
-            this.highlightFromSlot = this.swapFromSlot;
-            this.highlightToSlot = this.swapToSlot;
+            // Fresh chain: seed the trail with this swap's origin and destination.
+            this.chainTrailLen = 0;
+            addTrailSlot(this.swapFromSlot);
+            addTrailSlot(this.swapToSlot);
         }
-        SwapHotbarHighlight.INSTANCE.update(attacked, this.highlightFromSlot, this.highlightToSlot);
+        else if (attacked && chainCount > this.lastChainCount)
+        {
+            // Chain extended this tick: append the latest swap's destination.
+            addTrailSlot(this.swapToSlot);
+        }
+        SwapHotbarHighlight.INSTANCE.update(attacked, this.chainTrail, this.chainTrailLen, chainCount);
+    }
+
+    private void addTrailSlot(int slot)
+    {
+        if (slot < 0 || this.chainTrailLen >= this.chainTrail.length) return;
+        if (this.chainTrailLen > 0 && this.chainTrail[this.chainTrailLen - 1] == slot) return; // dedup consecutive
+        this.chainTrail[this.chainTrailLen++] = slot;
     }
 
     /* ENTITY TICK CALLBACK */

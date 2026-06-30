@@ -60,6 +60,27 @@
         "...#...",
         "......."
       ]
+    },
+    "stun_slam": {
+      "_comment": "HUD glyph only (no particle type registered, like lunge_failed). Double chevron = a chained swap-hit (>=2 in a row).",
+      "particle": "stun_slam",
+      "color": {
+        "vanilla": "0xCCC8B47A",
+        "practice": "0xFFFFAA00"
+      },
+      "particleColor": {
+        "vanilla": "0xCCC8B47A",
+        "practice": "0xFFFFAA00"
+      },
+      "rows": [
+        "#.#....",
+        ".#.#...",
+        "..#.#..",
+        "...#.#.",
+        "..#.#..",
+        ".#.#...",
+        "#.#...."
+      ]
     }
   }
 }
