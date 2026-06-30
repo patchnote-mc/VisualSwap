@@ -9,8 +9,6 @@ to them and states the essentials):
 - **`AGENTS.md`** (repo root) — arch itecture, runtime flows, project-specific patterns.
 - **`.github/copilot-instructions.md`** — full working strategy.
 - **`.llm/`** — agent/design docs.
-- **`.index/`** — source notes for this repo's code, consolidated in one
-  `.index/INDEX.txt` (replaces the old `file-descriptions.md`).
 
 ## Stack (see `AGENTS.md` for detail)
 
@@ -21,9 +19,8 @@ to them and states the essentials):
 
 ## How to work here (essentials)
 
-1. **Implement first** from prior knowledge + the local caches (`.index/`,
-   `*_decompiled/.index/`, `*_decompiled/.knowledge/`). Do NOT browse decompiled
-   sources up front by default.
+1. **Implement first** from prior knowledge + the local caches (`*_decompiled/.index/`,
+   `*_decompiled/.knowledge/`). Do NOT browse decompiled sources up front by default.
 2. **Verify by compiling:** `./gradlew build`. No need to verify GUI/runtime —
    the user provides screenshots/output when needed.
 3. **Only inspect the decompiled `*_src/` (MC) or `src/` (Fabric) if it does not
@@ -34,15 +31,12 @@ to them and states the essentials):
    - MC/Fabric: `*_decompiled/.index/{version}/{fully.qualified.ClassName}.txt`
      (flat, no package dirs; version `26.2` for MC, `0.153.0+26.2` for
      Fabric) and `*_decompiled/.knowledge/{topic}.txt`. See each dir's `_GUIDE.txt`.
-   - This repo's own code: a single `.index/INDEX.txt`, one 2-3 line entry per
-     class (header `<fully.qualified.ClassName>  [Updated: YYYY-MM-DD]`), sorted
-     by class name. See `.index/_GUIDE.txt`.
 5. **Match Mojang mappings exactly**; never use Yarn names or mix namespaces;
    don't invent APIs — verify against the decompilation if unsure.
 
 ## Keep docs fresh
 
 Every doc that tracks the codebase (`AGENTS.md`, this file, `.llm/**`,
-`.index/**` entries, `.github/copilot-instructions.md`) carries a date. When you
-change code a doc describes, update the doc and bump its date in the same pass.
+`.github/copilot-instructions.md`) carries a date. When you change code
+a doc describes, update the doc and bump its date in the same pass.
 Park features as `DISABLED` with a date instead of deleting their docs.

@@ -64,10 +64,9 @@ Where docs live (don't scatter new instruction files in the repo root):
 * **This file** (`.github/copilot-instructions.md`) — working strategy. Stays in `.github`.
 * **`AGENTS.md`** (repo root) — architecture/flows guide. Stays at root (auto-discovered convention).
 * **`.llm/`** — other agent/design docs. New instruction-style docs go under an appropriately-named `.llm/<name>/` subdir.
-* **`.index/`** (repo root) — source notes for this repo's own code, consolidated in a single `.index/INDEX.txt` (NOT one file per class, unlike the decompiled indexes). Each class is one entry: a header `<fully.qualified.ClassName>  [Updated: YYYY-MM-DD]` followed by 2-3 terse note lines, sorted by class name. Plain text, filled incrementally as files are touched. See `.index/_GUIDE.txt`.
 
 **Keep docs from going stale:** every doc that tracks the codebase (`AGENTS.md`,
-`.llm/**`, `.index/**` entries, and this file) carries a date. When you change
+`.llm/**`, entries, and this file) carries a date. When you change
 code that a doc describes, update the doc and bump its date in the same pass.
 Mark parked features `DISABLED` with a date rather than deleting their docs.
 
@@ -77,4 +76,4 @@ Mark parked features `DISABLED` with a date rather than deleting their docs.
 * Do not mix mapping namespaces; never use Yarn names.
 * Do not invent method names, fields, or classes; do not infer behavior from
   outdated docs or online examples — verify against the decompilation if unsure.
-* Prefer reusing facts already captured in `.index`/`.knowledge` over re-reading.
+* Prefer reusing facts already captured in `.knowledge` over re-reading.

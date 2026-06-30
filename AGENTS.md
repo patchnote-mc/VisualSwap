@@ -4,7 +4,7 @@
 
 Authoritative architecture/flow guide for this repo. Working strategy lives in
 `.github/copilot-instructions.md`; the pointer/essentials live in `CLAUDE.md`;
-longer design notes in `.llm/`; source notes in `.index/INDEX.txt`.
+longer design notes in `.llm/`.
 
 ## What this mod is
 
