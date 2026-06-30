@@ -5,12 +5,12 @@ Each entry: a header line "<fully.qualified.ClassName>  [Updated: YYYY-MM-DD]"
 followed by 2-3 indented lines of verified notes. Entries sorted by class name.
 
 
-com.patchnote.visualswap.SwapHitMasks  [Updated: 2026-06-28]
+com.patchnote.visualswap.client.particles.SwapHitMasks  [Updated: 2026-06-28]
   Shared reader for swap-hit glyph masks; src/main (common), ported from AttributeSwapFixes.
   RESOURCE=/assets/visual-swap/swap_hit_masks.json; single source of truth for SwapHitGlyph (HUD), SwapGlyphParticle (tint), bakeParticleSprites task.
   normal()/consecutive()/load(name)->Mask (re-reads each call; callers cache). record Mask(particle,color,particleColor,rows): width/height/filled; color=ARGB HUD tint, particleColor=ARGB baked-sprite color. parseArgb handles "0x".
 
-com.patchnote.visualswap.SwapWindow  [Updated: 2026-06-29]
+com.patchnote.visualswap.client.hud.SwapWindowState  [Updated: 2026-06-29]
   Pure, Minecraft-free state machine for the swap-hit glyph; src/main (common). WINDOW_TICKS=2 (possible window; grounded: attribute swap is same-tick — 1-tick detectEquipmentUpdates lag + 1-tick client end-of-tick observation), FLASH_TICKS=5 (attacked variant duration ~250ms), NO_TICK sentinel. Fields: lastSwapTick, flashUntilTick, possibleLastTick.
   onSwap(tick) arm possible window; clear() reset all; onClick(tick) starts flash (flashUntilTick=tick+FLASH_TICKS) IFF possible(tick) OR possibleLastTick — i.e. same-tick swap+attack (real exploit; client calls onSwap before onClick) OR clicked one tick after; possible(tick)=set && 0<=tick-lastSwapTick<WINDOW_TICKS; attacked(tick)=tick<flashUntilTick; visible(tick)=possible||attacked; endTick(tick) sets possibleLastTick=possible(tick) (call once at tick end). Clock = player.tickCount.
 
@@ -18,15 +18,15 @@ com.patchnote.visualswap.VisualSwap  [Updated: 2026-06-27]
   Final, non-instantiable shared holder; src/main (common), side-agnostic, no client imports. NOT an entrypoint (client-only mod).
   MOD_ID="visual-swap"; LOGGER=SLF4J named MOD_ID. Private ctor; do not add a ModInitializer here (no main entrypoint by design).
 
-com.patchnote.visualswap.client.SwapGlyphParticle  [Updated: 2026-06-28]
+com.patchnote.visualswap.client.particles.SwapParticle  [Updated: 2026-06-28]
   In-world swap-hit particle; src/client, ported from AttributeSwapFixes (replaces old SwapHitParticle). extends SingleQuadParticle; getLayer()=TRANSLUCENT; tick() eases alpha 1->0 over last FADE_FRACTION(0.5) of life; rgb from SwapHitMasks particleColor.
   Inner Provider implements ParticleProvider<SimpleParticleType>; factories normal (gentle float: size .15, life 18-26, grav .012, friction .92) & consecutive (crit spray: size .12, life 10-16, grav .18, friction .70). createParticle randomizes per-particle dx/dy/dz + size.
 
-com.patchnote.visualswap.client.SwapHitGlyph  [Updated: 2026-06-29]
+com.patchnote.visualswap.client.hud.SwapHitGlyph  [Updated: 2026-06-29]
   HUD glyph drawn just below screen centre while the swap window is open / attacked flash runs (solid color); src/client. Dumb renderer; implements HudElement; registered via HudElementRegistry.attachElementAfter(VanillaHudElements.HOTBAR, ...).
   update(visible,attacked) pushed each tick by VisualSwapClient; masks via SwapHitMasks.possible()/attacked() (lazy ensureLoaded, cached Mask). Render fills cells with mask.color(), centred both axes, top=guiHeight/2-rows*SCALE/2+CENTER_GAP. SCALE=1, CENTER_GAP=20; no mixin.
 
-com.patchnote.visualswap.client.SwapHotbarHighlight  [Updated: 2026-06-29]
+com.patchnote.visualswap.client.hud.SwapHotbarHighlight  [Updated: 2026-06-29]
   Singleton (INSTANCE) holding the swap-hit hotbar-highlight state; src/client. NOT a HudElement — drawn by HudHotbarHighlightMixin. update(active,fromSlot,toSlot) pushed each tick by VisualSwapClient (active==attacked flash); clear() hides.
   highlightSlot(graphics,slotX,slotY): when active, fills a 16x16 cooldown-style box behind a slot whose x matches the involved geometry (slot i at guiWidth/2-90+2+i*20). FROM_COLOR=0x7FFFFFFF (= vanilla cooldown Integer.MAX_VALUE, 50% white), TO_COLOR=0xB0FFFFFF (swapped-to, more opaque); RenderPipelines.GUI. Offhand/spectator slot x never matches.
 
@@ -37,7 +37,7 @@ com.patchnote.visualswap.client.VisualSwapClient  [Updated: 2026-06-30]
   HOTBAR HIGHLIGHT: on the rising edge of attacked (current.attacked && !previous.attacked) freezes current.highlightFromSlot/highlightToSlot = current.swapFromSlot/swapToSlot, then SwapHotbarHighlight.INSTANCE.update(current.attacked, ...) each tick so the gray boxes show only while the flash runs (HudHotbarHighlightMixin renders them).
   onInteractEntity(player,entity) [attack OR use on entity]: guard player==mc.player; live switchedThisTick (!isSameItem vs this.state.mainHand = last tick's snapshot) OR swapWindow.possible(tickCount) -> spawnParticles burst on target, returns PASS (checked live since callbacks run in handleKeybinds before END_CLIENT_TICK). spawnParticles: SWAP_ATTACKED gaussian cloud at target.getY(0.5), count 18, spread 0.45. NOTE: a spear jab into air has no entity target -> glyph only (no particles).
 
-com.patchnote.visualswap.client.VisualSwapParticles  [Updated: 2026-06-29]
+com.patchnote.visualswap.client.particles.ParticlesHandler  [Updated: 2026-06-29]
   Custom particle types + client sprite factories; src/client. Fields SWAP_POSSIBLE (id visual-swap:swap_possible), SWAP_ATTACKED (id visual-swap:swap_attacked) (FabricParticleTypes.simple()); ids MUST match the particles/*.json + baked PNG names. registerTypes(): Registry.register(BuiltInRegistries.PARTICLE_TYPE, Identifier visual-swap:<name>, type).
   registerFactories(): ParticleProviderRegistry registers SwapGlyphParticle.Provider.possible/attacked, RGB from SwapHitMasks.possible()/attacked().particleColor() & 0xFFFFFF. Called from VisualSwapClient.onInitializeClient (registries unfrozen at client init). Sprites from assets/visual-swap/particles/<name>.json (baked by gradle).
 

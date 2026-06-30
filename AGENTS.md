@@ -52,9 +52,9 @@ there are two source sets, both registered as the `visual-swap` mod:
   (assets, `fabric.mod.json`, mixin configs, the mask JSON).
   - `com.patchnote.visualswap.VisualSwap` — final, non-instantiable holder of
     `MOD_ID` (`"visual-swap"`) and `LOGGER`. **Not** an entrypoint.
-  - `com.patchnote.visualswap.SwapWindow` — the pure, Minecraft-free swap-window
+  - `com.patchnote.visualswap.client.hud.SwapWindowState` — the pure, Minecraft-free swap-window
     state (arm on swap, use→consecutive, active/expiry); unit-tested in `src/test`.
-  - `com.patchnote.visualswap.SwapHitMasks` — shared reader of
+  - `com.patchnote.visualswap.client.particles.SwapHitMasks` — shared reader of
     `swap_hit_masks.json` (the glyph shapes/colours), used by both the HUD glyph
     and the particle tint. Ported from AttributeSwapFixes.
 - `src/client/` — client-only source set; everything that touches the client.

@@ -1,6 +1,6 @@
 package com.patchnote.visualswap.client.mixin;
 
-import com.patchnote.visualswap.client.SwapHotbarHighlight;
+import com.patchnote.visualswap.client.hud.SwapHotbarHighlight;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Hud;

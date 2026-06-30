@@ -1,8 +1,9 @@
-package com.patchnote.visualswap;
+package com.patchnote.visualswap.client.particles;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.patchnote.visualswap.VisualSwap;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;

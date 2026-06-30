@@ -1,18 +1,16 @@
 package com.patchnote.visualswap.client;
 
-import com.patchnote.visualswap.SwapWindow;
 import com.patchnote.visualswap.VisualSwap;
+import com.patchnote.visualswap.client.hud.HUDHandler;
+import com.patchnote.visualswap.client.hud.SwapHotbarHighlight;
+import com.patchnote.visualswap.client.hud.SwapWindowState;
+import com.patchnote.visualswap.client.particles.ParticlesHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.resources.Identifier;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -26,8 +24,7 @@ public class VisualSwapClient implements ClientModInitializer
 {
     public static final int NO_SLOT = -1;
 
-    private final SwapWindow swapWindow = new SwapWindow();
-    private final SwapHitGlyph glyph = new SwapHitGlyph();
+    private final SwapWindowState swapWindowState = new SwapWindowState();
 
     private State lastState = new State();
 
@@ -37,12 +34,8 @@ public class VisualSwapClient implements ClientModInitializer
         VisualSwap.LOGGER.info("Visual Swap initializing ...");
 
         // registration
-        VisualSwapParticles.register();
-        HudElementRegistry.attachElementAfter(
-                VanillaHudElements.HOTBAR,
-                Identifier.fromNamespaceAndPath(VisualSwap.MOD_ID, "swap_hit_glyph"),
-                this.glyph
-        );
+        ParticlesHandler.register();
+        HUDHandler.register();
 
         // event callbacks
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndClientTick);
@@ -58,8 +51,8 @@ public class VisualSwapClient implements ClientModInitializer
         if (player == null)
         {
             this.lastState = new State();
-            this.swapWindow.clear();
-            this.glyph.updateState(false, false);
+            this.swapWindowState.clear();
+            HUDHandler.GLYPH.updateState(false, false);
             SwapHotbarHighlight.INSTANCE.clear();
             return;
         }
@@ -68,10 +61,10 @@ public class VisualSwapClient implements ClientModInitializer
         State current = State.capture(previous, player, client);
 
         detectSwap(previous, current);
-        if (inputStarted(current, previous)) this.swapWindow.onClick(current.tick);
+        if (inputStarted(current, previous)) this.swapWindowState.onClick(current.tick);
         updateAttackState(previous, current);
 
-        this.swapWindow.endTick(current.tick);
+        this.swapWindowState.onTickEnd(current.tick);
         this.lastState = current; // for next tick
     }
 
@@ -80,9 +73,13 @@ public class VisualSwapClient implements ClientModInitializer
         // Skip the first post-spawn tick so the empty -> held transition isn't read as a swap.
         if (!previous.initialized) return;
 
-        if (!ItemStack.isSameItem(previous.mainHand, current.mainHand))
+        if (current.mainHand.isEmpty())
         {
-            this.swapWindow.onSwap(current.tick);
+            this.swapWindowState.clear();
+        }
+        else if (!ItemStack.isSameItem(previous.mainHand, current.mainHand))
+        {
+            this.swapWindowState.onSwap(current.tick);
             current.swapFromSlot = previous.selectedSlot;
             current.swapToSlot = current.selectedSlot;
         }
@@ -102,8 +99,8 @@ public class VisualSwapClient implements ClientModInitializer
 
     private void updateAttackState(State previous, State current)
     {
-        current.attacked = this.swapWindow.attacked(current.tick);
-        this.glyph.updateState(this.swapWindow.visible(current.tick), current.attacked);
+        current.attacked = this.swapWindowState.attacked(current.tick);
+        HUDHandler.GLYPH.updateState(this.swapWindowState.visible(current.tick), current.attacked);
         highlightSlot(current, previous);
     }
 
@@ -125,35 +122,15 @@ public class VisualSwapClient implements ClientModInitializer
         Minecraft client = Minecraft.getInstance();
         if (player == client.player)
         {
-            // fires before END_CLIENT_TICK, check live
+            // fires before END_CLIENT_TICK, check again
             if (!ItemStack.isSameItem(this.lastState.mainHand, player.getMainHandItem()) // check item
-                    || this.swapWindow.possible(player.tickCount) // check if possible
+                    || this.swapWindowState.possible(player.tickCount) // check if possible
             )
             {
-                spawnParticles(client, entity);
+                ParticlesHandler.spawnParticles(client, entity, ParticlesHandler.SWAP_ATTACKED);
             }
         }
         return InteractionResult.PASS;
-    }
-
-    private static void spawnParticles(Minecraft client, Entity target)
-    {
-        if (client.level == null) return;
-
-        SimpleParticleType particle = VisualSwapParticles.SWAP_ATTACKED;
-        int count = 18;
-        double spread = 0.45;
-        RandomSource random = target.getRandom();
-        double cx = target.getX();
-        double cy = target.getY(0.5);
-        double cz = target.getZ();
-        for (int i = 0; i < count; i++)
-        {
-            double ox = random.nextGaussian() * spread;
-            double oy = random.nextGaussian() * spread;
-            double oz = random.nextGaussian() * spread;
-            client.level.addParticle(particle, cx + ox, cy + oy, cz + oz, 0.0, 0.0, 0.0);
-        }
     }
 
     /* HELPER CLASSES */

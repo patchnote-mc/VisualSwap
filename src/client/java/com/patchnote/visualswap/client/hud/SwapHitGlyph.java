@@ -1,6 +1,6 @@
-package com.patchnote.visualswap.client;
+package com.patchnote.visualswap.client.hud;
 
-import com.patchnote.visualswap.SwapHitMasks;
+import com.patchnote.visualswap.client.particles.SwapHitMasks;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
