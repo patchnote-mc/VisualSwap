@@ -38,7 +38,3 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
-
-# decompilations
-mc_decompiled/**/common_src/
-mc_decompiled/**/client_src/
