@@ -19,7 +19,7 @@ public final class SwapHitGlyph implements HudElement
     // state
     private boolean visible;
     private boolean attacked;
-    private boolean lungeFailed;
+    private boolean failed;
     private boolean stunSlam;
     private int chainCount;
 
@@ -27,15 +27,15 @@ public final class SwapHitGlyph implements HudElement
     private boolean loaded;
     private SwapHitMasks.Mask possibleMask;
     private SwapHitMasks.Mask attackedMask;
-    private SwapHitMasks.Mask lungeFailedMask;
+    private SwapHitMasks.Mask failedMask;
     private SwapHitMasks.Mask stunSlamMask;
 
     /// Update Each Tick
-    public void updateState(boolean visible, boolean attacked, boolean lungeFailed, boolean stunSlam, int chainCount)
+    public void updateState(boolean visible, boolean attacked, boolean failed, boolean stunSlam, int chainCount)
     {
         this.visible = visible;
         this.attacked = attacked;
-        this.lungeFailed = lungeFailed;
+        this.failed = failed;
         this.stunSlam = stunSlam;
         this.chainCount = chainCount;
     }
@@ -46,11 +46,13 @@ public final class SwapHitGlyph implements HudElement
         if (!this.visible) { return; }
 
         ensureLoaded();
-        // Stun slam (a chained swap-hit) takes priority over the single-hit masks.
-        SwapHitMasks.Mask mask = this.stunSlam ? this.stunSlamMask
-                : this.lungeFailed ? this.lungeFailedMask
-                : this.attacked ? this.attackedMask
-                : this.possibleMask;
+        SwapHitMasks.Mask mask;
+
+        if (this.stunSlam) mask = this.stunSlamMask;
+        else if (this.failed) mask = this.failedMask;
+        else if (this.attacked) mask = this.attackedMask;
+        else mask = this.possibleMask;
+
         if (!mask.canDraw()) return;
 
         // draw
@@ -93,7 +95,7 @@ public final class SwapHitGlyph implements HudElement
         this.loaded = true;
         this.possibleMask = SwapHitMasks.possible();
         this.attackedMask = SwapHitMasks.attacked();
-        this.lungeFailedMask = SwapHitMasks.lungeFailed();
+        this.failedMask = SwapHitMasks.failed();
         this.stunSlamMask = SwapHitMasks.stunSlam();
     }
 }

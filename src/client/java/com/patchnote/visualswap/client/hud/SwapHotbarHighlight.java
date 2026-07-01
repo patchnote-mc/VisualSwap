@@ -14,18 +14,13 @@ public final class SwapHotbarHighlight
     // Single swap-hit (chain < 2). Vanilla: cooldown-style gray, the two slots differ only by opacity.
     private static final int FROM_COLOR_VANILLA = 0x7FFFFFFF;
     private static final int TO_COLOR_VANILLA = 0xB0FFFFFF;
-    // Single swap-hit, Practice: scream the from->to direction with full-opacity hues.
-    // Red = the slot you swapped away from, green = the (emphasized) slot you swapped to.
     private static final int FROM_COLOR_PRACTICE = 0xFFFF0000;
     private static final int TO_COLOR_PRACTICE = 0xFF00FF00;
 
-    // Stun slam (chain >= 2): a "heat" gradient walked along the chain trail, origin slot -> latest slot.
-    // Vanilla stays restrained but warms to gold so it still reads apart from the single-hit gray.
-    private static final int SLAM_START_VANILLA = 0x7FFFFFFF;
-    private static final int SLAM_END_VANILLA = 0xB0FFFFFF;
-    // Practice ramps hot: deep red origin -> bright gold latest hit.
-    private static final int SLAM_START_PRACTICE = 0xFFFF0000;
-    private static final int SLAM_END_PRACTICE = 0xFF00FF00;
+    private static final int CONSECUTIVE_START_VANILLA = 0x7FFFFFFF;
+    private static final int CONSECUTIVE_END_VANILLA = 0xB0FFFFFF;
+    private static final int CONSECUTIVE_START_PRACTICE = 0xFFFF0000;
+    private static final int CONSECUTIVE_END_PRACTICE = 0xFF00FF00;
 
     private boolean active;
     /// Ordered hotbar slots touched by the current chain (origin first, latest hit last). Length {@link #trailLen}.
@@ -35,7 +30,8 @@ public final class SwapHotbarHighlight
 
     private SwapHotbarHighlight() { }
 
-    /// Update Each Tick. {@code trail}/{@code trailLen} is the ordered chain of slots; {@code chainCount} drives the styling.
+    /// Update Each Tick. {@code trail}/{@code trailLen} is the ordered chain of slots; {@code chainCount} drives the
+    /// styling.
     public void update(boolean active, int[] trail, int trailLen, int chainCount)
     {
         this.active = active;
@@ -82,8 +78,8 @@ public final class SwapHotbarHighlight
         }
 
         float t = this.trailLen <= 1 ? 1.0f : (float) idx / (this.trailLen - 1);
-        return practice ? lerpArgb(SLAM_START_PRACTICE, SLAM_END_PRACTICE, t)
-                : lerpArgb(SLAM_START_VANILLA, SLAM_END_VANILLA, t);
+        return practice ? lerpArgb(CONSECUTIVE_START_PRACTICE, CONSECUTIVE_END_PRACTICE, t)
+                        : lerpArgb(CONSECUTIVE_START_VANILLA, CONSECUTIVE_END_VANILLA, t);
     }
 
     private static int lerpArgb(int a, int b, float t)

@@ -23,10 +23,10 @@ public final class SwapHitMasks
     /// @return the attacked / chained swap-hit mask.
     public static Mask attacked() { return load("attacked"); }
 
-    /// @return the failed lunge-swap mask (swap to a lunge spear before the previous item's cooldown finished).
-    public static Mask lungeFailed() { return load("lunge_failed"); }
+    /// @return the failed mask
+    public static Mask failed() { return load("failed"); }
 
-    /// @return the stun-slam mask (two or more swap-hits chained in a row). HUD glyph only.
+    /// @return the stun-slam mask
     public static Mask stunSlam() { return load("stun_slam"); }
 
     /// Load and parse a named mask from {@code swap_hit_masks.json}

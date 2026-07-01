@@ -5,10 +5,8 @@ package com.patchnote.visualswap.client.hud;
  * <p>
  * Model
  * <ul>
- *     <li>{@link #onSwap(int, boolean)} arms the window for {@link #WINDOW_TICKS}; while open the {@code possible} GLYPH is shown</li>
- *     <li>{@link #onClick(int)} within the window flashes the {@code attacked} GLYPH</li>
- *     <li>{@code lunge_failed} is the same flash with a different mask: an {@code attacked} that began on a
- *     swap onto a lunge spear before the previous item's cooldown finished (the boolean carried by {@code onSwap})</li>
+ *     <li>{@link #onSwap(int, boolean)} arms the window for {@link #WINDOW_TICKS}; while armed {@code possible} or {@code possible} GLYPH is shown depending on passed argument</li>
+ *     <li>Click within the window (set by {@link #onClick(int)}) flashes the {@code attacked} GLYPH</li>
  * </ul>
  */
 public final class SwapWindowState
@@ -37,12 +35,13 @@ public final class SwapWindowState
     private int flashUntilTick = NO_TICK;
     private boolean possibleLastTick;
 
-    /// Whether the swap that opened the current window qualifies as a failed lunge-swap.
-    private boolean lungeFailSwap;
-    /// Whether the active {@code attacked} flash should render as {@code lunge_failed} (frozen when the flash arms).
-    private boolean flashLungeFailed;
+    /// Whether the swap that opened the current window qualifies as failed.
+    private boolean failed;
+    /// Whether the active {@code attacked} flash should render as {@code failed}.
+    private boolean flashFailed;
 
-    /// Number of swap-hits chained in the current flash (1 = single, >= 2 = stun slam). Valid only while {@link #attacked}.
+    /// Number of swap-hits chained in the current flash (1 = single, >= 2 = stun slam). Valid only while
+    /// {@link #attacked}.
     private int chainCount;
     /// The swap tick already credited to the chain, so re-clicking the same swap can't count twice.
     private int lastCreditedSwapTick = NO_TICK;
@@ -53,19 +52,19 @@ public final class SwapWindowState
         this.lastSwapTick = NO_TICK;
         this.flashUntilTick = NO_TICK;
         this.possibleLastTick = false;
-        this.lungeFailSwap = false;
-        this.flashLungeFailed = false;
+        this.failed = false;
+        this.flashFailed = false;
         this.chainCount = 0;
         this.lastCreditedSwapTick = NO_TICK;
     }
 
     /* EVENTS */
 
-    /// Call when item is swapped. {@code lungeFail} marks a swap onto a lunge spear before the previous item's cooldown finished.
-    public void onSwap(int tick, boolean lungeFail)
+    /// Call when item is swapped.
+    public void onSwap(int tick, boolean failed)
     {
         this.lastSwapTick = tick;
-        this.lungeFailSwap = lungeFail;
+        this.failed = failed;
     }
 
     /// Call when mouse clicked
@@ -81,7 +80,7 @@ public final class SwapWindowState
                 this.lastCreditedSwapTick = this.lastSwapTick;
             }
             this.flashUntilTick = tick + FLASH_TICKS;
-            this.flashLungeFailed = this.lungeFailSwap;
+            this.flashFailed = this.failed;
         }
     }
 
@@ -102,8 +101,11 @@ public final class SwapWindowState
     /** Whether the attacked flash is currently running at {@code tick}. */
     public boolean attacked(int tick) { return this.flashUntilTick != NO_TICK && tick < this.flashUntilTick; }
 
-    /** Whether the active attacked flash is a failed lunge-swap (renders {@code lunge_failed} instead of {@code attacked}). */
-    public boolean lungeFailed(int tick) { return attacked(tick) && this.flashLungeFailed; }
+    /**
+     * Whether the active attacked flash is a failed lunge-swap (renders {@code lunge_failed} instead of
+     * {@code attacked}).
+     */
+    public boolean failed(int tick) { return attacked(tick) && this.flashFailed; }
 
     /** Number of swap-hits chained into the active flash (1 = single, 0 when no flash is running). */
     public int chainCount(int tick) { return attacked(tick) ? this.chainCount : 0; }

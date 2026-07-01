@@ -14,17 +14,12 @@ import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.HitResult;
 
@@ -87,10 +82,10 @@ public class VisualSwapClient implements ClientModInitializer
             if (!ItemStack.isSameItem(previous.mainHand(), current.mainHand()))
             {
                 VisualSwap.LOGGER.info(
-                        "AS From {} to {} was {} lunge.",
+                        "AS From {} to {} was {}piercing.",
                         previous.mainHand().getItemName().getString(),
                         current.mainHand().getItemName().getString(),
-                        !current.isLungeSpear() ? "not " : ""
+                        !current.hasPiercingComponent() ? "not " : ""
                 );
             }
             this.swapWindowState.onClick(current.tick());
@@ -126,8 +121,8 @@ public class VisualSwapClient implements ClientModInitializer
         else if (!ItemStack.isSameItem(previous.mainHand(), current.mainHand()))
         {
             // Failed lunge-swap: swapped onto a lunge spear before the previous item's attack-strength bar finished.
-            boolean lungeFail = current.isLungeSpear() && previous.attackStrengthScale() < 1.0f;
-            this.swapWindowState.onSwap(current.tick(), lungeFail);
+            boolean piercingFail = current.hasPiercingComponent() && previous.cooldownAtTick() < 1.0f;
+            this.swapWindowState.onSwap(current.tick(), piercingFail);
             this.swapFromSlot = previous.selectedSlot();
             this.swapToSlot = current.selectedSlot();
         }
@@ -154,7 +149,7 @@ public class VisualSwapClient implements ClientModInitializer
         HUDHandler.GLYPH.updateState(
                 this.swapWindowState.visible(tick),
                 attacked,
-                this.swapWindowState.lungeFailed(tick),
+                this.swapWindowState.failed(tick),
                 this.swapWindowState.stunSlam(tick),
                 chainCount
         );
@@ -210,8 +205,8 @@ public class VisualSwapClient implements ClientModInitializer
 
     /// Immutable per-tick snapshot of the inputs the swap logic reads. Carried/derived state lives on the client.
     private record State(int tick, boolean initialized, ItemStack mainHand, int selectedSlot, boolean attackDown,
-                         boolean useDown, boolean swinging, int swingTime, float attackStrengthScale,
-                         boolean isLungeSpear)
+                         boolean useDown, boolean swinging, int swingTime, float cooldownAtTick,
+                         boolean hasPiercingComponent)
     {
         static final State EMPTY = new State(0, false, ItemStack.EMPTY, NO_SLOT, false, false, false, 0, 0.0f, false);
 
@@ -229,17 +224,15 @@ public class VisualSwapClient implements ClientModInitializer
                     player.swingTime,
                     // Charge at end of tick == charge at the next tick's swap instant (the swap resets it before END_CLIENT_TICK).
                     player.getAttackStrengthScale(0.0f),
-                    isItemLungeSpear(mainHand, player.level())
+                    hasPiercingComp(mainHand)
             );
         }
 
-        /// Whether {@code stack} is a spear (a piercing weapon) carrying the Lunge enchantment.
-        private static boolean isItemLungeSpear(ItemStack stack, Level level)
+        /// Piercing Weapons (like Vanilla Spear) requires the cooldown of previous item to be completed for attribute
+        /// swapping
+        private static boolean hasPiercingComp(ItemStack stack)
         {
-            if (stack.get(DataComponents.PIERCING_WEAPON) == null) return false;
-            Holder<Enchantment> lunge = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT) //
-                                             .getOrThrow(Enchantments.LUNGE);
-            return EnchantmentHelper.getItemEnchantmentLevel(lunge, stack) > 0;
+            return stack.get(DataComponents.PIERCING_WEAPON) != null;
         }
     }
 }
