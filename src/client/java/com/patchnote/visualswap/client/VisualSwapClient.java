@@ -5,6 +5,7 @@ import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.hud.HUDHandler;
 import com.patchnote.visualswap.client.hud.SwapHotbarHighlight;
 import com.patchnote.visualswap.client.hud.SwapWindowState;
+import com.patchnote.visualswap.client.hud.click.ClickFlash;
 import com.patchnote.visualswap.client.particles.AttackParticleProps;
 import com.patchnote.visualswap.client.particles.ParticlesHandler;
 import me.shedaniel.autoconfig.AutoConfig;
@@ -75,6 +76,7 @@ public class VisualSwapClient implements ClientModInitializer
         detectSwap(previous, current);
         if (inputStarted(current, previous))
         {
+            ClickFlash.INSTANCE.onClick(current.selectedSlot(), current.tick());
             if (!ItemStack.isSameItem(previous.mainHand(), current.mainHand()))
             {
                 VisualSwap.LOGGER.info(
@@ -98,6 +100,7 @@ public class VisualSwapClient implements ClientModInitializer
         this.swapWindowState.clear();
         HUDHandler.GLYPH.updateState(false, false, false, false, 0);
         SwapHotbarHighlight.INSTANCE.clear();
+        ClickFlash.INSTANCE.clear();
         this.swapFromSlot = NO_SLOT;
         this.swapToSlot = NO_SLOT;
         this.chainTrailLen = 0;

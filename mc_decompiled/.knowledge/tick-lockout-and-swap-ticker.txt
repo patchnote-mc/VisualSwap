@@ -1,0 +1,38 @@
+Tick "lockout" + the two attack/swap tickers (MC 26.2, Mojang mappings).
+Verified 2026-07-01 against mc_decompiled/sources/26.2. Companion to attribute-swap-mechanic.txt and
+spear-lunge-mechanic.txt. Relevant because VisualSwap's SwapTimelineHud visualizes this lockout window.
+
+TWO TICKERS (both on LivingEntity, driven by Player)
+- attackStrengthTicker (LivingEntity.java:273) — normal attack charge.
+- itemSwapTicker       (LivingEntity.java:274) — separate swap/equip charge.
+- Player.tick() (Player.java:262-263) does `++attackStrengthTicker; ++itemSwapTicker;` every tick.
+
+RESET RULES (Player.java)
+- resetAttackStrengthTicker() (1721-1724): zeroes BOTH attackStrengthTicker AND itemSwapTicker.
+- resetOnlyAttackStrengthTicker() (1731-1733): zeroes ONLY attackStrengthTicker.
+- onAttack() (1726-1729): calls resetOnlyAttackStrengthTicker() -> attacking leaves itemSwapTicker running.
+- Player.tick() item-change check (264-269): if main-hand differs from lastItemInMainHand AND it's a
+  DIFFERENT item (isSameItem false) -> resetAttackStrengthTicker() (both -> 0). Same item / same slot: no reset.
+  This runs ONCE per tick.
+
+SCALES / GATES
+- getCurrentItemAttackStrengthDelay() = 20 / ATTACK_SPEED of held item (Player.java:1703-1705).
+- getAttackStrengthScale(a)  = clamp((attackStrengthTicker + a) / delay, 0, 1) (1713-1714).
+- getItemSwapScale(a)        = clamp((itemSwapTicker      + a) / delay, 0, 1) (1717-1718).
+  itemSwapTicker/getItemSwapScale drives the first-person item-raise anim
+  (client_src ItemInHandRenderer.java:587), NOT server damage gating.
+- cannotAttackWithItem(stack, tolerance) (1707-1710): true only if stack has DataComponents.MINIMUM_ATTACK_CHARGE
+  and (attackStrengthTicker + tolerance)/delay < that min. Server drops the attack (ServerGamePacketListenerImpl
+  .java:1784 for normal attack, :1246 for STAB). SPEAR sets MINIMUM_ATTACK_CHARGE=1.0 (Item.java:504) -> a
+  not-fully-charged spear/piercing swap-hit is SILENTLY dropped. tolerance = 5 ticks of leniency.
+
+WHY "PRESS THE HOTBAR KEY EVEN WHILE ALREADY HOLDING THE AXE" (the community "tick lockout" advice)
+- Hotbar key -> Minecraft.handleKeybinds -> setSelectedSlot(i) (Minecraft.java:1857-1866). Carried-item packet
+  is sent lazily and ONLY if the slot changed: MultiPlayerGameMode.ensureHasSentCarriedItem (354-360), always
+  flushed before the attack packet (attack() 451-454).
+- => Pressing the slot you already hold sends NOTHING and resets NOTHING. The literal "re-press axe while holding
+  axe" is a no-op in 26.2.
+- Mechanically-correct reading: DON'T default to holding the axe. Hold a third item so the axe keypress is a
+  GENUINE different-item swap, which fires resetAttackStrengthTicker() (both tickers -> 0) on a known tick,
+  anchoring the whole click->swap->click sequence to a deterministic tick-0. Without that anchor the clicks land
+  at an uncontrolled phase within the 50ms tick and the slam only works "randomly".
