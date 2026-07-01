@@ -16,21 +16,17 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
     private final SpriteSet sprites;
     private final IntSupplier rgb;
     private final float baseSize;
-    private final int minLifetime;
-    private final int maxLifetime;
     private final float gravity;
     private final float friction;
     private final float speed;
     private final float upBias;
 
-    private SwapParticleProvider(SpriteSet sprites, IntSupplier rgb, float baseSize, int minLifetime, int maxLifetime,
+    private SwapParticleProvider(SpriteSet sprites, IntSupplier rgb, float baseSize,
                                  float gravity, float friction, float speed, float upBias)
     {
         this.sprites = sprites;
         this.rgb = rgb;
         this.baseSize = baseSize;
-        this.minLifetime = minLifetime;
-        this.maxLifetime = maxLifetime;
         this.gravity = gravity;
         this.friction = friction;
         this.speed = speed;
@@ -43,10 +39,12 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
     public Particle createParticle(@NonNull SimpleParticleType options, @NonNull ClientLevel level, double x, double y,
                                    double z, double xAux, double yAux, double zAux, RandomSource random)
     {
-        double dx = (random.nextDouble() - 0.5) * 2.0 * this.speed;
-        double dy = (random.nextDouble() - 0.5) * 2.0 * this.speed + this.upBias;
-        double dz = (random.nextDouble() - 0.5) * 2.0 * this.speed;
-        int lifetime = this.minLifetime + random.nextInt(this.maxLifetime - this.minLifetime + 1);
+        // xAux/yAux/zAux carry the attack impulse (see AttackParticleProps); the provider's own jitter rides on top.
+        double dx = xAux + (random.nextDouble() - 0.5) * 2.0 * this.speed;
+        double dy = yAux + (random.nextDouble() - 0.5) * 2.0 * this.speed + this.upBias;
+        double dz = zAux + (random.nextDouble() - 0.5) * 2.0 * this.speed;
+        // Lifetime is an attack-style prop (crit/smash linger); handed over via ParticlesHandler for the current spawn.
+        int lifetime = ParticlesHandler.spawningProps().rollLifetime(random);
         float size = this.baseSize * (0.85f + random.nextFloat() * 0.3f);
         SwapParticle particle = new SwapParticle(
                 level,
@@ -71,17 +69,18 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
 
     public static SwapParticleProvider possible(SpriteSet sprites, IntSupplier rgb)
     {
-        return new SwapParticleProvider(sprites, rgb, 0.15f, 18, 26, 0.012f, 0.92f, 0.05f, 0.045f);
+        return new SwapParticleProvider(sprites, rgb, 0.15f, 0.012f, 0.92f, 0.05f, 0.045f);
     }
 
     public static SwapParticleProvider attacked(SpriteSet sprites, IntSupplier rgb)
     {
-        return new SwapParticleProvider(sprites, rgb, 0.12f, 10, 16, 0.18f, 0.70f, 0.22f, 0.10f);
+        return new SwapParticleProvider(sprites, rgb, 0.12f, 0.18f, 0.70f, 0.22f, 0.10f);
     }
 
-    /// Stun-slam burst: bigger, faster and slightly longer-lived than {@link #attacked} to sell the chained hit.
+    /// Stun-slam burst: bigger and faster than {@link #attacked} to sell the chained hit. Lifetime is set by the
+    /// active {@link AttackParticleProps}.
     public static SwapParticleProvider consecutive(SpriteSet sprites, IntSupplier rgb)
     {
-        return new SwapParticleProvider(sprites, rgb, 0.15f, 12, 18, 0.16f, 0.72f, 0.28f, 0.14f);
+        return new SwapParticleProvider(sprites, rgb, 0.15f, 0.16f, 0.72f, 0.28f, 0.14f);
     }
 }

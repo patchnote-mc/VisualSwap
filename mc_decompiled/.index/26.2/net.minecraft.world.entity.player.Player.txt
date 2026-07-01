@@ -1,0 +1,20 @@
+net.minecraft.world.entity.player.Player (26.2) — attack / crit detection.
+
+Critical-hit gate (Player.attack): criticalAttack = fullStrengthAttack && canCriticalAttack(target)
+  fullStrengthAttack = getAttackStrengthScale(0.5f) > 0.9f            // attack() uses 0.5f partial
+  private boolean canCriticalAttack(Entity e):                        // ~line 965
+    fallDistance > 0.0 && !onGround() && !onClimbable() && !isInWater()
+    && !isMobilityRestricted() && !isPassenger() && e instanceof LivingEntity && !isSprinting()
+
+Verified accessors (public unless noted):
+- double fallDistance                       // PUBLIC FIELD on Entity (26.2: double, not float)
+- boolean onGround()                         // Entity
+- boolean onClimbable()                      // Player override (false while abilities.flying)
+- boolean isInWater()                        // Entity
+- boolean isMobilityRestricted()             // Player: == hasEffect(MobEffects.BLINDNESS)
+- boolean isPassenger()                      // Entity
+- boolean isSprinting()                      // Entity
+- float getAttackStrengthScale(float partial) // clamp((ticker+partial)/delay,0,1)
+
+Crit visual server-side: attackVisualEffects -> crit(entity) -> broadcastEntityEvent(4).
+Used by: client-side AttackParticleProps.detect (VisualSwap mod) to mirror crit at AttackEntityCallback time.

@@ -30,6 +30,13 @@ public final class ParticlesHandler
     /// A chain this deep (>= 2 = stun slam) emits the consecutive sprite instead of the single-hit one.
     private static final int CONSECUTIVE_MIN_HITS = 2;
 
+    /// {@code addParticle} carries only position + velocity, so the in-flight spawn's props (for lifetime) are handed
+    /// to the provider through this field. Safe because particle creation runs synchronously on the client thread
+    /// inside {@code addParticle}.
+    private static AttackParticleProps spawningProps = AttackParticleProps.NORMAL;
+
+    static AttackParticleProps spawningProps() { return spawningProps; }
+
     private ParticlesHandler() { }
 
     public static void register()
@@ -63,11 +70,13 @@ public final class ParticlesHandler
 
     /// {@code chainHits} is this hit's position in the consecutive-swap chain (1 = single). A chain of
     /// {@link #CONSECUTIVE_MIN_HITS} or more emits the consecutive sprite; the burst grows with the chain, clamped at
-    /// {@link #MAX_CHAIN_HITS} so a long stun-slam can't flood the screen.
-    public static void spawnParticles(Minecraft client, Entity target, int chainHits)
+    /// {@link #MAX_CHAIN_HITS} so a long stun-slam can't flood the screen. {@code props} makes the particles spew (and
+    /// linger) like the vanilla attack that landed (crit pops up, mace smash bursts outward).
+    public static void spawnParticles(Minecraft client, Entity target, int chainHits, AttackParticleProps props)
     {
         if (client.level == null) return;
 
+        spawningProps = props;
         ParticleOptions particle = chainHits >= CONSECUTIVE_MIN_HITS ? SWAP_CONSECUTIVE : SWAP_ATTACKED;
         int count = PARTICLES_PER_HIT * Math.clamp(chainHits, 1, MAX_CHAIN_HITS);
         double spread = 0.45;
@@ -80,7 +89,26 @@ public final class ParticlesHandler
             double ox = random.nextGaussian() * spread;
             double oy = random.nextGaussian() * spread;
             double oz = random.nextGaussian() * spread;
-            client.level.addParticle(particle, cx + ox, cy + oy, cz + oz, 0.0, 0.0, 0.0);
+
+            // Push each particle radially out from the target axis; near-center ones get a random bearing.
+            double hlen = Math.sqrt(ox * ox + oz * oz);
+            double nx, nz;
+            if (hlen < 1.0e-4)
+            {
+                double angle = random.nextDouble() * Math.PI * 2.0;
+                nx = Math.cos(angle);
+                nz = Math.sin(angle);
+            }
+            else
+            {
+                nx = ox / hlen;
+                nz = oz / hlen;
+            }
+            double vx = nx * props.outward();
+            double vy = props.up();
+            double vz = nz * props.outward();
+
+            client.level.addParticle(particle, cx + ox, cy + oy, cz + oz, vx, vy, vz);
         }
     }
 }

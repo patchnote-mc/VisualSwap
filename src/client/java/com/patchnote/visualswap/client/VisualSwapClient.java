@@ -5,6 +5,7 @@ import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.hud.HUDHandler;
 import com.patchnote.visualswap.client.hud.SwapHotbarHighlight;
 import com.patchnote.visualswap.client.hud.SwapWindowState;
+import com.patchnote.visualswap.client.particles.AttackParticleProps;
 import com.patchnote.visualswap.client.particles.ParticlesHandler;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.Toml4jConfigSerializer;
@@ -198,7 +199,8 @@ public class VisualSwapClient implements ClientModInitializer
                 // This hit isn't credited to the chain until END_CLIENT_TICK, so +1 to include it. The handler
                 // picks the sprite (single vs consecutive) and scales the burst from the chain depth.
                 int chainHits = this.swapWindowState.chainCount(player.tickCount) + 1;
-                ParticlesHandler.spawnParticles(client, entity, chainHits);
+                AttackParticleProps props = AttackParticleProps.detect(player, entity);
+                ParticlesHandler.spawnParticles(client, entity, chainHits, props);
             }
         }
         return InteractionResult.PASS;

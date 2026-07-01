@@ -1,0 +1,16 @@
+net.minecraft.world.item.MaceItem (26.2) — mace smash-attack detection.
+
+  public static boolean canSmashAttack(LivingEntity attacker):        // ~line 141
+    attacker.fallDistance > 1.5 && !attacker.isFallFlying()
+
+NOTE: canSmashAttack itself has NO weapon check. The smash EFFECT (knockback,
+levelEvent 2013 particles, damage bonus) only fires for the mace, because it
+lives in MaceItem.hurtEnemy / postHurtEnemy / getAttackDamageBonus (called via
+the held weapon Item). So a real smash == held item is a MaceItem AND canSmashAttack.
+A falling non-mace hit is a CRIT, not a smash.
+
+Constants: SMASH_ATTACK_FALL_THRESHOLD=1.5f, heavy>5.0 (sound), KNOCKBACK_RADIUS=3.5f.
+Damage bonus (getAttackDamageBonus, server only): fd<=3 -> 4*fd; fd<=8 -> 12+2*(fd-3); else 22+fd-8.
+
+Accessor: boolean LivingEntity.isFallFlying() (getSharedFlag(7)).
+Used by: client-side AttackParticleProps.detect (VisualSwap mod).
