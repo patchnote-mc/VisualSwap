@@ -3,31 +3,16 @@
 # set version here
 VERSION="26.2"
 
-SRC="sources/$VERSION"
+# mc decompiled sources are added as a submodule using command
+# git submodule add --depth 1 -b "$VERSION" git@github-patch:patchnote-mc/mc_decompiled.git mc_decompiled/sources/$VERSION
 
-# fetch cfr if not present (kept at the mc_decompiled/ root, shared across versions)
-if [ ! -f "cfr.jar" ]; then
-    echo "CFR not found, downloading..."
-    curl https://www.benf.org/other/cfr/cfr-0.152.jar -o cfr.jar
-else
-    echo "CFR already present, skipping download."
-fi
+# reloading
+git submodule update --init --recursive --depth 1
 
-# check if common.jar exists
-if [ ! -f "$SRC/common.jar" ]; then
-    echo "common.jar not found! Please place common.jar in $SRC and run this script again."
-    exit 1
-fi
+cd "sources/$VERSION"
 
-# check if client.jar exists
-if [ ! -f "$SRC/client.jar" ]; then
-    echo "client.jar not found! Please place client.jar in $SRC and run this script again."
-    exit 1
-fi
+# check out the matching version branch
+git fetch origin "$VERSION" --depth 1
+git checkout "$VERSION"
 
-# decompile
-echo "Decompiling common.jar..."
-java -jar cfr.jar "$SRC/common.jar" --outputdir "$SRC/common_src"
-
-echo "Decompiling client.jar..."
-java -jar cfr.jar "$SRC/client.jar" --outputdir "$SRC/client_src"
+cd ../..

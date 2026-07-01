@@ -1,4 +1,4 @@
-<!-- last updated: 2026-06-30 -->
+<!-- last updated: 2026-07-01 -->
 
 # AGENTS.md — Visual Swap architecture & flows
 
@@ -116,7 +116,7 @@ Edit a mask in the JSON and **both** the HUD glyph (read at runtime by
 See `CLAUDE.md` and `gradle.properties` for the authoritative list. In short:
 Minecraft `26.2`, Fabric Loader `0.19.3`, Fabric API `0.153.0+26.2`, Loom
 `1.17-SNAPSHOT`, Gradle wrapper `9.5.1`, Java `25`, **Mojang mappings only**
-(never Yarn). Decompiled sources are vendored locally and regenerated via the
+(never Yarn). Decompiled sources are vendored as git submodules, initialized via the
 `mc_decompiled/` and `fabric_decompiled/` setup scripts — consult them only when
 something won't compile or an API is genuinely unclear, and cache findings under
 the `*_decompiled/.index` / `.knowledge` dirs (see `.github/copilot-instructions.md`).

@@ -1,4 +1,4 @@
-<!-- last updated: 2026-06-26 -- tracks the codebase; refresh (and bump the date) when the workflow/doc layout below changes. -->
+<!-- last updated: 2026-07-01 -- tracks the codebase; refresh (and bump the date) when the workflow/doc layout below changes. -->
 
 # CLAUDE.md — instructions for Claude Code
 
@@ -13,8 +13,8 @@ to them and states the essentials):
 ## Stack (see `AGENTS.md` for detail)
 
 - Minecraft `26.2`, Fabric (Loader `0.19.3`, API `0.153.0+26.2`, Loom `1.17-SNAPSHOT`), Mojang mappings (never Yarn), Java 25. (Gradle wrapper `9.5.1` — loom 1.17 needs Gradle ≥9.5.)
-- Decompiled sources vendored locally:
-  - `mc_decompiled/sources/26.2/common_src/` + `mc_decompiled/sources/26.2/client_src/` (gitignored, regen via `mc_decompiled/setup.sh 26.2` — CFR-based, NOT `genSources`).
+- Decompiled sources vendored as git submodules:
+  - `mc_decompiled/sources/26.2/common_src/` + `mc_decompiled/sources/26.2/client_src/` (git submodule at `mc_decompiled/sources/26.2` tracking branch `26.2`, init via `mc_decompiled/setup.sh` — pre-decompiled, NOT `genSources`).
   - `fabric_decompiled/src/` (git submodule of fabric-api @ tag `0.153.0+26.2`, init via `fabric_decompiled/setup.sh`).
 
 ## How to work here (essentials)
