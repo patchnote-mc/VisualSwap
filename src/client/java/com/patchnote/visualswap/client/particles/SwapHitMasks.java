@@ -26,8 +26,8 @@ public final class SwapHitMasks
     /// @return the failed mask
     public static Mask failed() { return load("failed"); }
 
-    /// @return the stun-slam mask
-    public static Mask stunSlam() { return load("stun_slam"); }
+    /// @return the consecutive mask
+    public static Mask consecutive() { return load("consecutive"); }
 
     /// Load and parse a named mask from {@code swap_hit_masks.json}
     ///
