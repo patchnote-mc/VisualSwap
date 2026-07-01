@@ -22,6 +22,13 @@ public final class ParticlesHandler
 {
     public static final SimpleParticleType SWAP_POSSIBLE = FabricParticleTypes.simple();
     public static final SimpleParticleType SWAP_ATTACKED = FabricParticleTypes.simple();
+    public static final SimpleParticleType SWAP_CONSECUTIVE = FabricParticleTypes.simple();
+
+    /// Particles emitted per swap-hit; the burst scales linearly with the chain depth up to {@link #MAX_CHAIN_HITS}.
+    private static final int PARTICLES_PER_HIT = 9;
+    private static final int MAX_CHAIN_HITS = 4;
+    /// A chain this deep (>= 2 = stun slam) emits the consecutive sprite instead of the single-hit one.
+    private static final int CONSECUTIVE_MIN_HITS = 2;
 
     private ParticlesHandler() { }
 
@@ -35,6 +42,7 @@ public final class ParticlesHandler
     {
         Registry.register(BuiltInRegistries.PARTICLE_TYPE, getId("swap_possible"), SWAP_POSSIBLE);
         Registry.register(BuiltInRegistries.PARTICLE_TYPE, getId("swap_attacked"), SWAP_ATTACKED);
+        Registry.register(BuiltInRegistries.PARTICLE_TYPE, getId("consecutive"), SWAP_CONSECUTIVE);
     }
 
     private static void registerFactories()
@@ -42,20 +50,26 @@ public final class ParticlesHandler
         // Masks parsed once; the tint is read live per spawn so the IndicatorType config takes effect immediately.
         SwapHitMasks.Mask possible = SwapHitMasks.possible();
         SwapHitMasks.Mask attacked = SwapHitMasks.attacked();
+        SwapHitMasks.Mask consecutive = SwapHitMasks.consecutive();
 
         ParticleProviderRegistry registry = ParticleProviderRegistry.getInstance();
         registry.register(SWAP_POSSIBLE, sprites -> SwapParticleProvider.possible(sprites, () -> possible.particleColor() & 0xFFFFFF));
         registry.register(SWAP_ATTACKED, sprites -> SwapParticleProvider.attacked(sprites, () -> attacked.particleColor() & 0xFFFFFF));
+        registry.register(SWAP_CONSECUTIVE, sprites -> SwapParticleProvider.consecutive(sprites, () -> consecutive.particleColor() & 0xFFFFFF));
     }
 
     private static Identifier getId(String path) { return Identifier.fromNamespaceAndPath(VisualSwap.MOD_ID, path); }
 
 
-    public static void spawnParticles(Minecraft client, Entity target, ParticleOptions particle)
+    /// {@code chainHits} is this hit's position in the consecutive-swap chain (1 = single). A chain of
+    /// {@link #CONSECUTIVE_MIN_HITS} or more emits the consecutive sprite; the burst grows with the chain, clamped at
+    /// {@link #MAX_CHAIN_HITS} so a long stun-slam can't flood the screen.
+    public static void spawnParticles(Minecraft client, Entity target, int chainHits)
     {
         if (client.level == null) return;
 
-        int count = 18;
+        ParticleOptions particle = chainHits >= CONSECUTIVE_MIN_HITS ? SWAP_CONSECUTIVE : SWAP_ATTACKED;
+        int count = PARTICLES_PER_HIT * Math.clamp(chainHits, 1, MAX_CHAIN_HITS);
         double spread = 0.45;
         RandomSource random = target.getRandom();
         double cx = target.getX();

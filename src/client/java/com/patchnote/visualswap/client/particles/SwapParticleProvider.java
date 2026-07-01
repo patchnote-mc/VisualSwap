@@ -78,4 +78,10 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
     {
         return new SwapParticleProvider(sprites, rgb, 0.12f, 10, 16, 0.18f, 0.70f, 0.22f, 0.10f);
     }
+
+    /// Stun-slam burst: bigger, faster and slightly longer-lived than {@link #attacked} to sell the chained hit.
+    public static SwapParticleProvider consecutive(SpriteSet sprites, IntSupplier rgb)
+    {
+        return new SwapParticleProvider(sprites, rgb, 0.15f, 12, 18, 0.16f, 0.72f, 0.28f, 0.14f);
+    }
 }
