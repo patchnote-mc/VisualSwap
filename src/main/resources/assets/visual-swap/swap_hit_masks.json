@@ -28,7 +28,7 @@
         "practice": "0xAA00FF00"
       },
       "particleColor": {
-        "vanilla": "0xAA9D97BB",
+        "vanilla": "0xAA9D97B8",
         "practice": "0xAA00FF00"
       },
       "rows": [
@@ -64,11 +64,11 @@
     "stun_slam": {
       "particle": "stun_slam",
       "color": {
-        "vanilla": "0xCCC8B47A",
+        "vanilla": "0xAA9D97D0",
         "practice": "0xFFFFAA00"
       },
       "particleColor": {
-        "vanilla": "0xCCC8B47A",
+        "vanilla": "0xAA9D97D0",
         "practice": "0xFFFFAA00"
       },
       "rows": [
