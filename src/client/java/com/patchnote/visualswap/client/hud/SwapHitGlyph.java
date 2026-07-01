@@ -20,7 +20,7 @@ public final class SwapHitGlyph implements HudElement
     private boolean visible;
     private boolean attacked;
     private boolean failed;
-    private boolean stunSlam;
+    private boolean consecutive;
     private int chainCount;
 
     // cache
@@ -28,15 +28,15 @@ public final class SwapHitGlyph implements HudElement
     private SwapHitMasks.Mask possibleMask;
     private SwapHitMasks.Mask attackedMask;
     private SwapHitMasks.Mask failedMask;
-    private SwapHitMasks.Mask stunSlamMask;
+    private SwapHitMasks.Mask consecutiveMask;
 
     /// Update Each Tick
-    public void updateState(boolean visible, boolean attacked, boolean failed, boolean stunSlam, int chainCount)
+    public void updateState(boolean visible, boolean attacked, boolean failed, boolean consecutive, int chainCount)
     {
         this.visible = visible;
         this.attacked = attacked;
         this.failed = failed;
-        this.stunSlam = stunSlam;
+        this.consecutive = consecutive;
         this.chainCount = chainCount;
     }
 
@@ -48,7 +48,7 @@ public final class SwapHitGlyph implements HudElement
         ensureLoaded();
         SwapHitMasks.Mask mask;
 
-        if (this.stunSlam) mask = this.stunSlamMask;
+        if (this.consecutive) mask = this.consecutiveMask;
         else if (this.failed) mask = this.failedMask;
         else if (this.attacked) mask = this.attackedMask;
         else mask = this.possibleMask;
@@ -96,6 +96,6 @@ public final class SwapHitGlyph implements HudElement
         this.possibleMask = SwapHitMasks.possible();
         this.attackedMask = SwapHitMasks.attacked();
         this.failedMask = SwapHitMasks.failed();
-        this.stunSlamMask = SwapHitMasks.consecutive();
+        this.consecutiveMask = SwapHitMasks.consecutive();
     }
 }

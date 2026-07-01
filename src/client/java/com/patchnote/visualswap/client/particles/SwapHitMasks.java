@@ -77,7 +77,7 @@ public final class SwapHitMasks
         return (int) Long.parseLong(s, 16);
     }
 
-    /* HELPERS */
+    /* RECORDS */
 
     public record Mask(String particle, int colorVanilla, int colorPractice, int particleColorVanilla,
                        int particleColorPractice, List<String> rows)

@@ -40,5 +40,5 @@ public class SwapParticle extends SingleQuadParticle
     }
 
     @Override
-    public SingleQuadParticle.@NonNull Layer getLayer() { return SingleQuadParticle.Layer.TRANSLUCENT; }
+    public @NonNull Layer getLayer() { return Layer.TRANSLUCENT; }
 }

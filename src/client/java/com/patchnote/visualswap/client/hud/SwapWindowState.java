@@ -35,18 +35,15 @@ public final class SwapWindowState
     private int flashUntilTick = NO_TICK;
     private boolean possibleLastTick;
 
-    /// Whether the swap that opened the current window qualifies as failed.
     private boolean failed;
-    /// Whether the active {@code attacked} flash should render as {@code failed}.
     private boolean flashFailed;
 
-    /// Number of swap-hits chained in the current flash (1 = single, >= 2 = stun slam). Valid only while
-    /// {@link #attacked}.
+    /// Number of swap-hits chained. Valid only while {@link #attacked}.
     private int chainCount;
     /// The swap tick already credited to the chain, so re-clicking the same swap can't count twice.
     private int lastCreditedSwapTick = NO_TICK;
 
-    /// Reset all state (e.g. switched to an empty hand, or no player).
+    /// Reset all state (e.g. when switched to an empty hand, or no player).
     public void clear()
     {
         this.lastSwapTick = NO_TICK;
@@ -72,8 +69,8 @@ public final class SwapWindowState
     {
         if (possible(tick) || this.possibleLastTick)
         {
-            // Credit each swap once. A new swap landing while the previous hit's flash is still on
-            // screen chains the count (stun slam); otherwise it starts a fresh chain at 1.
+            // Credit each swap once. A new swap-hit while the previous hit's flash is still
+            // on-screen chains the count; otherwise it starts a fresh chain at 1.
             if (this.lastSwapTick != this.lastCreditedSwapTick)
             {
                 this.chainCount = attacked(tick) ? this.chainCount + 1 : 1;
@@ -111,7 +108,7 @@ public final class SwapWindowState
     public int chainCount(int tick) { return attacked(tick) ? this.chainCount : 0; }
 
     /** Whether the active flash is a stun slam: two or more swap-hits chained in a row. */
-    public boolean stunSlam(int tick) { return chainCount(tick) >= 2; }
+    public boolean consecutive(int tick) { return chainCount(tick) >= 2; }
 
     /** Whether the GLYPH should be drawn at {@code tick} (possible window open, or the attacked flash running). */
     public boolean visible(int tick) { return possible(tick) || attacked(tick); }

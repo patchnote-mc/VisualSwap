@@ -21,8 +21,8 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
     private final float speed;
     private final float upBias;
 
-    private SwapParticleProvider(SpriteSet sprites, IntSupplier rgb, float baseSize,
-                                 float gravity, float friction, float speed, float upBias)
+    private SwapParticleProvider(SpriteSet sprites, IntSupplier rgb, float baseSize, float gravity, float friction,
+                                 float speed, float upBias)
     {
         this.sprites = sprites;
         this.rgb = rgb;
@@ -67,20 +67,27 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
 
     /* PARTICLES */
 
-    public static SwapParticleProvider possible(SpriteSet sprites, IntSupplier rgb)
+    public static SwapParticleProvider possible(SpriteSet sprites)
     {
-        return new SwapParticleProvider(sprites, rgb, 0.15f, 0.012f, 0.92f, 0.05f, 0.045f);
+        return new SwapParticleProvider(
+                sprites, () -> SwapHitMasks.possible().particleColor() & 0xFFFFFF, //
+                0.15f, 0.012f, 0.92f, 0.05f, 0.045f
+        );
     }
 
-    public static SwapParticleProvider attacked(SpriteSet sprites, IntSupplier rgb)
+    public static SwapParticleProvider attacked(SpriteSet sprites)
     {
-        return new SwapParticleProvider(sprites, rgb, 0.12f, 0.18f, 0.70f, 0.22f, 0.10f);
+        return new SwapParticleProvider(
+                sprites, () -> SwapHitMasks.attacked().particleColor() & 0xFFFFFF, //
+                0.12f, 0.18f, 0.70f, 0.22f, 0.10f
+        );
     }
 
-    /// Stun-slam burst: bigger and faster than {@link #attacked} to sell the chained hit. Lifetime is set by the
-    /// active {@link AttackParticleProps}.
-    public static SwapParticleProvider consecutive(SpriteSet sprites, IntSupplier rgb)
+    public static SwapParticleProvider consecutive(SpriteSet sprites)
     {
-        return new SwapParticleProvider(sprites, rgb, 0.15f, 0.16f, 0.72f, 0.28f, 0.14f);
+        return new SwapParticleProvider(
+                sprites, () -> SwapHitMasks.consecutive().particleColor() & 0xFFFFFF, //
+                0.15f, 0.16f, 0.72f, 0.28f, 0.14f
+        );
     }
 }

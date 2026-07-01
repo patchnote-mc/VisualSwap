@@ -23,15 +23,14 @@ public final class SwapHotbarHighlight
     private static final int CONSECUTIVE_END_PRACTICE = 0xFF00FF00;
 
     private boolean active;
-    /// Ordered hotbar slots touched by the current chain (origin first, latest hit last). Length {@link #trailLen}.
+    // trail of the current chain
     private final int[] trail = new int[9];
     private int trailLen;
     private int chainCount;
 
     private SwapHotbarHighlight() { }
 
-    /// Update Each Tick. {@code trail}/{@code trailLen} is the ordered chain of slots; {@code chainCount} drives the
-    /// styling.
+    /// Update Each Tick
     public void update(boolean active, int[] trail, int trailLen, int chainCount)
     {
         this.active = active;
@@ -64,7 +63,7 @@ public final class SwapHotbarHighlight
         fillSlot(graphics, slotX, slotY, colorFor(idx));
     }
 
-    /* HELPERS */
+    /* COLOR */
 
     private int colorFor(int idx)
     {
@@ -78,13 +77,13 @@ public final class SwapHotbarHighlight
         }
 
         float t = this.trailLen <= 1 ? 1.0f : (float) idx / (this.trailLen - 1);
-        return practice ? lerpArgb(CONSECUTIVE_START_PRACTICE, CONSECUTIVE_END_PRACTICE, t)
-                        : lerpArgb(CONSECUTIVE_START_VANILLA, CONSECUTIVE_END_VANILLA, t);
+        return practice ? lerpColor(CONSECUTIVE_START_PRACTICE, CONSECUTIVE_END_PRACTICE, t) //
+                        : lerpColor(CONSECUTIVE_START_VANILLA, CONSECUTIVE_END_VANILLA, t);
     }
 
-    /// Interpolates in HSV so hue sweeps around the wheel (red -> yellow -> green) instead of dragging through the
-    /// muddy RGB midpoint. Alpha stays a straight linear blend.
-    private static int lerpArgb(int a, int b, float t)
+    /// Interpolates in HSV so hue sweeps around the wheel (red -> yellow -> green). Alpha stays a straight linear
+    /// blend.
+    private static int lerpColor(int a, int b, float t)
     {
         int aa = (a >>> 24) & 0xFF;
         int ab = (b >>> 24) & 0xFF;
@@ -108,15 +107,18 @@ public final class SwapHotbarHighlight
     private static float lerpHue(float a, float b, float t)
     {
         float d = b - a;
-        if (d > 180f) d -= 360f;
-        else if (d < -180f) d += 360f;
+
+        if (d > 180f) { d -= 360f; }
+        else if (d < -180f) { d += 360f; }
+
         float h = a + d * t;
-        if (h < 0f) h += 360f;
-        else if (h >= 360f) h -= 360f;
+
+        if (h < 0f) { h += 360f; }
+        else if (h >= 360f) { h -= 360f; }
+
         return h;
     }
 
-    /// Channels 0-255 in; returns {hue [0, 360), saturation [0, 1], value [0, 1]}.
     private static float[] rgbToHsv(int r, int g, int b)
     {
         float rf = r / 255f, gf = g / 255f, bf = b / 255f;
@@ -134,10 +136,12 @@ public final class SwapHotbarHighlight
             if (h < 0f) h += 360f;
         }
         float s = max == 0f ? 0f : delta / max;
-        return new float[] { h, s, max };
+        return new float[]{h, s, max};
     }
 
-    /// Hue in degrees, saturation/value 0-1; returns packed 0xRRGGBB (no alpha).
+    /// Doesn't give Alpha
+    ///
+    /// @return packed int: 0x00RRGGBB
     private static int hsvToRgb(float h, float s, float v)
     {
         float c = v * s;
@@ -146,12 +150,14 @@ public final class SwapHotbarHighlight
         float rf, gf, bf;
         switch ((int) (h / 60f) % 6)
         {
+            //@formatter:off
             case 0 -> { rf = c; gf = x; bf = 0f; }
             case 1 -> { rf = x; gf = c; bf = 0f; }
             case 2 -> { rf = 0f; gf = c; bf = x; }
             case 3 -> { rf = 0f; gf = x; bf = c; }
             case 4 -> { rf = x; gf = 0f; bf = c; }
             default -> { rf = c; gf = 0f; bf = x; }
+            //@formatter:on
         }
         return (clamp8((rf + m) * 255f) << 16) | (clamp8((gf + m) * 255f) << 8) | clamp8((bf + m) * 255f);
     }

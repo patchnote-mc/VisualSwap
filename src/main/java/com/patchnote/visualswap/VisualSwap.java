@@ -9,5 +9,5 @@ public final class VisualSwap
 
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    private VisualSwap() {}
+    private VisualSwap() { }
 }

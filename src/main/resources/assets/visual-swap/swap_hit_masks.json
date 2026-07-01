@@ -42,7 +42,7 @@
       ]
     },
     "failed": {
-      "particle": "failed",
+      "particle": "swap_failed",
       "color": {
         "vanilla": "0xAAC85A5A",
         "practice": "0xAAFF0000"
@@ -62,7 +62,7 @@
       ]
     },
     "consecutive": {
-      "particle": "consecutive",
+      "particle": "swap_consecutive",
       "color": {
         "vanilla": "0xAA9D97D0",
         "practice": "0xFFFFAA00"

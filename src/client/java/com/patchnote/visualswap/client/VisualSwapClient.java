@@ -58,11 +58,6 @@ public class VisualSwapClient implements ClientModInitializer
         UseEntityCallback.EVENT.register(this::onInteractEntity);
     }
 
-    public static ModConfig getConfig()
-    {
-        return AutoConfig.getConfigHolder(ModConfig.class).getConfig();
-    }
-
     /* CLIENT TICK CALLBACK */
 
     private void onEndClientTick(Minecraft client)
@@ -121,7 +116,6 @@ public class VisualSwapClient implements ClientModInitializer
         }
         else if (!ItemStack.isSameItem(previous.mainHand(), current.mainHand()))
         {
-            // Failed lunge-swap: swapped onto a lunge spear before the previous item's attack-strength bar finished.
             boolean piercingFail = current.hasPiercingComponent() && previous.cooldownAtTick() < 1.0f;
             this.swapWindowState.onSwap(current.tick(), piercingFail);
             this.swapFromSlot = previous.selectedSlot();
@@ -151,7 +145,7 @@ public class VisualSwapClient implements ClientModInitializer
                 this.swapWindowState.visible(tick),
                 attacked,
                 this.swapWindowState.failed(tick),
-                this.swapWindowState.stunSlam(tick),
+                this.swapWindowState.consecutive(tick),
                 chainCount
         );
         highlightSlot(attacked, chainCount);
@@ -179,7 +173,8 @@ public class VisualSwapClient implements ClientModInitializer
     private void addTrailSlot(int slot)
     {
         if (slot < 0 || this.chainTrailLen >= this.chainTrail.length) return;
-        if (this.chainTrailLen > 0 && this.chainTrail[this.chainTrailLen - 1] == slot) return; // dedup consecutive
+        // dedup consecutive
+        if (this.chainTrailLen > 0 && this.chainTrail[this.chainTrailLen - 1] == slot) return;
         this.chainTrail[this.chainTrailLen++] = slot;
     }
 
@@ -196,10 +191,9 @@ public class VisualSwapClient implements ClientModInitializer
                     || this.swapWindowState.possible(player.tickCount) // check if possible
             )
             {
-                // This hit isn't credited to the chain until END_CLIENT_TICK, so +1 to include it. The handler
-                // picks the sprite (single vs consecutive) and scales the burst from the chain depth.
+                // the hit isn't added to the chain until END_CLIENT_TICK, + 1 to include it
                 int chainHits = this.swapWindowState.chainCount(player.tickCount) + 1;
-                AttackParticleProps props = AttackParticleProps.detect(player, entity);
+                AttackParticleProps props = AttackParticleProps.detectAttackType(player, entity);
                 ParticlesHandler.spawnParticles(client, entity, chainHits, props);
             }
         }
