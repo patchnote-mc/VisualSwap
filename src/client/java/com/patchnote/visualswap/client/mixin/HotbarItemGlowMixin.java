@@ -53,7 +53,7 @@ public class HotbarItemGlowMixin
                 itemState.pose(),
                 itemState.x(), itemState.y(), itemState.x() + 16, itemState.y() + 16,
                 slotView.u0(), slotView.u1(), slotView.v0(), slotView.v1(),
-                ClickFlash.GLOW_ARGB,
+                ClickFlash.INSTANCE.argbFor(slot),
                 itemState.scissorArea(), null
         ));
     }

@@ -5,7 +5,7 @@ import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.hud.HUDHandler;
 import com.patchnote.visualswap.client.hud.SwapHotbarHighlight;
 import com.patchnote.visualswap.client.hud.SwapWindowState;
-import com.patchnote.visualswap.client.hud.click.ClickFlash;
+import com.patchnote.visualswap.client.hud.click.ClickFlashHandler;
 import com.patchnote.visualswap.client.particles.AttackParticleProps;
 import com.patchnote.visualswap.client.particles.ParticlesHandler;
 import me.shedaniel.autoconfig.AutoConfig;
@@ -52,6 +52,7 @@ public class VisualSwapClient implements ClientModInitializer
         AutoConfig.register(ModConfig.class, Toml4jConfigSerializer::new);
         ParticlesHandler.register();
         HUDHandler.register();
+        ClickFlashHandler.register(); // independent END_CLIENT_TICK callback; not tied to the swap-window HUD
 
         // event callbacks
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndClientTick);
@@ -74,9 +75,13 @@ public class VisualSwapClient implements ClientModInitializer
         State current = State.capture(player, client);
 
         detectSwap(previous, current);
-        if (inputStarted(current, previous))
+
+        boolean swingStarted =
+                current.swinging() && (!previous.swinging() || current.swingTime() < previous.swingTime());
+        boolean attackStarted = current.attackDown() && !previous.attackDown();
+        boolean useStarted = current.useDown() && !previous.useDown();
+        if (swingStarted || attackStarted || useStarted)
         {
-            ClickFlash.INSTANCE.onClick(current.selectedSlot(), current.tick());
             if (!ItemStack.isSameItem(previous.mainHand(), current.mainHand()))
             {
                 VisualSwap.LOGGER.info(
@@ -100,7 +105,6 @@ public class VisualSwapClient implements ClientModInitializer
         this.swapWindowState.clear();
         HUDHandler.GLYPH.updateState(false, false, false, false, 0);
         SwapHotbarHighlight.INSTANCE.clear();
-        ClickFlash.INSTANCE.clear();
         this.swapFromSlot = NO_SLOT;
         this.swapToSlot = NO_SLOT;
         this.chainTrailLen = 0;
@@ -124,19 +128,6 @@ public class VisualSwapClient implements ClientModInitializer
             this.swapFromSlot = previous.selectedSlot();
             this.swapToSlot = current.selectedSlot();
         }
-    }
-
-    private boolean inputStarted(State current, State previous)
-    {
-        // for detecting spear jab
-        boolean swingStarted =
-                current.swinging() && (!previous.swinging() || current.swingTime() < previous.swingTime());
-        boolean attackStarted = current.attackDown() && !previous.attackDown();
-        boolean useStarted = current.useDown() && !previous.useDown();
-
-        return swingStarted // spear jab
-                || attackStarted // left click
-                || useStarted; // right click
     }
 
     private void updateAttackState(State current)
