@@ -66,6 +66,33 @@ REQUIRED_CHECK="block duplicate version"
 POLL_INTERVAL=15
 POLL_MAX=40
 
+# arguments - CLI flags
+usage() {
+  cat <<EOF
+Usage: ${0##*/} [--skip-publish]
+
+  -s, --skip-publish   Merge ${STAGING} into ${MAIN} WITHOUT cutting a release.
+                       Adds "[skip publish]" to the PR title and merge commit, so
+                       version-guard skips (reports green) and publish.yml does not
+                       run - nothing is pushed to Modrinth, CurseForge or GitHub.
+  -h, --help           Show this help and exit.
+EOF
+}
+SKIP_PUBLISH=false
+for arg in "$@"; do
+  case "$arg" in
+    -s|--skip-publish) SKIP_PUBLISH=true ;;
+    -h|--help) usage; exit 0 ;;
+    *) fail "Unknown argument: $arg"; usage >&2; exit 1 ;;
+  esac
+done
+
+# in skip-publish mode the PR title carries the marker so version-guard skips
+# (reports green) and the merge commit inherits it so publish.yml is skipped.
+if [ "$SKIP_PUBLISH" = true ]; then
+  PR_TITLE="${PR_TITLE} [skip publish]"
+fi
+
 # token
 TOKEN_FILE=".github-token"
 
@@ -79,6 +106,10 @@ API="https://api.github.com/repos/${REPO}"
 
 # navigate to repo root
 run cd "$(git rev-parse --show-toplevel)"
+
+if [ "$SKIP_PUBLISH" = true ]; then
+  warn "skip-publish mode ON - will merge ${STAGING} → ${MAIN} but NOT publish a release."
+fi
 
 step "Step 1/5 - Validate project"
 run ./gradlew build
@@ -108,6 +139,8 @@ elif [ "$HTTP_CODE" = "422" ]; then
     exit 1
   fi
   warn "reusing existing PR #${PR_NUMBER} - ${PR_URL}"
+  # normalise its title to the current mode (adds/removes the [skip publish] marker)
+  api PATCH "/pulls/${PR_NUMBER}" "$(jq -n --arg t "$PR_TITLE" '{title:$t}')"
 else
   # PR fail
   fail "PR creation failed (HTTP ${HTTP_CODE})."
@@ -115,7 +148,8 @@ else
   exit 1
 fi
 
-# polling
+# wait for the required '${REQUIRED_CHECK}' check. On [skip publish] PRs the guard
+# step is skipped, so the job still reports green here and the merge proceeds.
 api GET "/pulls/${PR_NUMBER}"
 HEAD_SHA="$(jq -r '.head.sha' "$TMP_BODY")"
 log "polling '${REQUIRED_CHECK}' on ${HEAD_SHA:0:7} (every ${POLL_INTERVAL}s, up to $((POLL_INTERVAL * POLL_MAX))s)"
@@ -141,10 +175,20 @@ while :; do
   sleep "$POLL_INTERVAL"
 done
 
-step "Step 4/5 - Merge PR #${PR_NUMBER} into ${MAIN} (triggers publish)"
-api PUT "/pulls/${PR_NUMBER}/merge" "$(jq -n --arg m merge '{merge_method:$m}')"
+if [ "$SKIP_PUBLISH" = true ]; then
+  step "Step 4/5 - Merge PR #${PR_NUMBER} into ${MAIN} (publish skipped)"
+  MERGE_BODY="$(jq -n --arg m merge --arg t "$PR_TITLE" '{merge_method:$m, commit_title:$t}')"
+else
+  step "Step 4/5 - Merge PR #${PR_NUMBER} into ${MAIN} (triggers publish)"
+  MERGE_BODY="$(jq -n --arg m merge '{merge_method:$m}')"
+fi
+api PUT "/pulls/${PR_NUMBER}/merge" "$MERGE_BODY"
 if [ "$HTTP_CODE" = "200" ]; then
-  success "merged - publish.yml will now build and release from ${MAIN}"
+  if [ "$SKIP_PUBLISH" = true ]; then
+    success "merged - publish skipped ([skip publish] in merge commit); no release cut"
+  else
+    success "merged - publish.yml will now build and release from ${MAIN}"
+  fi
 else
   fail "Merge failed (HTTP ${HTTP_CODE}). See ${PR_URL}"
   cat "$TMP_BODY"
@@ -159,4 +203,8 @@ run git push origin "$STAGING"
 success "${STAGING} fast-forwarded to ${MAIN}"
 
 
-printf '\n%s\n' "${GREEN}${BOLD}Done. ${STAGING} merged into ${MAIN}; the release is publishing.${RESET}"
+if [ "$SKIP_PUBLISH" = true ]; then
+  printf '\n%s\n' "${GREEN}${BOLD}Done. ${STAGING} merged into ${MAIN}; publish was skipped (no release).${RESET}"
+else
+  printf '\n%s\n' "${GREEN}${BOLD}Done. ${STAGING} merged into ${MAIN}; the release is publishing.${RESET}"
+fi

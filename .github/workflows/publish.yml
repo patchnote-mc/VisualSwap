@@ -12,6 +12,10 @@
 # github-commitish pins the created tag to THIS branch's commit. Without it
 # mc-publish defaults to the repository default branch, so tags for non-default
 # branches (e.g. 26.1.2) would be planted on the wrong commit.
+#
+# Escape hatch: include "[skip publish]" in the merge/push commit message to land
+# changes on a *-main branch without cutting a release. merge_main.sh --skip-publish
+# stamps this into the merge commit. Remove the marker (or push normally) to publish.
 
 name: publish
 on:
@@ -32,6 +36,7 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-24.04
+    if: ${{ !contains(github.event.head_commit.message, '[skip publish]') }}
     steps:
       - name: checkout repository
         uses: actions/checkout@v6
