@@ -90,7 +90,7 @@ done
 # in skip-publish mode the PR title carries the marker so version-guard skips
 # (reports green) and the merge commit inherits it so publish.yml is skipped.
 if [ "$SKIP_PUBLISH" = true ]; then
-  PR_TITLE="${PR_TITLE} [skip publish]"
+  PR_TITLE="[skip publish] ${PR_TITLE}"
 fi
 
 # token
