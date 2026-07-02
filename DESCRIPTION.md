@@ -1,3 +1,5 @@
+# Description
+
 Visual Swap is a client-side-only Fabric mod for Minecraft 26.2 that visualizes
 the game's attribute-swapping behavior (the "swap hit" bug) — when a follow-up
 attack lands using a stale/swapped attribute snapshot.
