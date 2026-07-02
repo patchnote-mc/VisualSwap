@@ -15,11 +15,22 @@ public final class ModConfig implements ConfigData
     @EnumHandler(option = EnumDisplayOption.BUTTON)
     public IndicatorType indicatorType = IndicatorType.VANILLA;
 
+    public float vanillaSizeMultiplier = 0.8f;
+
 
     public enum IndicatorType
     {
         VANILLA,
-        PRACTICE
+        PRACTICE;
+
+        public boolean is(IndicatorType other)
+        {
+            return this.equals(other);
+        }
+
+        public boolean isVanilla() { return is(VANILLA); }
+
+        public boolean isPractice() { return is(PRACTICE); }
     }
 
     public static ModConfig get() { return AutoConfig.getConfigHolder(ModConfig.class).getConfig(); }

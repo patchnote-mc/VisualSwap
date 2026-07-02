@@ -9,12 +9,7 @@ import com.patchnote.visualswap.VisualSwap;
 import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.resources.Identifier;
 
-/// GUI pipeline that draws a texture as a flat white silhouette: it keeps the sampled alpha as a mask but forces the
-/// colour to the vertex colour, so re-blitting the item's cached atlas slot paints the item's exact shape solid white.
-///
-/// Mirrors vanilla's `core/position_tex_color` GUI-textured pipeline (same bind groups + vertex format) with only the
-/// fragment output changed. Needs no registration: {@code ShaderManager} scans every namespace's `shaders/` folder and
-/// the device compiles unregistered pipelines lazily on first use.
+/// GUI pipeline that draws a texture as a flat white silhouette
 public final class ClickFlashPipeline
 {
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(VisualSwap.MOD_ID, "core/white_silhouette");

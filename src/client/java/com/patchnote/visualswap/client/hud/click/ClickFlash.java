@@ -2,19 +2,15 @@ package com.patchnote.visualswap.client.hud.click;
 
 import java.util.Arrays;
 
-/// White-silhouette flash of clicked hotbar items, held for at least one tick, tracked per slot.
-///
-/// Armed from the client tick whenever any click (attack / use / spear jab) starts; the render mixin paints the item's
-/// silhouette white every frame while the slot's flash is active. Each slot has its own timer, so multiple slots can
-/// flash at once (e.g. the axe then the mace during a stun slam) — the overlays are independent.
+/// White-silhouette flash of clicked hotbar items
 public final class ClickFlash
 {
     public static final ClickFlash INSTANCE = new ClickFlash();
 
-    /// Tint of the silhouette (ARGB). White paints the item's shape solid white; lower the alpha to fade it.
+    /// Tint of the silhouette
     public static final int GLOW_ARGB = 0xFFFFFFFF;
 
-    /// How many client ticks a flash stays lit after a click (minimum 1 = one full tick of frames).
+    /// Number of ticks the flash is visible
     private static final int FLASH_TICKS = 1;
 
     private static final int NO_TICK = Integer.MIN_VALUE;
@@ -24,7 +20,7 @@ public final class ClickFlash
 
     private ClickFlash() { Arrays.fill(this.flashUntilTick, NO_TICK); }
 
-    /// Arm a flash on {@code slot} (the hotbar slot whose item was clicked) at {@code tick}.
+    /// Call when item clicked
     public void onClick(int slot, int tick)
     {
         if (slot < 0 || slot >= HOTBAR_SLOTS) return;

@@ -1,5 +1,6 @@
 package com.patchnote.visualswap.client.particles;
 
+import com.patchnote.visualswap.client.config.ModConfig;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleProvider;
@@ -39,13 +40,22 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
     public Particle createParticle(@NonNull SimpleParticleType options, @NonNull ClientLevel level, double x, double y,
                                    double z, double xAux, double yAux, double zAux, RandomSource random)
     {
+        final ModConfig config = ModConfig.get();
+
         // xAux/yAux/zAux carry the attack impulse (see AttackParticleProps); the provider's own jitter rides on top.
         double dx = xAux + (random.nextDouble() - 0.5) * 2.0 * this.speed;
         double dy = yAux + (random.nextDouble() - 0.5) * 2.0 * this.speed + this.upBias;
         double dz = zAux + (random.nextDouble() - 0.5) * 2.0 * this.speed;
-        // Lifetime is an attack-style prop (crit/smash linger); handed over via ParticlesHandler for the current spawn.
-        int lifetime = ParticlesHandler.spawningProps().rollLifetime(random);
-        float size = this.baseSize * (0.85f + random.nextFloat() * 0.3f);
+
+        AttackParticleProps props = ParticlesHandler.spawningProps();
+        int lifetime = props.rollLifetime(random);
+
+        // size
+        float multipliers = 1.0f;
+        multipliers *= (0.85f + random.nextFloat() * 0.3f);
+        multipliers *= config.indicatorType.isVanilla() ? config.vanillaSizeMultiplier : 1.0f;
+        float size = this.baseSize * multipliers;
+
         SwapParticle particle = new SwapParticle(
                 level,
                 x,
