@@ -54,6 +54,7 @@ jobs:
           mc=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
           full="v${ver}+mc-${mc}"
           echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "mc=$mc" >> "$GITHUB_OUTPUT"
           id=$(curl -s "https://api.modrinth.com/v2/project/${MODRINTH_ID}/version" \
             | jq -r --arg v "$full" 'map(select(.version_number == $v)) | .[0].id // empty')
           if [ -n "$id" ]; then
@@ -80,3 +81,8 @@ jobs:
           github-tag: ${{ steps.check.outputs.full }}
           github-commitish: ${{ github.sha }}
           version-type: release
+          # CurseForge requires a concrete game version; auto-detection from the
+          # fabric.mod.json minecraft range can resolve to none, so pass it (and
+          # the loader) explicitly from gradle.properties.
+          loaders: fabric
+          game-versions: ${{ steps.check.outputs.mc }}
