@@ -2,14 +2,18 @@
 # version (v<mod_version>+mc-<minecraft_version>) has already been released -
 # i.e. its git tag already exists. Prevents accidental duplicate publishes.
 #
-# This only enforces once the "block duplicate version" job is set as a REQUIRED
-# status check in the *-main ruleset; until then it runs but does not block.
+# Enforced as a REQUIRED status check on the *-main ruleset, so it must be green to
+# merge. The version only matters when we actually publish, so the guard step is
+# SKIPPED (and the job therefore reports green) when the PR title contains
+# "[skip publish]" - the same marker that skips publish.yml. merge_main.sh
+# --skip-publish sets it on both the PR title and the merge commit.
 
 name: version guard
 on:
   pull_request:
     branches:
       - '*-main'
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
   guard:
@@ -19,6 +23,7 @@ jobs:
       - name: checkout repository
         uses: actions/checkout@v6
       - name: fail if version already released
+        if: ${{ !contains(github.event.pull_request.title, '[skip publish]') }}
         run: |
           ver=$(grep '^mod_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
           mc=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')

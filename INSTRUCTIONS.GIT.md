@@ -12,19 +12,19 @@ Branches follow the convention **`<mc-version>-<type>`**, where `type` is either
 
 Each supported Minecraft version has a `main` + `staging` pair, e.g.:
 
-| Branch | Purpose |
-| --- | --- |
+| Branch         | Purpose             |
+| -------------- | ------------------- |
 | `26.2-staging` | develop for MC 26.2 |
-| `26.2-main` | release for MC 26.2 |
+| `26.2-main`    | release for MC 26.2 |
 
 > The current `main` branch predates this convention. To turn on releases,
-> create `26.2-staging` and `26.2-main` from it (see *Migrating from `main`* below).
+> create `26.2-staging` and `26.2-main` from it (see _Migrating from `main`_ below).
 
 The **mod version is deliberately not in the branch name.** Branches are
 long-lived, but the mod version changes every release — the exact released
 version lives in the git tag (`v<mod>+mc-<mc>`) and in `gradle.properties` at
 that commit, so putting it in the branch name would only go stale. The Minecraft
-version *is* in the name because it identifies a stable, parallel maintenance
+version _is_ in the name because it identifies a stable, parallel maintenance
 line.
 
 ### Flow is one-directional
@@ -40,7 +40,7 @@ line.
 - **Never commit directly to a `-main` branch** — it is protected and will
   reject direct pushes (see below).
 - **Never merge `main` back into `staging`.** Main only ever receives changes
-  *from* staging, so a back-merge is unnecessary. In particular, **never delete
+  _from_ staging, so a back-merge is unnecessary. In particular, **never delete
   a workflow file from `staging`** — merging that into `main` would delete it
   there and silently break releases.
 
@@ -87,6 +87,26 @@ release.** Publishing the same version twice is blocked (see below).
    [`publish.yml`](.github/workflows/publish.yml), which builds and publishes to
    **Modrinth + CurseForge + a GitHub Release** (tag = the full version string).
 
+### Merging without publishing (`--skip-publish`)
+
+Sometimes you want to promote `-staging` into `-main` **without** cutting a release
+(landing CI/doc changes, or when the version is already published). Run:
+
+```
+./merge_main.sh --skip-publish
+```
+
+It stamps `[skip publish]` into **both** the PR title and the merge commit, which:
+
+- makes [`version-guard.yml`](.github/workflows/version-guard.yml) skip its
+  duplicate-version check and report **green** — so the required status check still
+  passes and the PR can merge even if the version already exists, and
+- makes [`publish.yml`](.github/workflows/publish.yml) skip entirely — nothing goes
+  to Modrinth, CurseForge or GitHub Releases.
+
+To do it by hand instead: put `[skip publish]` anywhere in the **PR title** (for the
+guard) and in the **merge commit message** (for publish).
+
 ## Duplicate protection
 
 Two layers stop an accidental double-publish:
@@ -95,6 +115,9 @@ Two layers stop an accidental double-publish:
    for the version already exists — this blocks the merge.
 2. **`publish.yml`** independently hard-fails if the version is already on
    Modrinth (it never overwrites/replaces).
+
+Both layers are intentionally skipped when the merge carries the `[skip publish]`
+marker (see _Merging without publishing_ above) — there is no release to protect.
 
 The consequence: **you must bump `mod_version` for each release.**
 
@@ -129,17 +152,17 @@ Then set `26.2-main` (or `*-main`) protection via the ruleset above, and make
 
 ## Workflows
 
-| File | Trigger | Does |
-| --- | --- | --- |
-| [`build.yml`](.github/workflows/build.yml) | push / PR (all branches) | builds + uploads artifacts (CI) |
-| [`version-guard.yml`](.github/workflows/version-guard.yml) | PR into `*-main` | blocks merging a duplicate version |
-| [`publish.yml`](.github/workflows/publish.yml) | push to `*-main` | publishes to Modrinth, CurseForge, GitHub |
+| File                                                       | Trigger                  | Does                                                                             |
+| ---------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------- |
+| [`build.yml`](.github/workflows/build.yml)                 | push / PR (all branches) | builds + uploads artifacts (CI)                                                  |
+| [`version-guard.yml`](.github/workflows/version-guard.yml) | PR into `*-main`         | blocks merging a duplicate version (skipped for `[skip publish]` PRs)            |
+| [`publish.yml`](.github/workflows/publish.yml)             | push to `*-main`         | publishes to Modrinth, CurseForge, GitHub (skipped for `[skip publish]` commits) |
 
 ## Maintainer configuration
 
 Set once at the repository level (Settings → Secrets and variables → Actions):
 
-- Secret **`MODRINTH_TOKEN`** — Modrinth PAT with *Create versions* scope.
+- Secret **`MODRINTH_TOKEN`** — Modrinth PAT with _Create versions_ scope.
 - Secret **`CURSEFORGE_TOKEN`** — CurseForge upload API token.
 
 `GITHUB_TOKEN` is provided automatically. The Modrinth/CurseForge **project IDs
