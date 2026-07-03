@@ -4,11 +4,12 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 
-/// Drives {@link ClickFlash} from its own END_CLIENT_TICK callback, sampling the inputs it needs directly.
-/// Kept fully independent of the swap-window glyph / hotbar-highlight logic in {@code VisualSwapClient}.
+/// Input sensor for {@link ClickFlash}: its own END_CLIENT_TICK callback, independent of the swap-window HUD.
+/// Samples the attack/use keys and the swing animation, turns them into "a press happened this tick", and drives
+/// the flash state machine.
 public final class ClickFlashHandler
 {
-    private boolean hasPrevious;
+    private boolean hasPrev;
     private boolean prevAttackDown;
     private boolean prevUseDown;
     private boolean prevSwinging;
@@ -27,7 +28,7 @@ public final class ClickFlashHandler
         if (player == null)
         {
             ClickFlash.INSTANCE.clear();
-            this.hasPrevious = false;
+            this.hasPrev = false;
             return;
         }
 
@@ -36,21 +37,21 @@ public final class ClickFlashHandler
         boolean swinging = player.swinging;
         int swingTime = player.swingTime;
 
-        boolean attackStarted = this.hasPrevious && attackDown && !this.prevAttackDown;
-        boolean useStarted = this.hasPrevious && useDown && !this.prevUseDown;
-        boolean swingStarted = this.hasPrevious && swinging && (!this.prevSwinging || swingTime < this.prevSwingTime);
+        boolean attackStarted = this.hasPrev && attackDown && !this.prevAttackDown;
+        boolean useStarted = this.hasPrev && useDown && !this.prevUseDown;
+        boolean swingStarted = this.hasPrev && swinging && (!this.prevSwinging || swingTime < this.prevSwingTime);
 
-        // A swing only counts as a fresh press when the attack key isn't held, so held auto-swings (which keep
-        // re-swinging) don't re-arm the minimum-flash floor and leave a tail after release.
-        boolean attackEdge = attackStarted || (swingStarted && !attackDown);
+        // Spear jabs are fast clicks the once-per-tick key sampling can miss; a jab always raises a fresh swing.
+        // Count a swing as a press only while the attack key is up, so a held key's auto-swings don't re-fire.
+        boolean attackPressed = attackStarted || (swingStarted && !attackDown);
 
         ClickFlash.INSTANCE.onTick(
                 player.tickCount,
                 player.getInventory().getSelectedSlot(),
                 player.getMainHandItem(),
-                attackDown, useDown, attackEdge, useStarted);
+                attackDown, useDown, attackPressed, useStarted);
 
-        this.hasPrevious = true;
+        this.hasPrev = true;
         this.prevAttackDown = attackDown;
         this.prevUseDown = useDown;
         this.prevSwinging = swinging;

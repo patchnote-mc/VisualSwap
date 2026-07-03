@@ -7,29 +7,29 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
-/// White-silhouette flash of the clicked hotbar item. Only items listed in {@link ModConfig#clickFlashRules} flash,
-/// each on its configured input(s).
+/// White-silhouette flash of a clicked hotbar item — the render-facing state machine. Driven each tick by
+/// {@link ClickFlashHandler}; read each frame by the render mixin via {@link #isActive} / {@link #argbFor}.
 ///
-/// Two independent mechanisms, so that fast combos read correctly (see attribute-swap-mechanic.txt):
+/// Only items listed in {@link ModConfig#clickFlashRules} flash, each on its configured input(s) and opacity.
+/// The behaviour is defined by three rules (which together make fast swap/slam combos read correctly — see
+/// attribute-swap-mechanic.txt):
 ///
-///   - CLICK FLOOR (per slot, independent): an actual attack/use *press* lights that slot for a minimum of
-///     {@link #FLASH_TICKS}. Floors are keyed to the slot and never cleared by a later swap, so two consecutive
-///     clicks on two different items — a stun-slam — leave two independent flashes on their own timelines.
-///     Only a genuine press arms a floor; merely holding the key (or an auto-swing) never does.
-///
-///   - HELD WHITE (single, follows the selection): while the key is held on the selected configured item, that
-///     slot stays lit past the floor. Because it tracks the *current* selection, swapping to another item drops
-///     the previous item's held-white immediately — an item you only swapped past (never clicked) never lingers.
-///
-/// A press therefore flashes for >= {@link #FLASH_TICKS}; holding past that keeps it lit until the key is released.
+///   1. START ON PRESS ONLY. A flash begins only on a genuine attack/use press while the item is selected.
+///      Merely holding a key and switching items never lights the new item, so a swap shows only the item
+///      actually clicked — never the one swapped past nor a leftover from before.
+///   2. INDEPENDENT PER SLOT. Each slot keeps its own {@link #FLASH_TICKS} timeline, so two quick presses on two
+///      items (a stun-slam) flash independently rather than replacing one another.
+///   3. HOLD SUSTAINS ITS OWN SLOT. Holding the key past the minimum keeps the *pressed* slot lit and never
+///      migrates to another slot; releasing switches it off at once. A tap still honours the {@link #FLASH_TICKS}
+///      minimum.
 public final class ClickFlash
 {
     public static final ClickFlash INSTANCE = new ClickFlash();
 
-    /// Silhouette colour (white); the per-flash alpha comes from the rule's opacity.
+    /// Silhouette colour (white); each flash's alpha (opacity) is packed on top per rule.
     public static final int GLOW_RGB = 0xFFFFFF;
 
-    /// Minimum ticks a press stays lit, regardless of how briefly the key was held.
+    /// Minimum ticks a press stays lit, however briefly the key was held.
     private static final int FLASH_TICKS = 5;
 
     private static final int NO_TICK = Integer.MIN_VALUE;
@@ -37,74 +37,80 @@ public final class ClickFlash
     private static final int HOTBAR_SLOTS = 9;
     private static final int DEFAULT_ARGB = 0xFF000000 | GLOW_RGB;
 
-    /// Per-slot minimum-flash floors (tick each expires, exclusive) and their tint. Independent across slots.
-    private final int[] floorUntilTick = new int[HOTBAR_SLOTS];
-    private final int[] floorArgb = new int[HOTBAR_SLOTS];
+    /// Per slot: tick its minimum-flash floor expires (exclusive) and the flash tint. Independent across slots.
+    private final int[] floorEndTick = new int[HOTBAR_SLOTS];
+    private final int[] slotArgb = new int[HOTBAR_SLOTS];
 
-    /// The single slot whose key is currently held (or {@link #NO_SLOT}); follows the selection.
+    /// The one slot a held key is sustaining past its floor (or {@link #NO_SLOT}). Only a press may set it.
     private int heldSlot = NO_SLOT;
-    private int heldArgb = DEFAULT_ARGB;
 
     private ClickFlash()
     {
-        Arrays.fill(this.floorUntilTick, NO_TICK);
-        Arrays.fill(this.floorArgb, DEFAULT_ARGB);
+        Arrays.fill(this.floorEndTick, NO_TICK);
+        Arrays.fill(this.slotArgb, DEFAULT_ARGB);
     }
 
-    /// Drive once per client tick.
+    /// Drive once per client tick with the current selection and this tick's input state.
     ///
-    /// @param attackDown/useDown whether the attack/use key is held this tick.
-    /// @param attackEdge/useEdge whether a fresh attack/use press began this tick (arms the per-slot floor).
+    /// @param attackDown/useDown        whether the attack/use key is held this tick.
+    /// @param attackPressed/usePressed  whether a genuine attack/use press landed this tick.
     public void onTick(int tick, int selectedSlot, ItemStack selectedStack, boolean attackDown, boolean useDown,
-                       boolean attackEdge, boolean useEdge)
+                       boolean attackPressed, boolean usePressed)
     {
         ModConfig.FlashRule rule = ruleFor(selectedStack);
-        boolean heldNow = false;
+        boolean validSlot = selectedSlot >= 0 && selectedSlot < HOTBAR_SLOTS;
+        boolean onAttack = rule != null && rule.flashesAt.flashesOnAttack();
+        boolean onUse = rule != null && rule.flashesAt.flashesOnUse();
 
-        if (rule != null && selectedSlot >= 0 && selectedSlot < HOTBAR_SLOTS)
+        boolean pressed = validSlot && ((onAttack && attackPressed) || (onUse && usePressed));
+        boolean keyHeld = (onAttack && attackDown) || (onUse && useDown);
+
+        if (pressed)
         {
-            boolean attackFlashes = rule.flashesAt.flashesOnAttack();
-            boolean useFlashes = rule.flashesAt.flashesOnUse();
-            heldNow = (attackFlashes && attackDown) || (useFlashes && useDown);
-            boolean fired = (attackFlashes && attackEdge) || (useFlashes && useEdge);
-
-            int alpha = (rule.opacity != null ? rule.opacity : ModConfig.FlashOpacity.HIGH).alpha();
-            int argb = (alpha << 24) | GLOW_RGB;
-            if (fired)
-            {
-                this.floorUntilTick[selectedSlot] = tick + FLASH_TICKS;
-                this.floorArgb[selectedSlot] = argb;
-            }
-            if (heldNow) this.heldArgb = argb;
+            // Rule 1 + 2: a press (re)lights this slot's own floor and, if the key is down, begins the hold here.
+            this.slotArgb[selectedSlot] = argbOf(rule);
+            this.floorEndTick[selectedSlot] = tick + FLASH_TICKS;
+            this.heldSlot = keyHeld ? selectedSlot : NO_SLOT;
         }
-
-        // Held-white tracks the current selection; swapping/scrolling away drops the previous slot's hold at once.
-        this.heldSlot = heldNow ? selectedSlot : NO_SLOT;
+        else if (validSlot && keyHeld && selectedSlot == this.heldSlot)
+        {
+            // Rule 3: same pressed slot still selected and key still held — keep sustaining it (floor already set).
+        }
+        else
+        {
+            // Key released, or the selection moved off the pressed slot: end the hold. Floor tails decay on their own.
+            this.heldSlot = NO_SLOT;
+        }
     }
 
+    /// Reset all flashes (e.g. when leaving a world).
     public void clear()
     {
-        Arrays.fill(this.floorUntilTick, NO_TICK);
-        Arrays.fill(this.floorArgb, DEFAULT_ARGB);
+        Arrays.fill(this.floorEndTick, NO_TICK);
+        Arrays.fill(this.slotArgb, DEFAULT_ARGB);
         this.heldSlot = NO_SLOT;
-        this.heldArgb = DEFAULT_ARGB;
     }
 
-    /// @return whether {@code slot} is flashing at {@code currentTick} (held, or within its own minimum-flash floor).
+    /// @return whether {@code slot} is lit at {@code currentTick} — sustained by a hold, or within its floor.
     public boolean isActive(int slot, int currentTick)
     {
         if (slot < 0 || slot >= HOTBAR_SLOTS) return false;
-        return slot == this.heldSlot || currentTick < this.floorUntilTick[slot];
+        return slot == this.heldSlot || currentTick < this.floorEndTick[slot];
     }
 
-    /// @return the silhouette tint (ARGB) for {@code slot}, carrying that flash's opacity.
+    /// @return the silhouette tint (ARGB, opacity in the alpha byte) for {@code slot}.
     public int argbFor(int slot)
     {
-        if (slot == this.heldSlot) return this.heldArgb;
-        return (slot >= 0 && slot < HOTBAR_SLOTS) ? this.floorArgb[slot] : DEFAULT_ARGB;
+        return (slot >= 0 && slot < HOTBAR_SLOTS) ? this.slotArgb[slot] : DEFAULT_ARGB;
     }
 
-    /// @return the configured rule whose item matches {@code stack}, or {@code null} if none flashes it.
+    private static int argbOf(ModConfig.FlashRule rule)
+    {
+        int alpha = (rule.opacity != null ? rule.opacity : ModConfig.FlashOpacity.HIGH).alpha();
+        return (alpha << 24) | GLOW_RGB;
+    }
+
+    /// @return the configured rule matching {@code stack}, or {@code null} if none flashes it.
     private static ModConfig.FlashRule ruleFor(ItemStack stack)
     {
         if (stack == null || stack.isEmpty()) return null;
