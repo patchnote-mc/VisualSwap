@@ -4,7 +4,7 @@ import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.config.ModConfig.FlashOn;
 import com.patchnote.visualswap.client.config.ModConfig.FlashOpacity;
 import com.patchnote.visualswap.client.config.ModConfig.FlashRule;
-import com.patchnote.visualswap.client.config.ModConfig.IndicatorType;
+import com.patchnote.visualswap.client.config.ModConfig.Preset;
 import me.shedaniel.autoconfig.AutoConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -28,12 +28,16 @@ import net.minecraft.world.item.Items;
 import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.DoubleConsumer;
+import java.util.function.IntConsumer;
 
-/// Hand-built config screen for Visual Swap. Top: the swap indicator mode (a Vanilla / Practice cycle button) and the
-/// Vanilla-mode size slider. Below: a scrollable table of click-flash rules, one row each. All edits land on working
-/// copies and are written to {@link ModConfig} only when "Done" commits.
+/// Hand-built config screen for Visual Swap. Top: the swap indicator preset (a Vanilla / Practice / Custom cycle
+/// button) and a size slider for the active preset; under Custom, two hex color editors ("from" / "to") appear.
+/// Below: a scrollable table of click-flash rules, one row each. All edits land on working copies and are written to
+/// {@link ModConfig} only when "Done" commits.
 ///
 /// Everything is stock Minecraft widgets ({@link Button}, {@link CycleButton}, {@link EditBox}) except the two that
 /// have no concrete vanilla form: {@link SizeSlider} (a slider needs {@link AbstractSliderButton}) and
@@ -44,17 +48,28 @@ public final class VisualSwapConfigScreen extends Screen
     private static final int CHIP_H = 20;
     private static final int FOOTER_H = 40;
 
+    // Custom-color row: a "From"/"To" caption, then a color swatch, then the hex edit box.
+    private static final int COLOR_LABEL_W = 34;
+    private static final int COLOR_SWATCH = 16;
+
     private static final int TITLE_COLOR = 0xFFFFFFFF;
     private static final int LABEL_COLOR = 0xFFB9B9C0;
     private static final int MUTED_COLOR = 0xFF97979E;
+    private static final int SWATCH_BORDER = 0xFF4A4A52;
+    private static final int TEXT_VALID = 0xFFE0E0E0;
+    private static final int TEXT_INVALID = 0xFFFF5555;
 
     private final Screen parent;
 
-    private IndicatorType workingIndicator;
-    private double workingSize;
+    private Preset workingPreset;
+    private final Map<Preset, Double> workingSizes;
+    private int workingCustomFrom;
+    private int workingCustomTo;
     private final List<FlashRule> ruleSeed;
 
     private SizeSlider slider;
+    private EditBox fromColorBox;
+    private EditBox toColorBox;
     private FlashRulesList list;
 
     // Geometry shared between the list rows and the drawn column headers, recomputed each init().
@@ -68,8 +83,11 @@ public final class VisualSwapConfigScreen extends Screen
         this.parent = parent;
 
         ModConfig cfg = ModConfig.get();
-        this.workingIndicator = cfg.indicatorType;
-        this.workingSize = cfg.vanillaSizeMultiplier;
+        this.workingPreset = cfg.preset;
+        this.workingSizes = new EnumMap<>(Preset.class);
+        for (Preset preset : Preset.values()) this.workingSizes.put(preset, (double) cfg.sizeMultiplier(preset));
+        this.workingCustomFrom = cfg.customColorFrom;
+        this.workingCustomTo = cfg.customColorTo;
         this.ruleSeed = cfg.clickFlashRules;
     }
 
@@ -81,28 +99,52 @@ public final class VisualSwapConfigScreen extends Screen
 
         int cx = this.width / 2;
 
-        // --- indicator mode ---
+        // --- indicator preset ---
         int groupW = 192;
         int gx = cx - groupW / 2;
         int chipsY = TITLE_Y + 16;
 
-        addRenderableWidget(CycleButton.<IndicatorType>builder(
-                        type -> Component.literal(type == IndicatorType.VANILLA ? "Vanilla" : "Practice"),
-                        this.workingIndicator)
-                .withValues(IndicatorType.VANILLA, IndicatorType.PRACTICE)
-                .create(gx, chipsY, groupW, CHIP_H, Component.literal("Mode"),
-                        (button, value) -> setIndicator(value)));
+        addRenderableWidget(CycleButton.<Preset>builder(
+                        preset -> Component.literal(preset.displayName()),
+                        this.workingPreset)
+                .withValues(Preset.VANILLA, Preset.PRACTICE, Preset.CUSTOM)
+                .create(gx, chipsY, groupW, CHIP_H, Component.literal("Preset"),
+                        (button, value) -> setPreset(value)));
 
-        // --- size slider ---
+        // --- size slider (edits the active preset) ---
         int sliderY = chipsY + CHIP_H + 6;
-        this.slider = new SizeSlider(gx, sliderY, groupW, CHIP_H, this.workingSize, v -> this.workingSize = v);
-        this.slider.active = this.workingIndicator == IndicatorType.VANILLA;
+        double sizeValue = this.workingSizes.get(this.workingPreset);
+        this.slider = new SizeSlider(gx, sliderY, groupW, CHIP_H, this.workingPreset.displayName(), sizeValue,
+                v -> this.workingSizes.put(this.workingPreset, v));
         addRenderableWidget(this.slider);
+
+        // --- custom colors (only under the Custom preset) ---
+        int lastTopRowY = sliderY;
+        if (this.workingPreset.isCustom())
+        {
+            int boxX = gx + COLOR_LABEL_W + COLOR_SWATCH + 6;
+            int boxW = gx + groupW - boxX;
+
+            int fromY = sliderY + CHIP_H + 6;
+            this.fromColorBox = makeColorBox(boxX, fromY, boxW, this.workingCustomFrom, v -> this.workingCustomFrom = v);
+            addRenderableWidget(this.fromColorBox);
+
+            int toY = fromY + CHIP_H + 4;
+            this.toColorBox = makeColorBox(boxX, toY, boxW, this.workingCustomTo, v -> this.workingCustomTo = v);
+            addRenderableWidget(this.toColorBox);
+
+            lastTopRowY = toY;
+        }
+        else
+        {
+            this.fromColorBox = null;
+            this.toColorBox = null;
+        }
 
         // --- rules table ---
         this.rowWidth = Math.min(360, this.width - 60);
         this.rowLeft = cx - this.rowWidth / 2;
-        int listTop = sliderY + CHIP_H + 24;
+        int listTop = lastTopRowY + CHIP_H + 24;
         this.headerY = listTop - 11;
         int listBottom = this.height - FOOTER_H;
         this.list = new FlashRulesList(this.minecraft, this.width, listBottom - listTop, listTop, this.rowWidth, seed);
@@ -124,17 +166,55 @@ public final class VisualSwapConfigScreen extends Screen
                 .bounds(rightEdge - btnW * 2 - btnGap, footerY, btnW, CHIP_H).build());
     }
 
-    private void setIndicator(IndicatorType type)
+    private void setPreset(Preset preset)
     {
-        this.workingIndicator = type;
-        if (this.slider != null) this.slider.active = type == IndicatorType.VANILLA;
+        this.workingPreset = preset;
+        // The Custom preset adds two color rows, so the layout has to be rebuilt when the preset changes.
+        rebuildWidgets();
+    }
+
+    /// A hex-color edit box (AARRGGBB, "#"/"0x" and 6-digit RRGGBB accepted) that pushes each valid value to {@code sink}
+    /// and reddens its text while the entry is unparseable.
+    private EditBox makeColorBox(int x, int y, int width, int initial, IntConsumer sink)
+    {
+        EditBox box = new EditBox(this.font, x, y, width, CHIP_H, Component.literal("Color"));
+        box.setMaxLength(10);
+        box.setHint(Component.literal("AARRGGBB"));
+        box.setValue(String.format("%08X", initial));
+        box.setResponder(text ->
+        {
+            Integer color = parseHexColor(text);
+            box.setTextColor(color != null ? TEXT_VALID : TEXT_INVALID);
+            if (color != null) sink.accept(color);
+        });
+        return box;
+    }
+
+    private static Integer parseHexColor(String text)
+    {
+        if (text == null) return null;
+        String s = text.trim();
+        if (s.startsWith("#")) s = s.substring(1);
+        else if (s.startsWith("0x") || s.startsWith("0X")) s = s.substring(2);
+        if (s.length() == 6) s = "FF" + s;
+        if (s.length() != 8) return null;
+        try
+        {
+            return (int) Long.parseLong(s, 16);
+        }
+        catch (NumberFormatException e)
+        {
+            return null;
+        }
     }
 
     private void commitAndClose()
     {
         ModConfig cfg = ModConfig.get();
-        cfg.indicatorType = this.workingIndicator;
-        cfg.vanillaSizeMultiplier = (float) this.workingSize;
+        cfg.preset = this.workingPreset;
+        for (Preset preset : Preset.values()) cfg.setSizeMultiplier(preset, this.workingSizes.get(preset).floatValue());
+        cfg.customColorFrom = this.workingCustomFrom;
+        cfg.customColorTo = this.workingCustomTo;
         cfg.clickFlashRules = this.list.toRules();
         AutoConfig.getConfigHolder(ModConfig.class).save();
         this.minecraft.setScreenAndShow(this.parent);
@@ -164,24 +244,43 @@ public final class VisualSwapConfigScreen extends Screen
         g.text(this.font, Component.literal("Item"), boxX, this.headerY, MUTED_COLOR);
         g.centeredText(this.font, Component.literal("Flash Type"), onX + 29, this.headerY, MUTED_COLOR);
         g.centeredText(this.font, Component.literal("Opacity"), opacityX + 23, this.headerY, MUTED_COLOR);
+
+        // Custom-color rows: "From" / "To" caption + a live swatch left of each hex box.
+        if (this.fromColorBox != null) drawColorRow(g, "From", this.fromColorBox, this.workingCustomFrom);
+        if (this.toColorBox != null) drawColorRow(g, "To", this.toColorBox, this.workingCustomTo);
+    }
+
+    private void drawColorRow(GuiGraphicsExtractor g, String label, EditBox box, int color)
+    {
+        int labelX = box.getX() - COLOR_SWATCH - 6 - COLOR_LABEL_W;
+        int textY = box.getY() + (CHIP_H - this.font.lineHeight) / 2 + 1;
+        g.text(this.font, Component.literal(label), labelX, textY, LABEL_COLOR);
+
+        int swatchX = box.getX() - COLOR_SWATCH - 6;
+        int swatchY = box.getY() + (CHIP_H - COLOR_SWATCH) / 2;
+        g.fill(swatchX - 1, swatchY - 1, swatchX + COLOR_SWATCH + 1, swatchY + COLOR_SWATCH + 1, SWATCH_BORDER);
+        g.fill(swatchX, swatchY, swatchX + COLOR_SWATCH, swatchY + COLOR_SWATCH, color);
     }
 
     // ------------------------------------------------------------------------------------------------------------
     // The two widgets with no concrete vanilla form.
     // ------------------------------------------------------------------------------------------------------------
 
-    /// Vanilla-style slider bound to {@code ModConfig.vanillaSizeMultiplier}, snapped to 0.05 steps over [MIN, MAX].
+    /// Vanilla-style slider over the active preset's size multiplier in {@code ModConfig.sizeByPreset}, snapped to 0.05
+    /// steps over [MIN, MAX]. {@code label} names the preset it edits (the message reads e.g. "Custom size: 1.00×").
     private static final class SizeSlider extends AbstractSliderButton
     {
         private static final double MIN = 0.10;
         private static final double MAX = 2.00;
         private static final double STEP = 0.05;
 
+        private final String label;
         private final DoubleConsumer sink;
 
-        SizeSlider(int x, int y, int width, int height, double initial, DoubleConsumer sink)
+        SizeSlider(int x, int y, int width, int height, String label, double initial, DoubleConsumer sink)
         {
             super(x, y, width, height, Component.empty(), toFraction(initial));
+            this.label = label;
             this.sink = sink;
             updateMessage();
         }
@@ -201,7 +300,7 @@ public final class VisualSwapConfigScreen extends Screen
         @Override
         protected void updateMessage()
         {
-            setMessage(Component.literal(String.format("Vanilla size: %.2f×", size())));
+            setMessage(Component.literal(String.format("%s size: %.2f×", this.label, size())));
         }
 
         @Override

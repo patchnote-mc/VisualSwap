@@ -8,6 +8,7 @@ import com.patchnote.visualswap.client.hud.SwapWindowState;
 import com.patchnote.visualswap.client.hud.click.ClickFlashHandler;
 import com.patchnote.visualswap.client.particles.AttackParticleProps;
 import com.patchnote.visualswap.client.particles.ParticlesHandler;
+import com.patchnote.visualswap.client.tracker.ClickTickState;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.Toml4jConfigSerializer;
 import net.fabricmc.api.ClientModInitializer;
@@ -16,7 +17,6 @@ import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -32,7 +32,7 @@ public class VisualSwapClient implements ClientModInitializer
 
     private final SwapWindowState swapWindowState = new SwapWindowState();
 
-    private State lastState = State.EMPTY;
+    private ClickTickState lastState = ClickTickState.EMPTY;
 
     // Derived state carried across ticks (not part of the per-tick sensor snapshot).
     private int swapFromSlot = NO_SLOT;
@@ -52,10 +52,10 @@ public class VisualSwapClient implements ClientModInitializer
         AutoConfig.register(ModConfig.class, Toml4jConfigSerializer::new);
         ParticlesHandler.register();
         HUDHandler.register();
-        ClickFlashHandler.register(); // independent END_CLIENT_TICK callback; not tied to the swap-window HUD
 
         // event callbacks
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndClientTick);
+        ClientTickEvents.END_CLIENT_TICK.register(ClickFlashHandler::onEndClientTick);
         AttackEntityCallback.EVENT.register(this::onInteractEntity);
         UseEntityCallback.EVENT.register(this::onInteractEntity);
     }
@@ -71,16 +71,12 @@ public class VisualSwapClient implements ClientModInitializer
             return;
         }
 
-        State previous = this.lastState;
-        State current = State.capture(player, client);
+        ClickTickState previous = this.lastState;
+        ClickTickState current = ClickTickState.capture(player, client);
 
         detectSwap(previous, current);
 
-        boolean swingStarted =
-                current.swinging() && (!previous.swinging() || current.swingTime() < previous.swingTime());
-        boolean attackStarted = current.attackDown() && !previous.attackDown();
-        boolean useStarted = current.useDown() && !previous.useDown();
-        if (swingStarted || attackStarted || useStarted)
+        if (attacked(current, previous))
         {
             if (!ItemStack.isSameItem(previous.mainHand(), current.mainHand()))
             {
@@ -99,9 +95,16 @@ public class VisualSwapClient implements ClientModInitializer
         this.lastState = current; // for next tick
     }
 
+    private boolean attacked(ClickTickState current, ClickTickState previous)
+    {
+        return (current.swinging() && (!previous.swinging() || current.swingTime() < previous.swingTime())) // for spear
+                || current.attackDown() && !previous.attackDown() // left click
+                || current.useDown() && !previous.useDown(); // right click
+    }
+
     private void reset()
     {
-        this.lastState = State.EMPTY;
+        this.lastState = ClickTickState.EMPTY;
         this.swapWindowState.clear();
         HUDHandler.GLYPH.updateState(false, false, false, false, 0);
         SwapHotbarHighlight.INSTANCE.clear();
@@ -112,7 +115,7 @@ public class VisualSwapClient implements ClientModInitializer
         this.lastChainCount = 0;
     }
 
-    private void detectSwap(State previous, State current)
+    private void detectSwap(ClickTickState previous, ClickTickState current)
     {
         // Skip the first post-spawn tick so the empty -> held transition isn't read as a swap.
         if (!previous.initialized()) return;
@@ -130,7 +133,7 @@ public class VisualSwapClient implements ClientModInitializer
         }
     }
 
-    private void updateAttackState(State current)
+    private void updateAttackState(ClickTickState current)
     {
         int tick = current.tick();
         boolean attacked = this.swapWindowState.attacked(tick);
@@ -192,40 +195,5 @@ public class VisualSwapClient implements ClientModInitializer
             }
         }
         return InteractionResult.PASS;
-    }
-
-    /* HELPER CLASSES */
-
-    /// Immutable per-tick snapshot of the inputs the swap logic reads. Carried/derived state lives on the client.
-    private record State(int tick, boolean initialized, ItemStack mainHand, int selectedSlot, boolean attackDown,
-                         boolean useDown, boolean swinging, int swingTime, float cooldownAtTick,
-                         boolean hasPiercingComponent)
-    {
-        static final State EMPTY = new State(0, false, ItemStack.EMPTY, NO_SLOT, false, false, false, 0, 0.0f, false);
-
-        static State capture(LocalPlayer player, Minecraft client)
-        {
-            ItemStack mainHand = player.getMainHandItem().copy();
-            return new State(
-                    player.tickCount,
-                    true,
-                    mainHand,
-                    player.getInventory().getSelectedSlot(),
-                    client.options.keyAttack.isDown(),
-                    client.options.keyUse.isDown(),
-                    player.swinging,
-                    player.swingTime,
-                    // Charge at end of tick == charge at the next tick's swap instant (the swap resets it before END_CLIENT_TICK).
-                    player.getAttackStrengthScale(0.0f),
-                    hasPiercingComp(mainHand)
-            );
-        }
-
-        /// Piercing Weapons (like Vanilla Spear) requires the cooldown of previous item to be completed for attribute
-        /// swapping
-        private static boolean hasPiercingComp(ItemStack stack)
-        {
-            return stack.get(DataComponents.PIERCING_WEAPON) != null;
-        }
     }
 }

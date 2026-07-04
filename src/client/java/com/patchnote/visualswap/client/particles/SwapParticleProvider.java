@@ -53,7 +53,7 @@ public final class SwapParticleProvider implements ParticleProvider<SimplePartic
         // size
         float multipliers = 1.0f;
         multipliers *= (0.85f + random.nextFloat() * 0.3f);
-        multipliers *= config.indicatorType.isVanilla() ? config.vanillaSizeMultiplier : 1.0f;
+        multipliers *= config.sizeMultiplier();
         float size = this.baseSize * multipliers;
 
         SwapParticle particle = new SwapParticle(

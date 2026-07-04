@@ -10,16 +10,28 @@ import me.shedaniel.autoconfig.annotation.ConfigEntry.Gui.Excluded;
 import me.shedaniel.autoconfig.annotation.ConfigEntry.Gui.Tooltip;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Config(name = VisualSwap.MOD_ID)
 public final class ModConfig implements ConfigData
 {
     @Tooltip
     @EnumHandler(option = EnumDisplayOption.BUTTON)
-    public IndicatorType indicatorType = IndicatorType.VANILLA;
+    public Preset preset = Preset.VANILLA;
 
-    public float vanillaSizeMultiplier = 0.8f;
+    /// Colors for {@link Preset#CUSTOM} (ARGB). {@code from} tints the source slot and failure glyphs, {@code to}
+    /// tints the destination slot and success glyphs, and chain gradients interpolate {@code from -> to}. Ignored
+    /// unless {@link #preset} is {@link Preset#CUSTOM}.
+    public int customColorFrom = 0xFFFF5555;
+    public int customColorTo = 0xFF55FF55;
+
+    /// Per-preset size multiplier, keyed by {@link Preset#name()} (a plain String map so toml4j round-trips it
+    /// cleanly). The single source of truth — read via {@link #sizeMultiplier(Preset)}, which falls back to the
+    /// preset's {@link Preset#defaultSizeMultiplier()} for any absent key, so an untouched preset scales by its
+    /// default (1.0 for practice/custom = no scaling). Hidden from the (unused) auto GUI; the custom screen edits it.
+    @Excluded public Map<String, Float> sizeByPreset = defaultSizes();
 
     /// Which held items flash their hotbar slot on click, on which input, and how strongly. GUI is handled by a custom
     /// screen (added later); hidden from the auto-generated one but still persisted.
@@ -90,16 +102,55 @@ public final class ModConfig implements ConfigData
     }
 
 
-    public enum IndicatorType
+    /// A named look for the swap indicator: a color scheme plus a default size multiplier. {@link #VANILLA} and
+    /// {@link #PRACTICE} carry fixed color schemes; {@link #CUSTOM} draws its colors from
+    /// {@link ModConfig#customColorFrom}/{@link ModConfig#customColorTo}. The enum is immutable — the live, editable
+    /// size lives in {@link ModConfig#sizeByPreset}; each constant only supplies the default.
+    public enum Preset
     {
-        VANILLA,
-        PRACTICE;
+        VANILLA(0.8f, "Vanilla"),
+        PRACTICE(1.0f, "Practice"),
+        CUSTOM(1.0f, "Custom");
 
-        public boolean is(IndicatorType other) { return this.equals(other); }
+        private final float defaultSizeMultiplier;
+        private final String displayName;
 
-        public boolean isVanilla() { return is(VANILLA); }
+        Preset(float defaultSizeMultiplier, String displayName)
+        {
+            this.defaultSizeMultiplier = defaultSizeMultiplier;
+            this.displayName = displayName;
+        }
 
-        public boolean isPractice() { return is(PRACTICE); }
+        public float defaultSizeMultiplier() { return this.defaultSizeMultiplier; }
+
+        public String displayName() { return this.displayName; }
+
+        public boolean is(Preset other) { return this == other; }
+
+        public boolean isVanilla() { return this == VANILLA; }
+
+        public boolean isPractice() { return this == PRACTICE; }
+
+        public boolean isCustom() { return this == CUSTOM; }
+    }
+
+    /// The size multiplier for a given preset, or its default when unset.
+    public float sizeMultiplier(Preset preset)
+    {
+        Float value = this.sizeByPreset.get(preset.name());
+        return value != null ? value : preset.defaultSizeMultiplier();
+    }
+
+    /// The size multiplier for the currently-active preset.
+    public float sizeMultiplier() { return sizeMultiplier(this.preset); }
+
+    public void setSizeMultiplier(Preset preset, float value) { this.sizeByPreset.put(preset.name(), value); }
+
+    private static Map<String, Float> defaultSizes()
+    {
+        Map<String, Float> sizes = new LinkedHashMap<>();
+        for (Preset preset : Preset.values()) sizes.put(preset.name(), preset.defaultSizeMultiplier());
+        return sizes;
     }
 
     public static ModConfig get() { return AutoConfig.getConfigHolder(ModConfig.class).getConfig(); }

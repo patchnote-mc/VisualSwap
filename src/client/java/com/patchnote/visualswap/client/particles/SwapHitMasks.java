@@ -47,7 +47,7 @@ public final class SwapHitMasks
             {
                 throw new IllegalStateException("Mask '" + name + "' not found in " + RESOURCE);
             }
-            return parse(masks.getAsJsonObject(name));
+            return parse(name, masks.getAsJsonObject(name));
         }
         catch (Exception e)
         {
@@ -55,13 +55,14 @@ public final class SwapHitMasks
         }
     }
 
-    private static Mask parse(JsonObject mask)
+    private static Mask parse(String name, JsonObject mask)
     {
         String particle = mask.get("particle").getAsString();
         JsonObject color = mask.getAsJsonObject("color");
         JsonObject particleColor = mask.getAsJsonObject("particleColor");
         List<String> rows = mask.getAsJsonArray("rows").asList().stream().map(JsonElement::getAsString).toList();
         return new Mask(
+                name,
                 particle,
                 parseArgb(color.get("vanilla").getAsString()),
                 parseArgb(color.get("practice").getAsString()),
@@ -79,18 +80,26 @@ public final class SwapHitMasks
 
     /* RECORDS */
 
-    public record Mask(String particle, int colorVanilla, int colorPractice, int particleColorVanilla,
+    public record Mask(String name, String particle, int colorVanilla, int colorPractice, int particleColorVanilla,
                        int particleColorPractice, List<String> rows)
     {
-        /// @return the ARGB HUD tint for the active {@link ModConfig.IndicatorType}.
+        /// @return the ARGB HUD tint for the active {@link ModConfig.Preset}.
         public int color() { return selectColor(this.colorVanilla, this.colorPractice); }
 
-        /// @return the ARGB particle tint for the active {@link ModConfig.IndicatorType}.
+        /// @return the ARGB particle tint for the active {@link ModConfig.Preset}.
         public int particleColor() { return selectColor(this.particleColorVanilla, this.particleColorPractice); }
 
-        private static int selectColor(int vanilla, int practice)
+        /// Under {@link ModConfig.Preset#CUSTOM} the failure glyph takes the custom {@code from} color and every other
+        /// glyph the custom {@code to} color, so a single pair of user colors spans all masks.
+        private int selectColor(int vanilla, int practice)
         {
-            return ModConfig.get().indicatorType == ModConfig.IndicatorType.PRACTICE ? practice : vanilla;
+            ModConfig cfg = ModConfig.get();
+            return switch (cfg.preset)
+            {
+                case PRACTICE -> practice;
+                case CUSTOM -> "failed".equals(this.name) ? cfg.customColorFrom : cfg.customColorTo;
+                default -> vanilla;
+            };
         }
 
         public int width() { return rows.isEmpty() ? 0 : rows.getFirst().length(); }

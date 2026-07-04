@@ -11,16 +11,12 @@ public final class SwapHotbarHighlight
     // singleton
     public static final SwapHotbarHighlight INSTANCE = new SwapHotbarHighlight();
 
-    // Single swap-hit (chain < 2). Vanilla: cooldown-style gray, the two slots differ only by opacity.
+    // from -> to color pair per preset. Single swap-hit (chain < 2) uses the endpoints directly; a longer chain
+    // interpolates across them. Vanilla: cooldown-style gray, the two slots differ only by opacity.
     private static final int FROM_COLOR_VANILLA = 0x40FFFFFF;
     private static final int TO_COLOR_VANILLA = 0x95FFFFFF;
     private static final int FROM_COLOR_PRACTICE = 0xFFFF0000;
     private static final int TO_COLOR_PRACTICE = 0xFF00FF00;
-
-    private static final int CONSECUTIVE_START_VANILLA = FROM_COLOR_VANILLA;
-    private static final int CONSECUTIVE_END_VANILLA = TO_COLOR_VANILLA;
-    private static final int CONSECUTIVE_START_PRACTICE = 0xFFFF0000;
-    private static final int CONSECUTIVE_END_PRACTICE = 0xFF00FF00;
 
     private boolean active;
     // trail of the current chain
@@ -67,18 +63,22 @@ public final class SwapHotbarHighlight
 
     private int colorFor(int idx)
     {
-        boolean practice = ModConfig.get().indicatorType == ModConfig.IndicatorType.PRACTICE;
-        boolean to = idx == this.trailLen - 1;
-
-        if (this.chainCount < 2)
+        ModConfig cfg = ModConfig.get();
+        int fromColor;
+        int toColor;
+        switch (cfg.preset)
         {
-            if (practice) return to ? TO_COLOR_PRACTICE : FROM_COLOR_PRACTICE;
-            return to ? TO_COLOR_VANILLA : FROM_COLOR_VANILLA;
+            case PRACTICE -> { fromColor = FROM_COLOR_PRACTICE; toColor = TO_COLOR_PRACTICE; }
+            case CUSTOM -> { fromColor = cfg.customColorFrom; toColor = cfg.customColorTo; }
+            default -> { fromColor = FROM_COLOR_VANILLA; toColor = TO_COLOR_VANILLA; }
         }
 
+        boolean to = idx == this.trailLen - 1;
+
+        if (this.chainCount < 2) return to ? toColor : fromColor;
+
         float t = this.trailLen <= 1 ? 1.0f : (float) idx / (this.trailLen - 1);
-        return practice ? lerpColor(CONSECUTIVE_START_PRACTICE, CONSECUTIVE_END_PRACTICE, t) //
-                        : lerpColor(CONSECUTIVE_START_VANILLA, CONSECUTIVE_END_VANILLA, t);
+        return lerpColor(fromColor, toColor, t);
     }
 
     /// Interpolates in HSV so hue sweeps around the wheel (red -> yellow -> green). Alpha stays a straight linear
