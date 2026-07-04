@@ -161,9 +161,9 @@ public final class VisualSwapConfigScreen extends Screen
         int onX = opacityX - 6 - 58;
         int boxX = contentX + 16 + 6;
 
-        g.text(this.font, Component.literal("ITEM"), boxX, this.headerY, MUTED_COLOR);
-        g.centeredText(this.font, Component.literal("FLASH ON"), onX + 29, this.headerY, MUTED_COLOR);
-        g.centeredText(this.font, Component.literal("OPACITY"), opacityX + 23, this.headerY, MUTED_COLOR);
+        g.text(this.font, Component.literal("Item"), boxX, this.headerY, MUTED_COLOR);
+        g.centeredText(this.font, Component.literal("Flash Type"), onX + 29, this.headerY, MUTED_COLOR);
+        g.centeredText(this.font, Component.literal("Opacity"), opacityX + 23, this.headerY, MUTED_COLOR);
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -290,7 +290,7 @@ public final class VisualSwapConfigScreen extends Screen
         private static ItemStack previewFor(Item item)
         {
             if (item == Items.AIR) return ItemStack.EMPTY;
-            if (item.builtInRegistryHolder().areComponentsBound()) return new ItemStack(item);
+            if (BuiltInRegistries.ITEM.wrapAsHolder(item).areComponentsBound()) return new ItemStack(item);
 
             Identifier id = BuiltInRegistries.ITEM.getKey(item);
             DataComponentMap components = DataComponentMap.builder().set(DataComponents.ITEM_MODEL, id).build();
