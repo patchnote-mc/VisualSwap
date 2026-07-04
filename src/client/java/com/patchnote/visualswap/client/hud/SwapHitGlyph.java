@@ -30,8 +30,10 @@ public final class SwapHitGlyph implements HudElement
     private SwapHitMasks.Mask failedMask;
     private SwapHitMasks.Mask consecutiveMask;
 
+    /* EVENTS */
+
     /// Update Each Tick
-    public void updateState(boolean visible, boolean attacked, boolean failed, boolean consecutive, int chainCount)
+    public void eventUpdate(boolean visible, boolean attacked, boolean failed, boolean consecutive, int chainCount)
     {
         this.visible = visible;
         this.attacked = attacked;
@@ -39,6 +41,10 @@ public final class SwapHitGlyph implements HudElement
         this.consecutive = consecutive;
         this.chainCount = chainCount;
     }
+
+    public void eventReset() { eventUpdate(false, false, false, false, 0); }
+
+    /* OVERRIDES */
 
     @Override
     public void extractRenderState(@NonNull GuiGraphicsExtractor graphics, @NonNull DeltaTracker deltaTracker)

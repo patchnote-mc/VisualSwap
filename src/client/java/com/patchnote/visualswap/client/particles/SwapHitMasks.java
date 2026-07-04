@@ -17,6 +17,8 @@ public final class SwapHitMasks
 
     public static final String RESOURCE = "/assets/" + VisualSwap.MOD_ID + "/swap_hit_masks.json";
 
+    /* MASKS */
+
     /// @return the possible swap-hit mask.
     public static Mask possible() { return load("possible"); }
 
@@ -29,10 +31,12 @@ public final class SwapHitMasks
     /// @return the consecutive mask
     public static Mask consecutive() { return load("consecutive"); }
 
+    /* HELPERS */
+
     /// Load and parse a named mask from {@code swap_hit_masks.json}
     ///
     /// @throws IllegalStateException if the resource or the named mask is missing/malformed.
-    public static Mask load(String name)
+    private static Mask load(String name)
     {
         try (InputStream in = SwapHitMasks.class.getResourceAsStream(RESOURCE))
         {

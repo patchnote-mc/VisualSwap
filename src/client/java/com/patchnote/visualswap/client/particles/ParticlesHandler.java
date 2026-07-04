@@ -35,6 +35,8 @@ public final class ParticlesHandler
 
     private ParticlesHandler() { }
 
+    /* REGISTRATION */
+
     public static void register()
     {
         registerTypes();
@@ -56,7 +58,7 @@ public final class ParticlesHandler
         registry.register(SWAP_CONSECUTIVE, SwapParticleProvider::consecutive);
     }
 
-    private static Identifier getId(String path) { return Identifier.fromNamespaceAndPath(VisualSwap.MOD_ID, path); }
+    /* FUNCTIONS */
 
     public static void spawnParticles(Minecraft client, Entity target, int chainHits, AttackParticleProps props)
     {
@@ -97,4 +99,8 @@ public final class ParticlesHandler
             client.level.addParticle(particle, cx + ox, cy + oy, cz + oz, vx, vy, vz);
         }
     }
+
+    /* HELPERS */
+
+    private static Identifier getId(String path) { return Identifier.fromNamespaceAndPath(VisualSwap.MOD_ID, path); }
 }

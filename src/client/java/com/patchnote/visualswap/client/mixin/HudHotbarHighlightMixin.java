@@ -19,7 +19,7 @@ public class HudHotbarHighlightMixin
             method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IILnet/minecraft/client/DeltaTracker;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/ItemStack;I)V",
             at = @At("HEAD")
     )
-    private void extractSlot(GuiGraphicsExtractor graphics, int x, int y, DeltaTracker deltaTracker, Player player,
-                             ItemStack itemStack, int seed, CallbackInfo ci)
+    private void visualSwap$highlightSlot (GuiGraphicsExtractor graphics, int x, int y, DeltaTracker deltaTracker, Player player,
+                                          ItemStack itemStack, int seed, CallbackInfo ci)
     { SwapHotbarHighlight.INSTANCE.highlightSlot(graphics, x, y); }
 }
