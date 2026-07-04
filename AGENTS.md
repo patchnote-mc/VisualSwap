@@ -1,4 +1,4 @@
-<!-- last updated: 2026-07-01 -->
+<!-- last updated: 2026-07-03 -->
 
 # AGENTS.md — Visual Swap architecture & flows
 
@@ -68,6 +68,16 @@ there are two source sets, both registered as the `visual-swap` mod:
   - `com.patchnote.visualswap.client.{VisualSwapParticles, SwapGlyphParticle,
     SwapHitGlyph}` — particle registration, the two-tier in-world particle, and
     the below-the-hotbar glyph HUD element. Ported from AttributeSwapFixes.
+  - `com.patchnote.visualswap.client.config.screen.*` — the hand-built config
+    GUI (`ModMenuIntegration` opens `VisualSwapConfigScreen`, no longer the
+    AutoConfig auto-screen). Indicator mode (Vanilla/Practice chips) + Vanilla
+    size slider on top; a scrollable `FlashRulesList` table below, one editable
+    row per `ModConfig.FlashRule` (item id + live icon, flash-on / opacity cycle
+    chips, per-row delete, and Add-rule). Custom chip widgets: `Chips` (palette +
+    pill draw), `ChoiceChip`, `CyclingChip<T>`, `ActionChip`, `SizeSlider`. Edits
+    stay on working copies and are written back to `ModConfig` + `AutoConfig`
+    `save()` only on "Done". Uses the 26.2 extract-render model — see
+    `mc_decompiled/.knowledge/screen-and-widget-api.txt`.
 
 Mixins:
 

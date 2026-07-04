@@ -1,8 +1,8 @@
 package com.patchnote.visualswap.client.config;
 
+import com.patchnote.visualswap.client.config.screen.VisualSwapConfigScreen;
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
-import me.shedaniel.autoconfig.AutoConfigClient;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
@@ -12,6 +12,6 @@ public class ModMenuIntegration implements ModMenuApi
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory()
     {
-        return parent -> AutoConfigClient.getConfigScreen(ModConfig.class, parent).get();
+        return VisualSwapConfigScreen::new;
     }
 }
