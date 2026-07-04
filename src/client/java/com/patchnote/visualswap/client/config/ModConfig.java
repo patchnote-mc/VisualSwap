@@ -41,14 +41,14 @@ public final class ModConfig implements ConfigData
     /// Flash strength, mapped to the silhouette's alpha (0-255).
     public enum FlashOpacity
     {
-        LOW(0xAA),
-        HIGH(0xFF);
+        LOW((byte) 0xC0),
+        HIGH((byte) 0xFF);
 
-        private final int alpha;
+        private final byte alpha;
 
-        FlashOpacity(int alpha) { this.alpha = alpha; }
+        FlashOpacity(byte alpha) { this.alpha = alpha; }
 
-        public int alpha() { return this.alpha; }
+        public byte alpha() { return this.alpha; }
     }
 
     /// One entry of {@link #clickFlashRules}: an item identifier plus when/how it flashes.
@@ -57,8 +57,6 @@ public final class ModConfig implements ConfigData
         public String item;
         public FlashOn flashesAt;
         public FlashOpacity opacity;
-
-        public FlashRule() { this("", FlashOn.ATTACK, FlashOpacity.HIGH); }
 
         public FlashRule(String item, FlashOn flashesAt, FlashOpacity opacity)
         {
@@ -76,6 +74,7 @@ public final class ModConfig implements ConfigData
         for (String material : materials) addRule(rules, material + "_sword", FlashOn.ATTACK, FlashOpacity.LOW);
         for (String material : materials) addRule(rules, material + "_axe", FlashOn.ATTACK, FlashOpacity.LOW);
         addRule(rules, "mace", FlashOn.ATTACK, FlashOpacity.HIGH);
+        addRule(rules, "trident", FlashOn.ATTACK, FlashOpacity.LOW);
 
         addRule(rules, "ender_pearl", FlashOn.USE, FlashOpacity.LOW);
         addRule(rules, "wind_charge", FlashOn.USE, FlashOpacity.LOW);
@@ -96,10 +95,7 @@ public final class ModConfig implements ConfigData
         VANILLA,
         PRACTICE;
 
-        public boolean is(IndicatorType other)
-        {
-            return this.equals(other);
-        }
+        public boolean is(IndicatorType other) { return this.equals(other); }
 
         public boolean isVanilla() { return is(VANILLA); }
 

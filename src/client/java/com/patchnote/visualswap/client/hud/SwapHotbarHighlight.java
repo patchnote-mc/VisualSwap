@@ -12,13 +12,13 @@ public final class SwapHotbarHighlight
     public static final SwapHotbarHighlight INSTANCE = new SwapHotbarHighlight();
 
     // Single swap-hit (chain < 2). Vanilla: cooldown-style gray, the two slots differ only by opacity.
-    private static final int FROM_COLOR_VANILLA = 0x7FFFFFFF;
-    private static final int TO_COLOR_VANILLA = 0xB0FFFFFF;
+    private static final int FROM_COLOR_VANILLA = 0x40FFFFFF;
+    private static final int TO_COLOR_VANILLA = 0x95FFFFFF;
     private static final int FROM_COLOR_PRACTICE = 0xFFFF0000;
     private static final int TO_COLOR_PRACTICE = 0xFF00FF00;
 
-    private static final int CONSECUTIVE_START_VANILLA = 0x40FFFFFF;
-    private static final int CONSECUTIVE_END_VANILLA = 0xB0FFFFFF;
+    private static final int CONSECUTIVE_START_VANILLA = FROM_COLOR_VANILLA;
+    private static final int CONSECUTIVE_END_VANILLA = TO_COLOR_VANILLA;
     private static final int CONSECUTIVE_START_PRACTICE = 0xFFFF0000;
     private static final int CONSECUTIVE_END_PRACTICE = 0xFF00FF00;
 
