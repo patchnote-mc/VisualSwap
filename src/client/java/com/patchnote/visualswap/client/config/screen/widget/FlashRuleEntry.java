@@ -3,6 +3,7 @@ package com.patchnote.visualswap.client.config.screen.widget;
 import com.patchnote.visualswap.client.config.models.FlashIntensity;
 import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.FlashTrigger;
+import com.patchnote.visualswap.client.config.models.PresetType;
 import com.patchnote.visualswap.client.utils.ColorHelpers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -40,6 +41,7 @@ public final class FlashRuleEntry extends ContainerObjectSelectionList.Entry<Fla
     private final EditBox itemBox;
     private final CycleButton<FlashTrigger> onButton;
     private final CycleButton<FlashIntensity> intensityButton;
+    private final ColorSwatch colorSwatch;
     private final EditBox colorBox;
     private final Button deleteButton;
 
@@ -60,6 +62,8 @@ public final class FlashRuleEntry extends ContainerObjectSelectionList.Entry<Fla
         this.itemBox = createItemInput(rule);
         this.onButton = createTriggerSelector(rule);
         this.intensityButton = createIntensitySelector(rule);
+        this.colorSwatch = new ColorSwatch(COLOR_SWATCH, SLOT_BORDER,
+                () -> 0xFF000000 | (this.rule.colorFor(this.list.preset()) & 0xFFFFFF));
         this.colorBox = createColorInput(rule);
         this.deleteButton = createDeleteButton();
 
@@ -118,13 +122,16 @@ public final class FlashRuleEntry extends ContainerObjectSelectionList.Entry<Fla
 
     private @NonNull EditBox createColorInput(FlashRule rule)
     {
+        PresetType preset = this.list.preset();
         EditBox input = new EditBox(
                 Minecraft.getInstance().font, //
                 0, 0, COLOR_BOX_WIDTH, WIDGET_HEIGHT, Component.literal("Tint colour")
         );
         input.setMaxLength(9);
         input.setHint(Component.literal("RRGGBB"));
-        input.setValue(ColorHelpers.formatRgbHex(rule.color()));
+        input.setTextColorUneditable(TEXT_MUTED);
+        input.setValue(ColorHelpers.formatRgbHex(rule.colorFor(preset)));
+        input.setEditable(preset.isColorEditable());
         input.setResponder(this::onColorEdited);
         input.moveCursorToStart(false);
         return input;
@@ -188,9 +195,7 @@ public final class FlashRuleEntry extends ContainerObjectSelectionList.Entry<Fla
 
         // colour swatch (live) + hex box
         int swatchY = midY - COLOR_SWATCH / 2;
-        int swatch = 0xFF000000 | (this.rule.color() & 0xFFFFFF);
-        g.fill(colorX - 1, swatchY - 1, colorX + COLOR_SWATCH + 1, swatchY + COLOR_SWATCH + 1, SLOT_BORDER);
-        g.fill(colorX, swatchY, colorX + COLOR_SWATCH, swatchY + COLOR_SWATCH, swatch);
+        this.colorSwatch.setPosition(colorX, swatchY);
         this.colorBox.setPosition(colorX + COLOR_SWATCH + 4, widgetY);
 
         // item box fills the middle
@@ -203,6 +208,7 @@ public final class FlashRuleEntry extends ContainerObjectSelectionList.Entry<Fla
         this.itemBox.extractRenderState(g, mouseX, mouseY, a);
         this.onButton.extractRenderState(g, mouseX, mouseY, a);
         this.intensityButton.extractRenderState(g, mouseX, mouseY, a);
+        this.colorSwatch.extractRenderState(g, mouseX, mouseY, a);
         this.colorBox.extractRenderState(g, mouseX, mouseY, a);
         this.deleteButton.extractRenderState(g, mouseX, mouseY, a);
     }
@@ -222,7 +228,16 @@ public final class FlashRuleEntry extends ContainerObjectSelectionList.Entry<Fla
     {
         Integer color = ColorHelpers.parseHexColor(value);
         this.colorBox.setTextColor(color != null ? TEXT_VALID : TEXT_INVALID);
-        if (color != null) this.rule.setColor(color);
+        // setColorFor no-ops for non-editable presets, so a programmatic setValue on preset switch can't corrupt them.
+        if (color != null) this.rule.setColorFor(this.list.preset(), color);
+    }
+
+    /// Point the colour column at {@code preset}: show that preset's stored colour and only allow edits under Custom.
+    /// The swatch tracks the list's preset live, so it needs no explicit refresh.
+    void refreshColor(PresetType preset)
+    {
+        this.colorBox.setEditable(preset.isColorEditable());
+        this.colorBox.setValue(ColorHelpers.formatRgbHex(this.rule.colorFor(preset)));
     }
 
     private void refreshItemColor() { this.itemBox.setTextColor(this.isValid ? TEXT_VALID : TEXT_INVALID); }

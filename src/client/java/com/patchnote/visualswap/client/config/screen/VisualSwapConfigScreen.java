@@ -3,20 +3,22 @@ package com.patchnote.visualswap.client.config.screen;
 import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.Preset;
+import com.patchnote.visualswap.client.config.models.PresetType;
+import com.patchnote.visualswap.client.config.screen.widget.ColorSwatch;
 import com.patchnote.visualswap.client.config.screen.widget.FlashRulesList;
 import com.patchnote.visualswap.client.config.screen.widget.SizeSlider;
 import com.patchnote.visualswap.client.utils.ColorHelpers;
 import me.shedaniel.autoconfig.AutoConfig;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
 public final class VisualSwapConfigScreen extends Screen
 {
@@ -28,19 +30,29 @@ public final class VisualSwapConfigScreen extends Screen
     private static final int COLOR_LABEL_W = 34;
     private static final int COLOR_SWATCH = 16;
 
-    private static final int TITLE_COLOR = 0xFFFFFFFF;
-    private static final int LABEL_COLOR = 0xFFB9B9C0;
-    private static final int MUTED_COLOR = 0xFF97979E;
+    // Column geometry for the rules-table headers — mirrors FlashRuleEntry's right-anchored layout.
+    private static final int ICON = 16;
+    private static final int GAP = 6;
+    private static final int ON_WIDTH = 58;
+    private static final int INTENSITY_WIDTH = 46;
+    private static final int COLOR_WIDTH = 70;
+    private static final int DELETE_WIDTH = 18;
+
+    // StringWidget colours are RGB (styled via Component#withColor); EditBox/swatch colours are ARGB.
+    private static final int TITLE_RGB = 0xFFFFFF;
+    private static final int LABEL_RGB = 0xB9B9C0;
+    private static final int MUTED_RGB = 0x97979E;
     private static final int SWATCH_BORDER = 0xFF4A4A52;
     private static final int TEXT_VALID = 0xFFE0E0E0;
     private static final int TEXT_INVALID = 0xFFFF5555;
+    private static final int TEXT_MUTED = 0xFF97979E;
 
     private final Screen parent;
 
-    private Preset workingPreset;
-    private double workingSize;
-    private int workingFrom;
-    private int workingTo;
+    /// Which preset is selected, and a working copy of the Custom preset's settings — preserved across preset toggles
+    /// so switching away and back doesn't lose in-progress Custom edits. Only committed to ModConfig on "Done".
+    private PresetType workingType;
+    private final Preset workingCustom;
     private final List<FlashRule> ruleSeed;
 
     private SizeSlider slider;
@@ -48,21 +60,14 @@ public final class VisualSwapConfigScreen extends Screen
     private EditBox toColorBox;
     private FlashRulesList list;
 
-    // Geometry shared between the list rows and the drawn column headers, recomputed each init().
-    private int rowLeft;
-    private int rowWidth;
-    private int headerY;
-
     public VisualSwapConfigScreen(Screen parent)
     {
         super(Component.literal("Visual Swap"));
         this.parent = parent;
 
         ModConfig cfg = ModConfig.get();
-        this.workingPreset = cfg.preset;
-        this.workingSize = cfg.preset.getSizeMultiplier();
-        this.workingFrom = cfg.preset.getFromColor();
-        this.workingTo = cfg.preset.getToColor();
+        this.workingType = cfg.preset;
+        this.workingCustom = new Preset(cfg.customPresetData);
         this.ruleSeed = cfg.clickFlashRules;
     }
 
@@ -74,16 +79,16 @@ public final class VisualSwapConfigScreen extends Screen
 
         int cx = this.width / 2;
 
-        // --- indicator preset ---
+        // --- title ---
+        addRenderableWidget(centeredLabel(getTitle().getString(), TITLE_RGB, cx, TITLE_Y));
+
+        // --- preset selector ---
         int groupW = 192;
         int gx = cx - groupW / 2;
         int chipsY = TITLE_Y + 16;
 
-        addRenderableWidget(CycleButton.<Preset>builder(
-                        preset -> Component.literal(preset.getDisplayName()),
-                        this.workingPreset
-                )
-                                    .withValues(Preset.VANILLA, Preset.PRACTICE, Preset.CUSTOM)
+        addRenderableWidget(CycleButton.<PresetType>builder(PresetType::getNameComponent, this.workingType)
+                                    .withValues(PresetType.VANILLA, PresetType.PRACTICE, PresetType.CUSTOM)
                                     .create(
                                             gx,
                                             chipsY,
@@ -93,49 +98,58 @@ public final class VisualSwapConfigScreen extends Screen
                                             (button, value) -> setPreset(value)
                                     ));
 
-        // --- size slider (edits the active preset) ---
+        // --- size slider (edits the Custom preset; disabled/greyed for the fixed presets) ---
         int sliderY = chipsY + CHIP_H + 6;
         this.slider = new SizeSlider(
                 gx,
                                      sliderY,
                                      groupW,
                                      CHIP_H,
-                                     this.workingPreset.getDisplayName(),
-                                     workingSize,
-                                     v -> workingSize = v
+                                     this.workingType.getDisplayName(),
+                                     effectiveSize(),
+                                     v -> this.workingCustom.setSizeMultiplier(v)
         );
+        this.slider.active = this.workingType.isColorEditable();
         addRenderableWidget(this.slider);
 
-        // --- custom colors (only under the Custom preset) ---
-        int lastTopRowY = sliderY;
-        if (this.workingPreset.isCustom())
-        {
-            int boxX = gx + COLOR_LABEL_W + COLOR_SWATCH + 6;
-            int boxW = gx + groupW - boxX;
+        // --- From/To highlight colours (shown for every preset; the hex box is editable only under Custom) ---
+        int labelX = gx;
+        int swatchX = gx + COLOR_LABEL_W;
+        int boxX = gx + COLOR_LABEL_W + COLOR_SWATCH + 6;
+        int boxW = groupW - (COLOR_LABEL_W + COLOR_SWATCH + 6);
+        int captionYOffset = (CHIP_H - this.font.lineHeight) / 2;
+        int swatchYOffset = (CHIP_H - COLOR_SWATCH) / 2;
 
-            int fromY = sliderY + CHIP_H + 6;
-            this.fromColorBox = makeColorBox(boxX, fromY, boxW, this.workingFrom, v -> this.workingFrom = v);
-            addRenderableWidget(this.fromColorBox);
+        int fromY = sliderY + CHIP_H + 6;
+        addRenderableWidget(leftLabel("From", LABEL_RGB, labelX, fromY + captionYOffset));
+        addRenderableWidget(swatch(swatchX, fromY + swatchYOffset, this::effectiveFrom));
+        this.fromColorBox = makeColorBox(boxX, fromY, boxW, effectiveFrom(), this.workingCustom::setFromColor);
+        addRenderableWidget(this.fromColorBox);
 
-            int toY = fromY + CHIP_H + 4;
-            this.toColorBox = makeColorBox(boxX, toY, boxW, this.workingTo, v -> this.workingTo = v);
-            addRenderableWidget(this.toColorBox);
-
-            lastTopRowY = toY;
-        }
-        else
-        {
-            this.fromColorBox = null;
-            this.toColorBox = null;
-        }
+        int toY = fromY + CHIP_H + 4;
+        addRenderableWidget(leftLabel("To", LABEL_RGB, labelX, toY + captionYOffset));
+        addRenderableWidget(swatch(swatchX, toY + swatchYOffset, this::effectiveTo));
+        this.toColorBox = makeColorBox(boxX, toY, boxW, effectiveTo(), this.workingCustom::setToColor);
+        addRenderableWidget(this.toColorBox);
 
         // --- rules table ---
-        this.rowWidth = Math.min(360, this.width - 60);
-        this.rowLeft = cx - this.rowWidth / 2;
-        int listTop = lastTopRowY + CHIP_H + 24;
-        this.headerY = listTop - 11;
+        int rowWidth = Math.min(360, this.width - 60);
+        int rowLeft = cx - rowWidth / 2;
+        int listTop = toY + CHIP_H + 24;
+        int headerY = listTop - 11;
         int listBottom = this.height - FOOTER_H;
-        this.list = new FlashRulesList(this.minecraft, this.width, listBottom - listTop, listTop, this.rowWidth, seed);
+
+        addColumnHeaders(rowLeft, rowWidth, headerY);
+
+        this.list = new FlashRulesList(
+                this.minecraft,
+                this.width,
+                listBottom - listTop,
+                listTop,
+                rowWidth,
+                this.workingType,
+                seed
+        );
         addRenderableWidget(this.list);
 
         // --- footer ---
@@ -145,10 +159,10 @@ public final class VisualSwapConfigScreen extends Screen
         int btnGap = 8;
 
         addRenderableWidget(Button.builder(Component.literal("+ Add rule"), b -> this.list.addRule())
-                                    .bounds(this.rowLeft, footerY, addW, CHIP_H)
+                                    .bounds(rowLeft, footerY, addW, CHIP_H)
                                     .build());
 
-        int rightEdge = this.rowLeft + this.rowWidth;
+        int rightEdge = rowLeft + rowWidth;
         addRenderableWidget(Button.builder(Component.literal("Done"), b -> commitAndClose())
                                     .bounds(rightEdge - btnW, footerY, btnW, CHIP_H)
                                     .build());
@@ -157,25 +171,84 @@ public final class VisualSwapConfigScreen extends Screen
                                     .build());
     }
 
-    private void setPreset(Preset preset)
+    /// Column captions over the rules table, aligned to FlashRuleEntry's right-anchored columns.
+    private void addColumnHeaders(int rowLeft, int rowWidth, int headerY)
     {
-        this.workingPreset = preset;
-        // The Custom preset adds two color rows, so the layout has to be rebuilt when the preset changes.
-        rebuildWidgets();
+        int contentX = rowLeft + 2;
+        int contentRight = rowLeft + rowWidth - 2;
+        int deleteX = contentRight - DELETE_WIDTH;
+        int colorX = deleteX - GAP - COLOR_WIDTH;
+        int intensityX = colorX - GAP - INTENSITY_WIDTH;
+        int onX = intensityX - GAP - ON_WIDTH;
+        int itemX = contentX + ICON + GAP;
+
+        addRenderableWidget(leftLabel("Item", MUTED_RGB, itemX, headerY));
+        addRenderableWidget(centeredLabel("Flash Type", MUTED_RGB, onX + ON_WIDTH / 2, headerY));
+        addRenderableWidget(centeredLabel("Intensity", MUTED_RGB, intensityX + INTENSITY_WIDTH / 2, headerY));
+        addRenderableWidget(centeredLabel("Color", MUTED_RGB, colorX + COLOR_WIDTH / 2, headerY));
     }
 
-    /// A hex-color edit box (AARRGGBB, "#"/"0x" and 6-digit RRGGBB accepted) that pushes each valid value to
-    /// {@code sink} and reddens its text while the entry is unparseable.
-    private EditBox makeColorBox(int x, int y, int width, int initial, IntConsumer sink)
+    private void setPreset(PresetType type)
+    {
+        this.workingType = type;
+        boolean editable = type.isColorEditable();
+
+        this.slider.active = editable;
+        this.slider.update(type.getDisplayName(), effectiveSize());
+
+        this.fromColorBox.setEditable(editable);
+        this.toColorBox.setEditable(editable);
+        this.fromColorBox.setValue(ColorHelpers.formatArgbHex(effectiveFrom()));
+        this.toColorBox.setValue(ColorHelpers.formatArgbHex(effectiveTo()));
+
+        if (this.list != null) this.list.setPreset(type);
+    }
+
+    /* EFFECTIVE VALUES — the Custom working copy under Custom, else the preset's fixed default. */
+
+    private double effectiveSize() { return this.workingType.isCustom() ? this.workingCustom.getSizeMultiplier() : this.workingType.getSize(); }
+
+    private int effectiveFrom() { return this.workingType.isCustom() ? this.workingCustom.getFromColor() : this.workingType.getFromColor(); }
+
+    private int effectiveTo() { return this.workingType.isCustom() ? this.workingCustom.getToColor() : this.workingType.getToColor(); }
+
+    /* WIDGET FACTORIES */
+
+    private StringWidget leftLabel(String text, int rgb, int x, int y)
+    {
+        StringWidget w = new StringWidget(Component.literal(text).withColor(rgb), this.font);
+        w.setPosition(x, y);
+        return w;
+    }
+
+    private StringWidget centeredLabel(String text, int rgb, int centerX, int y)
+    {
+        StringWidget w = new StringWidget(Component.literal(text).withColor(rgb), this.font);
+        w.setPosition(centerX - w.getWidth() / 2, y);
+        return w;
+    }
+
+    private ColorSwatch swatch(int x, int y, IntSupplier color)
+    {
+        ColorSwatch w = new ColorSwatch(COLOR_SWATCH, SWATCH_BORDER, color);
+        w.setPosition(x, y);
+        return w;
+    }
+
+    /// A hex-color edit box (AARRGGBB, "#"/"0x" and 6-digit RRGGBB accepted). Editable only under the Custom preset;
+    /// greyed (uneditable) otherwise. Pushes each valid value to {@code onEdit} and reddens its text while unparseable.
+    private EditBox makeColorBox(int x, int y, int width, int initial, IntConsumer onEdit)
     {
         EditBox box = new EditBox(this.font, x, y, width, CHIP_H, Component.literal("Color"));
         box.setMaxLength(10);
         box.setHint(Component.literal("AARRGGBB"));
+        box.setTextColorUneditable(TEXT_MUTED);
         box.setValue(ColorHelpers.formatArgbHex(initial));
+        box.setEditable(this.workingType.isColorEditable());
         box.setResponder(text -> {
             Integer color = ColorHelpers.parseHexColor(text);
             box.setTextColor(color != null ? TEXT_VALID : TEXT_INVALID);
-            if (color != null) sink.accept(color);
+            if (color != null && this.workingType.isColorEditable()) onEdit.accept(color);
         });
         return box;
     }
@@ -183,13 +256,10 @@ public final class VisualSwapConfigScreen extends Screen
     private void commitAndClose()
     {
         ModConfig cfg = ModConfig.get();
-        cfg.preset = this.workingPreset;
-        cfg.preset.setSizeMultiplier(this.workingSize);
-        cfg.preset.setFromColor(this.workingFrom);
-        cfg.preset.setToColor(this.workingTo);
+        cfg.preset = this.workingType;
+        cfg.customPresetData = new Preset(this.workingCustom);
         cfg.clickFlashRules = this.list.toRules();
-        AutoConfig.getConfigHolder(ModConfig.class)
-                .save();
+        AutoConfig.getConfigHolder(ModConfig.class).save();
         this.minecraft.setScreenAndShow(this.parent);
     }
 
@@ -197,44 +267,4 @@ public final class VisualSwapConfigScreen extends Screen
 
     @Override
     public void onClose() { this.minecraft.setScreenAndShow(this.parent); }
-
-    @Override
-    public void extractRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
-    {
-        super.extractRenderState(g, mouseX, mouseY, a);
-
-        g.centeredText(this.font, getTitle(), this.width / 2, TITLE_Y, TITLE_COLOR);
-
-        // Section caption + column headers, aligned to the row columns (must mirror FlashRuleEntry's layout).
-        int contentX = this.rowLeft + 2;
-        int contentRight = this.rowLeft + this.rowWidth - 2;
-        int deleteX = contentRight - 18;
-        int colorX = deleteX - 6 - 70;
-        int intensityX = colorX - 6 - 46;
-        int onX = intensityX - 6 - 58;
-        int boxX = contentX + 16 + 6;
-
-        g.text(this.font, Component.literal("Item"), boxX, this.headerY, MUTED_COLOR);
-        g.centeredText(this.font, Component.literal("Flash Type"), onX + 29, this.headerY, MUTED_COLOR);
-        g.centeredText(this.font, Component.literal("Intensity"), intensityX + 23, this.headerY, MUTED_COLOR);
-        g.centeredText(this.font, Component.literal("Color"), colorX + 35, this.headerY, MUTED_COLOR);
-
-        // Custom-color rows: "From" / "To" caption + a live swatch left of each hex box.
-        if (this.fromColorBox != null) drawColorRow(g, "From", this.fromColorBox, this.workingFrom);
-        if (this.toColorBox != null) drawColorRow(g, "To", this.toColorBox, this.workingTo);
-    }
-
-    /* HELPERS */
-
-    private void drawColorRow(GuiGraphicsExtractor g, String label, EditBox box, int color)
-    {
-        int labelX = box.getX() - COLOR_SWATCH - 6 - COLOR_LABEL_W;
-        int textY = box.getY() + (CHIP_H - this.font.lineHeight) / 2 + 1;
-        g.text(this.font, Component.literal(label), labelX, textY, LABEL_COLOR);
-
-        int swatchX = box.getX() - COLOR_SWATCH - 6;
-        int swatchY = box.getY() + (CHIP_H - COLOR_SWATCH) / 2;
-        g.fill(swatchX - 1, swatchY - 1, swatchX + COLOR_SWATCH + 1, swatchY + COLOR_SWATCH + 1, SWATCH_BORDER);
-        g.fill(swatchX, swatchY, swatchX + COLOR_SWATCH, swatchY + COLOR_SWATCH, color);
-    }
 }

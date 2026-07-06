@@ -77,13 +77,28 @@ there are two source sets, both registered as the `visual-swap` mod:
     glyph HUD element.
   - `com.patchnote.visualswap.client.config.screen.*` — the hand-built config
     GUI (`ModMenuIntegration` opens `VisualSwapConfigScreen`, no longer the
-    AutoConfig auto-screen). Indicator mode (Vanilla/Practice chips) + Vanilla
-    size slider on top; a scrollable `FlashRulesList` table below, one editable
-    row per `ModConfig.FlashRule` (item id + live icon, flash-on / intensity cycle
-    chips, a per-row tint-colour hex box + live swatch, per-row delete, and
-    Add-rule). Custom chip widgets: `Chips` (palette +
-    pill draw), `ChoiceChip`, `CyclingChip<T>`, `ActionChip`, `SizeSlider`. Edits
-    stay on working copies and are written back to `ModConfig` + `AutoConfig`
+    AutoConfig auto-screen). Preset selector (Vanilla/Practice/Custom) + size
+    slider + the preset's From/To highlight colours on top; a scrollable
+    `FlashRulesList` table below, one editable row per `ModConfig.FlashRule` (item
+    id + live icon, flash-on / intensity cycle chips, a per-row tint-colour hex box
+    + live swatch, per-row delete, and Add-rule). **Preset model:** `PresetType` is
+    an enum (VANILLA/PRACTICE/CUSTOM identity + each type's *fixed defaults*); `Preset`
+    is a plain **data class** (`sizeMultiplier`, `fromColor`, `toColor`) so its fields
+    serialise — an enum would persist only its name, which is why the Custom size/From/To
+    now survive restarts. `ModConfig` holds `preset` (active `PresetType`) + `customPresetData`
+    (the Custom `Preset` data object); `ModConfig.getFromColor/getToColor/getSize()` resolve
+    to `customPresetData` under Custom else the type's default, and the render consumers
+    (`SwapHotbarHighlight`, `SwapHitMasks`, `SwapParticleProvider`) read those. **Per-preset
+    per-item colours:** each `FlashRule` stores a `Map<PresetType,Integer>` tint (see
+    `PresetType.getFlashTint`). The size slider, From/To boxes, and every row's
+    colour box show the *active preset's* effective value and are **editable only under
+    Custom** (`PresetType.isColorEditable()` — greyed/disabled otherwise); switching the
+    preset re-points them all (`FlashRulesList.setPreset`, `SizeSlider.update`) while a
+    working `Preset` copy preserves in-progress Custom edits across toggles. Widgets are
+    all stock (`StringWidget` for title/headers/captions, `EditBox` for hex,
+    `CycleButton`/`Button`/`SizeSlider`) plus one custom `ColorSwatch` (the only thing
+    with no vanilla equivalent); the screen no longer overrides `extractRenderState`.
+    Edits stay on working copies and are written back to `ModConfig` + `AutoConfig`
     `save()` only on "Done". Uses the 26.2 extract-render model — see
     `mc_decompiled/.knowledge/screen-and-widget-api.txt`.
 
@@ -109,10 +124,10 @@ Standard Loom build (`./gradlew build`) with one project-specific wrinkle: the
   Each entry is a 7×7 (`#` = filled) glyph with an optional `particle` name, a HUD
   `color` (ARGB) and a `particleColor` (ARGB) runtime tint. `color` and
   `particleColor` are each objects carrying a `vanilla` and a `practice` variant,
-  selected at runtime by `ModConfig.preset` (`Preset.{VANILLA,PRACTICE,CUSTOM}`,
+  selected at runtime by `ModConfig.preset` (`PresetType.{VANILLA,PRACTICE,CUSTOM}`,
   read live by `SwapHitMasks.Mask.color()`/`particleColor()`; under `CUSTOM` the
   `failed` mask takes the user `from` colour and every other mask the `to`
-  colour). Four masks today: `possible` (→ `swap_possible`), `attacked`
+  colour, via `ModConfig.getFromColor()`/`getToColor()`). Four masks today: `possible` (→ `swap_possible`), `attacked`
   (→ `swap_attacked`) and `consecutive` (→ `swap_consecutive`) each have a
   `particle` and bake a sprite; `failed` is **HUD glyph only** — it omits
   `particle`, so no particle type is registered and the bake skips it (no unused

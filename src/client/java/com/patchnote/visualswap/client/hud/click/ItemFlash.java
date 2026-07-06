@@ -83,7 +83,8 @@ public final class ItemFlash
     private static int calculateTintFor(FlashRule rule)
     {
         FlashIntensity intensity = (rule.intensity() != null) ? rule.intensity() : FlashIntensity.HIGH;
-        return packTint(rule.color(), intensity.getGamma());
+        int color = rule.colorFor(ModConfig.get().preset);
+        return packTint(color, intensity.getGamma());
     }
 
     /// Packs a per-item tint: RGB in the low 24 bits, the gamma encoded into the alpha byte (see

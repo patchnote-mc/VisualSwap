@@ -3,6 +3,7 @@ package com.patchnote.visualswap.client.config.screen.widget;
 import com.patchnote.visualswap.client.config.models.FlashTrigger;
 import com.patchnote.visualswap.client.config.models.FlashIntensity;
 import com.patchnote.visualswap.client.config.models.FlashRule;
+import com.patchnote.visualswap.client.config.models.PresetType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.core.Holder;
@@ -36,19 +37,25 @@ public final class FlashRulesList extends ContainerObjectSelectionList<FlashRule
 
     static final int TEXT_VALID = 0xFFE0E0E0;
     static final int TEXT_INVALID = 0xFFFF5555;
+    static final int TEXT_MUTED = 0xFF97979E;  // greyed hex text under a non-editable (non-Custom) preset
 
     static final int SLOT_BG = 0xFF26262B;
     static final int SLOT_BORDER = 0xFF4A4A52;
 
     private final int rowWidth;
 
-    public FlashRulesList(Minecraft minecraft, int width, int height, int y, int rowWidth, List<FlashRule> rules)
+    /// The preset whose colour each row currently shows/edits — mirrors the screen's working preset.
+    private PresetType preset;
+
+    public FlashRulesList(Minecraft minecraft, int width, int height, int y, int rowWidth, PresetType preset,
+                          List<FlashRule> rules)
     {
         super(minecraft, width, height, y, ROW_HEIGHT);
         this.rowWidth = rowWidth;
+        this.preset = preset;
         for (FlashRule rule : rules)
         {
-            addEntry(new FlashRuleEntry(this, new FlashRule(rule.item(), rule.flashesAt(), rule.intensity(), rule.color())));
+            addEntry(new FlashRuleEntry(this, new FlashRule(rule)));
         }
     }
 
@@ -61,6 +68,16 @@ public final class FlashRulesList extends ContainerObjectSelectionList<FlashRule
     protected int scrollBarX() { return getRowRight() + 10; }
 
     /* API */
+
+    /// The preset each row's colour column currently reflects.
+    public PresetType preset() { return this.preset; }
+
+    /// Switch the preset shown/edited by every row's colour column (value + editability + swatch follow).
+    public void setPreset(PresetType preset)
+    {
+        this.preset = preset;
+        for (FlashRuleEntry entry : children()) entry.refreshColor(preset);
+    }
 
     /// Append a fresh, blank rule and scroll it into view.
     public void addRule()

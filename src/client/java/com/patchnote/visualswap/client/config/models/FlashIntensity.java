@@ -9,8 +9,8 @@ import net.minecraft.network.chat.Component;
 /// the flat tint colour (a bright, punchy flash); a lower gamma preserves more of the item's own shading (subtler).
 public enum FlashIntensity
 {
-    LOW(2.0),
-    HIGH(6.0);
+    LOW(4.0),
+    HIGH(8.0);
 
     private final double gamma;
 

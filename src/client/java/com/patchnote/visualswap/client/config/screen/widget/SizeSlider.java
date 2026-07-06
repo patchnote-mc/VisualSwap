@@ -11,7 +11,7 @@ public final class SizeSlider extends AbstractSliderButton
     private static final double MAX = 2.00;
     private static final double STEP = 0.05;
 
-    private final String label;
+    private String label;
     private final DoubleConsumer onChange;
 
     public SizeSlider(int x, int y, int width, int height, String label, double initial, DoubleConsumer onChange)
@@ -19,6 +19,15 @@ public final class SizeSlider extends AbstractSliderButton
         super(x, y, width, height, Component.empty(), toFraction(initial));
         this.label = label;
         this.onChange = onChange;
+        updateMessage();
+    }
+
+    /// Re-point the slider at a different preset's size without firing {@code onChange} (sets the raw value directly
+    /// rather than via applyValue).
+    public void update(String label, double size)
+    {
+        this.label = label;
+        this.value = toFraction(size);
         updateMessage();
     }
 

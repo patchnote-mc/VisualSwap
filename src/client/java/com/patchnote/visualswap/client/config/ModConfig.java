@@ -3,6 +3,7 @@ package com.patchnote.visualswap.client.config;
 import com.patchnote.visualswap.VisualSwap;
 import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.Preset;
+import com.patchnote.visualswap.client.config.models.PresetType;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.Config;
@@ -15,18 +16,34 @@ public final class ModConfig implements ConfigData
 {
     /* CONFIG */
 
-    public Preset preset = Preset.VANILLA;
+    /// Which preset is active (identity only — serializes as its name).
+    public PresetType preset = PresetType.VANILLA;
+
+    /// The Custom preset's editable settings. A real data object (not an enum) so its fields persist; Vanilla/Practice
+    /// use their fixed {@link PresetType} defaults instead. Only touched when the active preset is Custom.
+    public Preset customPresetData = PresetType.CUSTOM.createDefault();
+
     public List<FlashRule> clickFlashRules = FlashRule.defaultFlashRules();
 
     /* HELPERS */
 
     public static ModConfig get() { return AutoConfig.getConfigHolder(ModConfig.class).getConfig(); }
 
-    /// Repair configs written by an older schema: Gson can leave the rule list null or its rules with null/absent
-    /// fields (e.g. the pre-{@code intensity} / pre-{@code color} format), which would otherwise crash the config GUI.
+    public int getFromColor() { return preset.isCustom() ? customPresetData.getFromColor() : preset.getFromColor(); }
+
+    public int getToColor() { return preset.isCustom() ? customPresetData.getToColor() : preset.getToColor(); }
+
+    public double getSize() { return preset.isCustom() ? customPresetData.getSizeMultiplier() : preset.getSize(); }
+
+    /* VALIDATION */
+
     @Override
     public void validatePostLoad()
     {
+        if (this.preset == null) this.preset = PresetType.VANILLA;
+        if (this.customPresetData == null) this.customPresetData = PresetType.CUSTOM.createDefault();
+        this.customPresetData.setSizeMultiplier(Math.clamp(this.customPresetData.getSizeMultiplier(), 0.10, 2.00));
+
         if (this.clickFlashRules == null)
         {
             this.clickFlashRules = FlashRule.defaultFlashRules();

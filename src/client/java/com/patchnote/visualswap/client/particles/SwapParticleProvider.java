@@ -29,7 +29,7 @@ public final class SwapParticleProvider implements ParticleProvider<SwapParticle
         double dy = yAux + (random.nextDouble() - 0.5) * 2.0 * options.speed() + options.upBias();
         double dz = zAux + (random.nextDouble() - 0.5) * 2.0 * options.speed();
 
-        double multipliers = (0.85f + random.nextFloat() * 0.3f) * config.preset.getSizeMultiplier();
+        double multipliers = (0.85f + random.nextFloat() * 0.3f) * config.getSize();
         double size = options.baseSize() * multipliers;
 
         SwapParticle particle = new SwapParticle(

@@ -61,8 +61,8 @@ public final class SwapHotbarHighlight
 
     private int colorFor(int idx)
     {
-        int fromColor = ModConfig.get().preset.getFromColor();
-        int toColor = ModConfig.get().preset.getToColor();
+        int fromColor = ModConfig.get().getFromColor();
+        int toColor = ModConfig.get().getToColor();
 
         boolean to = idx == this.trailLen - 1;
 

@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.patchnote.visualswap.VisualSwap;
 import com.patchnote.visualswap.client.config.ModConfig;
-import com.patchnote.visualswap.client.config.models.Preset;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -144,7 +143,7 @@ public final class SwapHitMasks
             return switch (cfg.preset)
             {
                 case PRACTICE -> practice;
-                case CUSTOM -> "failed".equals(this.name) ? cfg.preset.getFromColor() : cfg.preset.getToColor();
+                case CUSTOM -> "failed".equals(this.name) ? cfg.getFromColor() : cfg.getToColor();
                 default -> vanilla;
             };
         }
