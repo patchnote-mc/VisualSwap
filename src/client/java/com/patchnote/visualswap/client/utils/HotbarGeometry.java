@@ -3,9 +3,9 @@ package com.patchnote.visualswap.client.utils;
 import static com.patchnote.visualswap.client.utils.Constants.HOTBAR_SLOTS;
 import static com.patchnote.visualswap.client.utils.Constants.NO_SLOT;
 
-/// Single source of truth for the vanilla hotbar-slot layout (`Hud`: slot i at
-/// {@code x = guiWidth/2 - 90 + 2 + i*20}, {@code y = guiHeight - 16 - 3}). Shared by the glow mixin and the hotbar
-/// highlight so the magic numbers don't drift independently if vanilla changes the layout.
+/// Single source of truth for the vanilla hotbar-slot layout (`Hud`: slot i at {@code x = guiWidth/2 - 90 + 2 + i*20},
+/// {@code y = guiHeight - 16 - 3}). Shared by the glow mixin and the hotbar highlight so the magic numbers don't drift
+/// independently if vanilla changes the layout.
 public final class HotbarGeometry
 {
     private HotbarGeometry() { }

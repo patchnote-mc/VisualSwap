@@ -3,8 +3,9 @@
   "package": "com.patchnote.visualswap.client.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "HudHotbarHighlightMixin",
-    "HotbarItemGlowMixin"
+    "GuiItemFlashPreviewMixin",
+    "HotbarItemGlowMixin",
+    "HudHotbarHighlightMixin"
   ],
   "injectors": {
     "defaultRequire": 1

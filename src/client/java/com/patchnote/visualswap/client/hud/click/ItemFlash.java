@@ -89,7 +89,7 @@ public final class ItemFlash
 
     /// Packs a per-item tint: RGB in the low 24 bits, the gamma encoded into the alpha byte (see
     /// {@link #GAMMA_ENCODE_MAX}).
-    private static int packTint(int color, double gamma)
+    public static int packTint(int color, double gamma)
     {
         int gammaByte = Math.clamp((int) Math.round(gamma / GAMMA_ENCODE_MAX * 255.0), 0, 255);
         return (gammaByte << 24) | (color & 0xFFFFFF);

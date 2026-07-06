@@ -66,8 +66,10 @@ public final class SwapParticleOptions implements ParticleOptions
                 Codec.FLOAT.fieldOf("speed").forGetter(o -> o.speed),
                 Codec.FLOAT.fieldOf("upBias").forGetter(o -> o.upBias),
                 Codec.INT.fieldOf("lifetime").forGetter(o -> o.lifetime)
-        ).apply(instance, (rgb, baseSize, gravity, friction, speed, upBias, lifetime) ->
-                new SwapParticleOptions(type, rgb, baseSize, gravity, friction, speed, upBias, lifetime)));
+        ).apply(
+                instance, (rgb, baseSize, gravity, friction, speed, upBias, lifetime) ->
+                        new SwapParticleOptions(type, rgb, baseSize, gravity, friction, speed, upBias, lifetime)
+        ));
     }
 
     public static StreamCodec<? super ByteBuf, SwapParticleOptions> streamCodec(ParticleType<SwapParticleOptions> type)

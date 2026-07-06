@@ -1,4 +1,4 @@
-<!-- last updated: 2026-07-06 -->
+<!-- last updated: 2026-07-07 -->
 
 # AGENTS.md — Visual Swap architecture & flows
 
@@ -77,11 +77,29 @@ there are two source sets, both registered as the `visual-swap` mod:
     glyph HUD element.
   - `com.patchnote.visualswap.client.config.screen.*` — the hand-built config
     GUI (`ModMenuIntegration` opens `VisualSwapConfigScreen`, no longer the
-    AutoConfig auto-screen). Preset selector (Vanilla/Practice/Custom) + size
-    slider + the preset's From/To highlight colours on top; a scrollable
-    `FlashRulesList` table below, one editable row per `ModConfig.FlashRule` (item
-    id + live icon, flash-on / intensity cycle chips, a per-row tint-colour hex box
-    + live swatch, per-row delete, and Add-rule). **Preset model:** `PresetType` is
+    AutoConfig auto-screen). Built on the vanilla `gui.layouts` package:
+    `HeaderAndFooterLayout` (fixed title-only header, fixed `+ Add rule`/Cancel/
+    Done footer) with the whole middle in a `ScrollableLayout` styled like a
+    vanilla list panel (`menu_list_background` + header/footer separators drawn
+    in the screen's `extractRenderState` override). Content: a 2×3 `GridLayout`
+    on top — preset selector & size slider | From/To colour rows |
+    `HotbarSwapPreview` — then `RuleColumnsHeader` captions over
+    `FlashRulesList`, now a plain vertical `Layout` of `FlashRuleRow`s (each an
+    `AbstractContainerWidget` with `NO_SCROLL`; the page owns all scrolling),
+    one editable row per `ModConfig.FlashRule` (item id + live icon, flash-on /
+    intensity cycle chips, a per-row tint-colour hex box + live swatch, per-row
+    delete). Row add/remove re-inits via `rebuildWidgets()`. **Swap preview:**
+    `HotbarSwapPreview` renders two real hotbar slots (cropped `hud/hotbar`
+    sprite, `hud/hotbar_selection` on the right slot), From/To fills behind the
+    items exactly as `SwapHotbarHighlight` draws them in-game, and flashes the
+    right item through the real `WHITE_SILHOUETTE` shader — it registers the
+    item's coords+tint in `ItemFlashPreview` each frame and
+    `GuiItemFlashPreviewMixin` re-blits it from the item atlas
+    (`ItemFlashPipeline.silhouetteBlit`). The flashing slot follows the rule
+    whose colour box was last user-edited (row → list → screen callback;
+    retargeted across rebuilds by its position in the rebuild seed, falling
+    back to the mace rule), live-tracking that rule's item/colour/intensity
+    under the working preset. **Preset model:** `PresetType` is
     an enum (VANILLA/PRACTICE/CUSTOM identity + each type's *fixed defaults*); `Preset`
     is a plain **data class** (`sizeMultiplier`, `fromColor`, `toColor`) so its fields
     serialise — an enum would persist only its name, which is why the Custom size/From/To
@@ -95,22 +113,27 @@ there are two source sets, both registered as the `visual-swap` mod:
     Custom** (`PresetType.isColorEditable()` — greyed/disabled otherwise); switching the
     preset re-points them all (`FlashRulesList.setPreset`, `SizeSlider.update`) while a
     working `Preset` copy preserves in-progress Custom edits across toggles. Widgets are
-    all stock (`StringWidget` for title/headers/captions, `EditBox` for hex,
-    `CycleButton`/`Button`/`SizeSlider`) plus one custom `ColorSwatch` (the only thing
-    with no vanilla equivalent); the screen no longer overrides `extractRenderState`.
+    stock (`StringWidget`, `EditBox` for hex, `CycleButton`/`Button`/`SizeSlider`) plus
+    the custom `ColorSwatch`, `RuleColumnsHeader`, and `HotbarSwapPreview`.
     Edits stay on working copies and are written back to `ModConfig` + `AutoConfig`
     `save()` only on "Done". Uses the 26.2 extract-render model — see
-    `mc_decompiled/.knowledge/screen-and-widget-api.txt`.
+    `mc_decompiled/.knowledge/screen-and-widget-api.txt` and
+    `mc_decompiled/.knowledge/gui-layouts.txt`.
 
 Mixins:
 
 - `visual-swap.mixins.json` — package `com.patchnote.visualswap.mixin` (empty).
 - `visual-swap.client.mixins.json` — package
-  `com.patchnote.visualswap.client.mixin`, `"environment": "client"`. Holds the
-  one active mixin, `HudHotbarHighlightMixin` (see
-  [the hotbar highlight](#swap-window-detection--rendering)). The swap-window
-  *detection* still uses no mixins; this one is purely for drawing a HUD
-  highlight behind the hotbar items, which the HUD-element API can't reach.
+  `com.patchnote.visualswap.client.mixin`, `"environment": "client"`. Three
+  active mixins, all render-only (swap-window *detection* still uses none):
+  - `HudHotbarHighlightMixin` (`Hud.extractSlot` HEAD) — draws the swap
+    highlight fill behind hotbar items, which the HUD-element API can't reach.
+  - `HotbarItemGlowMixin` (`GuiRenderer.submitBlitFromItemAtlas` TAIL) —
+    re-blits a flashing hotbar item as a `WHITE_SILHOUETTE` tint silhouette
+    (via `ItemFlashPipeline.silhouetteBlit`).
+  - `GuiItemFlashPreviewMixin` (same injection) — the config screen's swap
+    preview: re-blits any GUI item registered in `ItemFlashPreview`
+    (position-keyed, frame-scoped) through the same silhouette path.
 
 Both target `compatibilityLevel: JAVA_25` and require annotations
 (`overwrites.requireAnnotations = true`, `injectors.defaultRequire = 1`).

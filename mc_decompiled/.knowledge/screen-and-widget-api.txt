@@ -61,12 +61,14 @@ GOTCHA — item components bind LATE (only on a data/resource reload, i.e. when 
   Component.literal/translatable/empty (net.minecraft.network.chat.Component). Identifier is
   net.minecraft.resources.Identifier (this repo uses Identifier, never ResourceLocation).
 
-Config screen is one file: client/config/screen/VisualSwapConfigScreen.java (single class). It uses stock
-widgets throughout — CycleButton (indicator mode + per-row FlashOn/FlashOpacity), Button (add/done/cancel +
-per-row delete), EditBox (item id) — plus two nested private static classes for the widgets with no concrete
-vanilla form: SizeSlider (extends AbstractSliderButton) and FlashRulesList (extends
-ContainerObjectSelectionList, with inner RuleEntry). The old custom chip widgets (Chips/ChoiceChip/CyclingChip/
-ActionChip, ~2026-07-04) were removed in favor of vanilla widgets. ModMenuIntegration returns
+Config screen (2026-07-07): client/config/screen/VisualSwapConfigScreen.java + widget/ classes. Built on the
+layouts package (see gui-layouts.txt): HeaderAndFooterLayout + ScrollableLayout page scroll; FlashRulesList is a
+plain vertical Layout of FlashRuleRow (AbstractContainerWidget + NO_SCROLL, NOT ContainerObjectSelectionList —
+the page owns scrolling; add/remove fires screen::rebuildWidgets). Custom widgets: SizeSlider, ColorSwatch,
+RuleColumnsHeader, HotbarSwapPreview (two-slot hotbar crop; flashes an item through WHITE_SILHOUETTE by
+registering coords+tint in hud/click/ItemFlashPreview, consumed by GuiItemFlashPreviewMixin at
+GuiRenderer.submitBlitFromItemAtlas TAIL — GuiItemRenderState.x()/y() equal the g.item(x,y) args, gui-scaled,
+so exact position match is the correlation; screen.removed() clears the registry). ModMenuIntegration returns
 VisualSwapConfigScreen::new. Edits go to working copies; committed to ModConfig + AutoConfig save() only on "Done".
 
 CycleButton.builder(Function<T,Component> stringifier, T default).withValues(T...).displayOnlyValue()

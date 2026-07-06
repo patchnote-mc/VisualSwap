@@ -1,0 +1,34 @@
+Hotbar rendering geometry (26.2, verified from Hud.extractItemHotbar, Hud.java:590-634) — 2026-07-06
+
+Sprites (Hud.java:159-162):
+  HOTBAR_SPRITE = Identifier.withDefaultNamespace("hud/hotbar")                       182x22
+  HOTBAR_SELECTION_SPRITE = Identifier.withDefaultNamespace("hud/hotbar_selection")   24x23
+  HOTBAR_OFFHAND_LEFT/RIGHT_SPRITE = "hud/hotbar_offhand_left|right"                  29x24
+
+Draw calls (pipeline = RenderPipelines.GUI_TEXTURED for all):
+  hotbar:    blitSprite(GUI_TEXTURED, HOTBAR_SPRITE, cx-91, guiHeight()-22, 182, 22)          (cx = guiWidth()/2)
+  selection: blitSprite(GUI_TEXTURED, HOTBAR_SELECTION_SPRITE, cx-91-1 + selectedSlot*20, guiHeight()-22-1, 24, 23)
+  offhand L: blitSprite(GUI_TEXTURED, HOTBAR_OFFHAND_LEFT_SPRITE,  cx-91-29, guiHeight()-23, 29, 24)
+  offhand R: blitSprite(GUI_TEXTURED, HOTBAR_OFFHAND_RIGHT_SPRITE, cx+91,    guiHeight()-23, 29, 24)
+  slot item i (0..8): extractSlot at x = cx-90 + i*20 + 2 = hotbarLeft + 3 + 20*i, y = guiHeight()-16-3; seed starts at 1, ++ per slot
+  offhand item: x = cx-91-26 (left) or cx+91+10 (right), same y
+  extractSlot (Hud.java:1055): pop-time squeeze matrix around (x+8, y+12), then graphics.item(player, stack, x, y, seed), then itemDecorations(font, stack, x, y)
+
+Texture-space layout of hud/hotbar (182x22), derived from the calls above:
+  hotbarLeft = cx-91; item i sits at u = 3 + 20*i, v = 3, 16x16.
+  Stride = 20 px/slot. Left margin cols u0-2 (3px). Divider between items = 4px (e.g. u19-22).
+  Right margin after item 8 (ends u178) = cols u179-181 (3px). Vertical: 3px top (v0-2), 3px bottom (v19-21).
+  182 = 3 + 9*16 + 8*4 + 3.
+
+Pixel-identical TWO-slot crop (closed borders both sides), via sub-region blitSprite:
+  blitSprite(GUI_TEXTURED, HOTBAR_SPRITE, 182, 22, 0,   0, wx,     wy, 39, 22)  // cols 0-38: left edge 3 + item0 16 + divider 4 + item1 16
+  blitSprite(GUI_TEXTURED, HOTBAR_SPRITE, 182, 22, 179, 0, wx+39,  wy,  3, 22)  // cols 179-181: real right edge
+  -> total 42 px wide (3+16+4+16+3). Items at (wx+3, wy+3) and (wx+23, wy+3).
+  Selection over slot k: blitSprite(GUI_TEXTURED, HOTBAR_SELECTION_SPRITE, wx-1+20*k, wy-1, 24, 23).
+  (Single crop u=0..41 would substitute divider art for the right-edge art — not guaranteed identical.)
+
+Vanilla example of the crop overload (Hud.java:632, attack indicator):
+  blitSprite(GUI_TEXTURED, HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE, 18, 18, 0, 18-progress, x, y+18-progress, 18, progress)
+
+RenderPipelines (client_src net/minecraft/client/renderer/RenderPipelines.java):
+  GUI_TEXTURED (line 123, "pipeline/gui_textured", GUI_TEXTURED_SNIPPET); plain GUI (line 120) used by fill().

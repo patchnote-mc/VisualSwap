@@ -91,8 +91,8 @@ public final class ParticlesHandler
             double vz = nz * props.outward();
 
             SwapParticleOptions options = consecutive
-                    ? SwapParticleOptions.consecutive(type, rgb, props.rollLifetime(random))
-                    : SwapParticleOptions.attacked(type, rgb, props.rollLifetime(random));
+                                          ? SwapParticleOptions.consecutive(type, rgb, props.rollLifetime(random))
+                                          : SwapParticleOptions.attacked(type, rgb, props.rollLifetime(random));
 
             client.level.addParticle(options, cx + ox, cy + oy, cz + oz, vx, vy, vz);
         }

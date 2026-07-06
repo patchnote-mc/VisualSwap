@@ -61,7 +61,7 @@ public final class SwapHitMasks
     /// Load and parse every mask from {@code swap_hit_masks.json} once.
     ///
     /// @throws IllegalStateException if the resource is missing or unreadable; JSON/structure errors propagate with
-    ///         their own message rather than being flattened into a generic one.
+    /// their own message rather than being flattened into a generic one.
     private static Map<String, Mask> loadAll()
     {
         JsonObject root;

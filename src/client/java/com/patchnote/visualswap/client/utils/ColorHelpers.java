@@ -4,8 +4,8 @@ public final class ColorHelpers
 {
     private ColorHelpers() { }
 
-    /// Parses a hex color into packed ARGB. Accepts a leading {@code #} or {@code 0x}, and a 6-digit RRGGBB (treated
-    /// as fully opaque) as well as the full 8-digit AARRGGBB.
+    /// Parses a hex color into packed ARGB. Accepts a leading {@code #} or {@code 0x}, and a 6-digit RRGGBB (treated as
+    /// fully opaque) as well as the full 8-digit AARRGGBB.
     ///
     /// @return the packed ARGB, or {@code null} when the text is not a valid 6- or 8-digit hex color.
     public static Integer parseHexColor(String text)
@@ -32,7 +32,8 @@ public final class ColorHelpers
         return String.format("%08X", argb);
     }
 
-    /// Formats the RGB channels of a packed ARGB int as a 6-digit uppercase RRGGBB hex string (no prefix, alpha dropped).
+    /// Formats the RGB channels of a packed ARGB int as a 6-digit uppercase RRGGBB hex string (no prefix, alpha
+    /// dropped).
     public static String formatRgbHex(int argb)
     {
         return String.format("%06X", argb & 0xFFFFFF);

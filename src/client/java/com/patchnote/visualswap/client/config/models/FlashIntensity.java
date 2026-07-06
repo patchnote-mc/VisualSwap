@@ -5,8 +5,9 @@ import net.minecraft.network.chat.Component;
 /// How strongly a {@link FlashRule}'s item is tinted when it flashes.
 ///
 /// The value is a *gamma* applied to the item's own luminance (see `alpha_to_bw.py`): the shader reshapes each pixel's
-/// brightness with `pow(luminance, 1 / gamma)` before painting it the tint colour. A higher gamma lifts the darks toward
-/// the flat tint colour (a bright, punchy flash); a lower gamma preserves more of the item's own shading (subtler).
+/// brightness with `pow(luminance, 1 / gamma)` before painting it the tint colour. A higher gamma lifts the darks
+/// toward the flat tint colour (a bright, punchy flash); a lower gamma preserves more of the item's own shading
+/// (subtler).
 public enum FlashIntensity
 {
     LOW(4.0),

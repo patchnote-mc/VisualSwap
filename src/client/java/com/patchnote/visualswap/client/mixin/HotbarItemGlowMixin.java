@@ -1,7 +1,5 @@
 package com.patchnote.visualswap.client.mixin;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
 import com.patchnote.visualswap.client.hud.click.ItemFlash;
 import com.patchnote.visualswap.client.hud.click.ItemFlashPipeline;
 import com.patchnote.visualswap.client.utils.Constants;
@@ -9,8 +7,6 @@ import com.patchnote.visualswap.client.utils.HotbarGeometry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.GuiItemAtlas;
 import net.minecraft.client.gui.render.GuiRenderer;
-import net.minecraft.client.gui.render.TextureSetup;
-import net.minecraft.client.renderer.state.gui.BlitRenderState;
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState;
 import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import org.spongepowered.asm.mixin.Final;
@@ -45,24 +41,7 @@ public class HotbarItemGlowMixin
         if (slot == Constants.NO_SLOT) return;
         if (mc.player == null || !ItemFlash.INSTANCE.isActive(slot, mc.player.tickCount)) return;
 
-        this.renderState.addBlitToCurrentLayer(new BlitRenderState(
-                ItemFlashPipeline.WHITE_SILHOUETTE,
-                TextureSetup.singleTexture(
-                        slotView.textureView(), //
-                        RenderSystem.getSamplerCache().getRepeat(FilterMode.NEAREST)
-                ),
-                itemState.pose(),
-                itemState.x(),
-                itemState.y(),
-                itemState.x() + HotbarGeometry.SLOT_SIZE,
-                itemState.y() + HotbarGeometry.SLOT_SIZE,
-                slotView.u0(),
-                slotView.u1(),
-                slotView.v0(),
-                slotView.v1(),
-                ItemFlash.INSTANCE.getTintFor(slot),
-                itemState.scissorArea(),
-                null
-        ));
+        this.renderState.addBlitToCurrentLayer(
+                ItemFlashPipeline.silhouetteBlit(itemState, slotView, ItemFlash.INSTANCE.getTintFor(slot)));
     }
 }
