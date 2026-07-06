@@ -48,7 +48,11 @@ public final class ClickTickTracker
     {
         LocalPlayer player = client.player;
         if (player == null) return ClickTickState.EMPTY;
-        ItemStack mainHand = player.getMainHandItem().copy();
+        // get item; prefer not copying the item
+        ItemStack previousItem = getPreviousState().mainHand();
+        ItemStack mainHand;
+        if (!ItemStack.isSameItem(previousItem, player.getMainHandItem())) mainHand = player.getMainHandItem().copy();
+        else mainHand = previousItem;
         return new ClickTickState(
                 player.tickCount,
                 true,

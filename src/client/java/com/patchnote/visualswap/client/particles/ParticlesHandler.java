@@ -2,11 +2,8 @@ package com.patchnote.visualswap.client.particles;
 
 import com.patchnote.visualswap.VisualSwap;
 import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
-import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
@@ -20,18 +17,14 @@ import net.minecraft.world.entity.Entity;
  */
 public final class ParticlesHandler
 {
-    public static final SimpleParticleType SWAP_POSSIBLE = FabricParticleTypes.simple();
-    public static final SimpleParticleType SWAP_ATTACKED = FabricParticleTypes.simple();
-    public static final SimpleParticleType SWAP_CONSECUTIVE = FabricParticleTypes.simple();
+    public static final SwapParticleType SWAP_POSSIBLE = new SwapParticleType();
+    public static final SwapParticleType SWAP_ATTACKED = new SwapParticleType();
+    public static final SwapParticleType SWAP_CONSECUTIVE = new SwapParticleType();
 
     private static final int PARTICLES_PER_HIT = 9;
     private static final int MAX_CHAIN_HITS = 4;
     /// A chain this deep (>= 2 = stun slam) emits the consecutive sprite instead of the single-hit one.
     private static final int CONSECUTIVE_MIN_HITS = 2;
-
-    private static AttackParticleProps spawningProps = AttackParticleProps.NORMAL;
-
-    static AttackParticleProps spawningProps() { return spawningProps; }
 
     private ParticlesHandler() { }
 
@@ -53,9 +46,9 @@ public final class ParticlesHandler
     private static void registerFactories()
     {
         ParticleProviderRegistry registry = ParticleProviderRegistry.getInstance();
-        registry.register(SWAP_POSSIBLE, SwapParticleProvider::possible);
-        registry.register(SWAP_ATTACKED, SwapParticleProvider::attacked);
-        registry.register(SWAP_CONSECUTIVE, SwapParticleProvider::consecutive);
+        registry.register(SWAP_POSSIBLE, SwapParticleProvider::new);
+        registry.register(SWAP_ATTACKED, SwapParticleProvider::new);
+        registry.register(SWAP_CONSECUTIVE, SwapParticleProvider::new);
     }
 
     /* FUNCTIONS */
@@ -64,8 +57,9 @@ public final class ParticlesHandler
     {
         if (client.level == null) return;
 
-        spawningProps = props;
-        ParticleOptions particle = chainHits >= CONSECUTIVE_MIN_HITS ? SWAP_CONSECUTIVE : SWAP_ATTACKED;
+        boolean consecutive = chainHits >= CONSECUTIVE_MIN_HITS;
+        SwapParticleType type = consecutive ? SWAP_CONSECUTIVE : SWAP_ATTACKED;
+        int rgb = (consecutive ? SwapHitMasks.consecutive() : SwapHitMasks.attacked()).particleColor() & 0xFFFFFF;
         int count = PARTICLES_PER_HIT * Math.clamp(chainHits, 1, MAX_CHAIN_HITS);
         double spread = 0.45;
         RandomSource random = target.getRandom();
@@ -96,7 +90,11 @@ public final class ParticlesHandler
             double vy = props.up();
             double vz = nz * props.outward();
 
-            client.level.addParticle(particle, cx + ox, cy + oy, cz + oz, vx, vy, vz);
+            SwapParticleOptions options = consecutive
+                    ? SwapParticleOptions.consecutive(type, rgb, props.rollLifetime(random))
+                    : SwapParticleOptions.attacked(type, rgb, props.rollLifetime(random));
+
+            client.level.addParticle(options, cx + ox, cy + oy, cz + oz, vx, vy, vz);
         }
     }
 

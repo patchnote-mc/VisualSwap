@@ -3,6 +3,7 @@ package com.patchnote.visualswap.client.hud;
 import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.mixin.HudHotbarHighlightMixin;
 import com.patchnote.visualswap.client.utils.ColorHelpers;
+import com.patchnote.visualswap.client.utils.HotbarGeometry;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 
@@ -11,13 +12,6 @@ public final class SwapHotbarHighlight
 {
     // singleton
     public static final SwapHotbarHighlight INSTANCE = new SwapHotbarHighlight();
-
-    // from -> to color pair per preset. Single swap-hit (chain < 2) uses the endpoints directly; a longer chain
-    // interpolates across them. Vanilla: cooldown-style gray, the two slots differ only by opacity.
-    private static final int FROM_COLOR_VANILLA = 0x40FFFFFF;
-    private static final int TO_COLOR_VANILLA = 0x95FFFFFF;
-    private static final int FROM_COLOR_PRACTICE = 0xFFFF0000;
-    private static final int TO_COLOR_PRACTICE = 0xFF00FF00;
 
     private boolean active;
     // trail of the current chain
@@ -52,12 +46,11 @@ public final class SwapHotbarHighlight
     {
         if (!this.active || this.trailLen == 0) return;
 
-        int hotbarLeft = graphics.guiWidth() / 2 - 90 + 2;
         // Last match wins so a slot revisited later in the chain renders at its brightest position.
         int idx = -1;
         for (int i = 0; i < this.trailLen; i++)
         {
-            if (this.trail[i] >= 0 && slotX == hotbarLeft + this.trail[i] * 20) idx = i;
+            if (this.trail[i] >= 0 && slotX == HotbarGeometry.slotLeft(graphics.guiWidth(), this.trail[i])) idx = i;
         }
         if (idx < 0) return;
 
@@ -68,15 +61,8 @@ public final class SwapHotbarHighlight
 
     private int colorFor(int idx)
     {
-        ModConfig cfg = ModConfig.get();
-        int fromColor;
-        int toColor;
-        switch (cfg.preset)
-        {
-            case PRACTICE -> { fromColor = FROM_COLOR_PRACTICE; toColor = TO_COLOR_PRACTICE; }
-            case CUSTOM -> { fromColor = cfg.customColorFrom; toColor = cfg.customColorTo; }
-            default -> { fromColor = FROM_COLOR_VANILLA; toColor = TO_COLOR_VANILLA; }
-        }
+        int fromColor = ModConfig.get().preset.getFromColor();
+        int toColor = ModConfig.get().preset.getToColor();
 
         boolean to = idx == this.trailLen - 1;
 
@@ -88,6 +74,6 @@ public final class SwapHotbarHighlight
 
     private static void fillSlot(GuiGraphicsExtractor graphics, int x, int y, int color)
     {
-        graphics.fill(RenderPipelines.GUI, x, y, x + 16, y + 16, color);
+        graphics.fill(RenderPipelines.GUI, x, y, x + HotbarGeometry.SLOT_SIZE, y + HotbarGeometry.SLOT_SIZE, color);
     }
 }

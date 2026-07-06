@@ -1,6 +1,3 @@
 {
-  "text.autoconfig.visual-swap.title": "Visual Swap",
-  "1": "----------------------------------------------------------------------------------------------------------------------------",
-  "text.autoconfig.visual-swap.option.indicatorType": "Indicator Type",
-  "text.autoconfig.visual-swap.option.indicatorType.@Tooltip": "Change the colors of particles and HUD icon."
+  "text.autoconfig.visual-swap.title": "Visual Swap"
 }

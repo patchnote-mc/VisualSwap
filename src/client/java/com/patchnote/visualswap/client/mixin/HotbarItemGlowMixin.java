@@ -4,6 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.patchnote.visualswap.client.hud.click.ItemFlash;
 import com.patchnote.visualswap.client.hud.click.ItemFlashPipeline;
+import com.patchnote.visualswap.client.utils.Constants;
+import com.patchnote.visualswap.client.utils.HotbarGeometry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.GuiItemAtlas;
 import net.minecraft.client.gui.render.GuiRenderer;
@@ -18,8 +20,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/// Re-blits a flashing hotbar item as a flat white silhouette for one frame, right after vanilla submits its
-/// atlas blit — reusing that slot's cached texture.
+/// Re-blits a flashing hotbar item as a gamma-shaded tint silhouette for one frame, right after vanilla submits its
+/// atlas blit — reusing that slot's cached texture. The per-item tint colour and intensity (gamma) ride in the tint int
+/// from {@link ItemFlash#getTintFor(int)}.
 @Mixin(GuiRenderer.class)
 public class HotbarItemGlowMixin
 {
@@ -38,12 +41,8 @@ public class HotbarItemGlowMixin
         int guiWidth = mc.getWindow().getGuiScaledWidth();
         int guiHeight = mc.getWindow().getGuiScaledHeight();
 
-        // Match the vanilla hotbar-slot geometry (Hud: x = w/2 - 90 + i*20 + 2, y = h - 16 - 3).
-        if (itemState.y() != guiHeight - 19) return;
-        int rel = itemState.x() - (guiWidth / 2 - 88);
-        if (rel < 0 || rel % 20 != 0) return;
-        int slot = rel / 20;
-        if (slot > 8) return;
+        int slot = HotbarGeometry.slotIndexAt(guiWidth, guiHeight, itemState.x(), itemState.y());
+        if (slot == Constants.NO_SLOT) return;
         if (mc.player == null || !ItemFlash.INSTANCE.isActive(slot, mc.player.tickCount)) return;
 
         this.renderState.addBlitToCurrentLayer(new BlitRenderState(
@@ -55,8 +54,8 @@ public class HotbarItemGlowMixin
                 itemState.pose(),
                 itemState.x(),
                 itemState.y(),
-                itemState.x() + 16,
-                itemState.y() + 16,
+                itemState.x() + HotbarGeometry.SLOT_SIZE,
+                itemState.y() + HotbarGeometry.SLOT_SIZE,
                 slotView.u0(),
                 slotView.u1(),
                 slotView.v0(),

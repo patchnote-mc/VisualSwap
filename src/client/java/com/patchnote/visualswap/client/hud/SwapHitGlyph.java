@@ -98,10 +98,10 @@ public final class SwapHitGlyph implements HudElement
     {
         if (this.loaded) return;
 
-        this.loaded = true;
         this.possibleMask = SwapHitMasks.possible();
         this.attackedMask = SwapHitMasks.attacked();
         this.failedMask = SwapHitMasks.failed();
         this.consecutiveMask = SwapHitMasks.consecutive();
+        this.loaded = true;
     }
 }

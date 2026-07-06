@@ -9,7 +9,7 @@ import com.patchnote.visualswap.VisualSwap;
 import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.resources.Identifier;
 
-/// GUI pipeline that draws a texture as a flat white silhouette
+/// GUI pipeline that recolours a texture into a gamma-shaded tint silhouette (see {@code white_silhouette.fsh})
 public final class ItemFlashPipeline
 {
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(

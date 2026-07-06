@@ -4,6 +4,40 @@ public final class ColorHelpers
 {
     private ColorHelpers() { }
 
+    /// Parses a hex color into packed ARGB. Accepts a leading {@code #} or {@code 0x}, and a 6-digit RRGGBB (treated
+    /// as fully opaque) as well as the full 8-digit AARRGGBB.
+    ///
+    /// @return the packed ARGB, or {@code null} when the text is not a valid 6- or 8-digit hex color.
+    public static Integer parseHexColor(String text)
+    {
+        if (text == null) return null;
+        String s = text.trim();
+        if (s.startsWith("#")) s = s.substring(1);
+        else if (s.startsWith("0x") || s.startsWith("0X")) s = s.substring(2);
+        if (s.length() == 6) s = "FF" + s;
+        if (s.length() != 8) return null;
+        try
+        {
+            return (int) Long.parseLong(s, 16);
+        }
+        catch (NumberFormatException e)
+        {
+            return null;
+        }
+    }
+
+    /// Formats a packed ARGB int as an 8-digit uppercase AARRGGBB hex string (no prefix).
+    public static String formatArgbHex(int argb)
+    {
+        return String.format("%08X", argb);
+    }
+
+    /// Formats the RGB channels of a packed ARGB int as a 6-digit uppercase RRGGBB hex string (no prefix, alpha dropped).
+    public static String formatRgbHex(int argb)
+    {
+        return String.format("%06X", argb & 0xFFFFFF);
+    }
+
     /// Interpolates in HSV so hue sweeps around the wheel (red -> yellow -> green). Alpha stays a straight linear
     /// blend.
     public static int lerpColorHSV(int a, int b, float t)
