@@ -33,7 +33,7 @@ import java.util.function.IntSupplier;
 /// icon buttons), a scrollable middle (preset selector, size slider, From/To colour swatches, and the rules table), and
 /// a fixed Discard/Cancel/Done footer, laid out with the vanilla `layouts` package and wrapped in a
 /// {@link ScrollableLayout}. The scroll viewport gets the vanilla list look — a tiled dark panel with top/bottom
-/// separators (drawn in {@link #extractScrollPanel}) plus the scrollbar the ScrollableLayout draws itself.
+/// separators (drawn in {@link #styleScrollPanel}) plus the scrollbar the ScrollableLayout draws itself.
 ///
 /// Nothing is written to {@link ModConfig} until "Done": the screen edits working copies ({@link #workingType},
 /// {@link #workingCustom}, and the {@link FlashRulesList}'s rule copies), compared against the saved snapshot captured
@@ -83,7 +83,7 @@ public final class VisualSwapConfigScreen extends Screen
 
     /// When set, {@link #init} seeds the rules table from this list (instead of carrying the current rows over) — used
     /// by Reset rules and Discard to replace the whole table. Consumed on the next init.
-    private @Nullable List<FlashRule> pendingSeed;
+    private @Nullable List<FlashRule> pendingRules;
 
     /// Case-insensitive item-id filter for the rules table, plus one-shot flags asking init to re-focus the search box
     /// after a filter rebuild, or the freshly-added top row after an add.
@@ -92,7 +92,7 @@ public final class VisualSwapConfigScreen extends Screen
     private boolean focusNewRow;
 
     /// Recomputed each init; drives the header dot, the Discard button, and the confirm-before-leaving guard.
-    private boolean dirtyState;
+    private boolean isModified;
 
     /// Number of rules that conflict with another (same item + overlapping trigger). Recomputed live every frame — a
     /// trigger/item edit can create or clear a conflict without a rebuild — and while it is > 0 the title shows a red
@@ -145,21 +145,19 @@ public final class VisualSwapConfigScreen extends Screen
 
         // Choose the rules seed: an explicit pending seed (reset/discard) wins; otherwise carry the current rows over
         // (preserving in-progress edits across a resize / add / remove); otherwise the saved snapshot (first open).
-        List<FlashRule> seed;
-        if (this.pendingSeed != null)
+        List<FlashRule> rules;
+        if (this.pendingRules != null)
         {
-            seed = this.pendingSeed;
-            this.pendingSeed = null;
+            rules = this.pendingRules;
+            this.pendingRules = null;
         }
-        else if (this.list != null) { seed = this.list.toRules(); }
-        else { seed = this.savedRules; }
+        else if (this.list != null) { rules = this.list.toRules(); }
+        else { rules = this.savedRules; }
 
-        int previewIdx = (this.previewRule != null) ? seed.indexOf(this.previewRule) : -1;
-        FlashRule revealTarget = (this.list != null) ? this.list.consumeRevealTarget() : null;
-        int revealIdx = (revealTarget != null) ? seed.indexOf(revealTarget) : -1;
+        int previewIdx = (this.previewRule != null) ? rules.indexOf(this.previewRule) : -1;
 
-        this.dirtyState = isDirty(seed);
-        boolean resetRulesEnabled = !FlashRule.listsSameValues(seed, FlashRule.defaultFlashRules());
+        this.isModified = isModified(rules);
+        boolean resetRulesEnabled = !FlashRule.listsSameValues(rules, FlashRule.defaultFlashRules());
         boolean resetColorsEnabled =
                 this.workingType.isCustom() && !this.workingCustom.sameValuesAs(PresetType.CUSTOM.createDefault());
 
@@ -180,21 +178,15 @@ public final class VisualSwapConfigScreen extends Screen
         CycleButton<PresetType> presetButton = CycleButton.<PresetType>builder(
                 PresetType::getNameComponent,
                 this.workingType
-        ).withValues(
-                PresetType.VANILLA,
-                PresetType.PRACTICE,
-                PresetType.CUSTOM
-        ).create(0, 0, colW, CHIP_H, Component.literal("Preset"), (button, value) -> setPreset(value));
+        ).withValues(PresetType.values()).create(
+                0, 0, colW, CHIP_H, //
+                Component.literal("Preset"), (button, value) -> setPreset(value)
+        );
         top.addChild(presetButton, 0, 0);
 
         this.slider = new SizeSlider(
-                0,
-                0,
-                colW,
-                CHIP_H,
-                this.workingType.getDisplayName(),
-                effectiveSize(),
-                this.workingCustom::setSizeMultiplier
+                0, 0, colW, CHIP_H, //
+                this.workingType.getDisplayName(), effectiveSize(), this.workingCustom::setSizeMultiplier
         );
         this.slider.active = this.workingType.isColorEditable();
         this.slider.setTooltip(Tooltip.create(Component.literal("Scale of the swap highlight overlay.")));
@@ -227,9 +219,11 @@ public final class VisualSwapConfigScreen extends Screen
         this.list = new FlashRulesList(
                 rowWidth,
                 this.workingType,
-                seed,
+                rules, //
                 this::rebuildWidgets,
-                rule -> this.previewRule = rule,
+                rule -> this.previewRule = rule, //
+                _ -> applyDoneState(
+                        this.list.invalidCount() == 0 ? DoneButtonState.ENABLED : DoneButtonState.INVALID_RULE),
                 this.overlays
         );
         this.list.setFilter(this.filterText);
@@ -279,12 +273,12 @@ public final class VisualSwapConfigScreen extends Screen
         // --- footer: revert / leave / save ---
         LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(8));
         Button discardButton = Button.builder(Component.literal("Discard"), b -> confirmDiscard()).width(80).build();
-        discardButton.active = this.dirtyState;
+        discardButton.active = this.isModified;
         discardButton.setTooltip(Tooltip.create(Component.literal("Revert all unsaved changes to your saved config.")));
         footer.addChild(discardButton);
         footer.addChild(Button.builder(Component.literal("Cancel"), b -> onClose()).width(80).build());
         this.doneButton = Button.builder(Component.literal("Done"), b -> onDone()).width(80).build();
-        applyDoneState(this.conflictCount == 0);
+        applyDoneState(this.conflictCount == 0 ? DoneButtonState.ENABLED : DoneButtonState.CONFLICTS);
         footer.addChild(this.doneButton);
 
         this.layout.visitWidgets(this::addRenderableWidget);
@@ -294,7 +288,6 @@ public final class VisualSwapConfigScreen extends Screen
         arrangeContents();
         restoreScroll(previousScroll);
         applyPendingFocus();
-        revealRow(revealIdx);
     }
 
     /// The fixed header, then the scroll viewport below it — dropping HeaderAndFooterLayout's ~30px content margin.
@@ -347,15 +340,6 @@ public final class VisualSwapConfigScreen extends Screen
             area.setScrollAmount(this.resetScroll ? 0.0 : previous);   // setScrollAmount clamps to the new max
         }
         this.resetScroll = false;
-    }
-
-    /// Bring the row at {@code index} (in full order) into view after a rebuild — used to reveal a freshly duplicated
-    /// row. A negative index means nothing to reveal.
-    private void revealRow(int index)
-    {
-        if (index < 0) return;
-        FlashRuleRow row = this.list.rowAt(index);
-        if (row != null) ensureRowVisible(row);
     }
 
     /// Scroll the rules viewport just enough to bring {@code row} fully into view (a no-op when it already is).
@@ -489,7 +473,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         List<FlashRule> defaults = FlashRule.defaultFlashRules();
         linkToSavedByValue(defaults);   // defaults that match a saved rule read as unchanged; the rest as newly added
-        this.pendingSeed = defaults;
+        this.pendingRules = defaults;
         this.resetScroll = true;
         rebuildWidgets();
     }
@@ -525,7 +509,7 @@ public final class VisualSwapConfigScreen extends Screen
         this.workingType = this.savedType;
         this.workingCustom = new Preset(this.savedCustom);
         this.filterText = "";
-        this.pendingSeed = this.savedRules;
+        this.pendingRules = this.savedRules;
         this.list = null;
         this.resetScroll = true;
         rebuildWidgets();
@@ -551,8 +535,7 @@ public final class VisualSwapConfigScreen extends Screen
 
     /* DIRTY STATE / SAVE / CLOSE */
 
-    /// True when the working state differs from the saved snapshot.
-    private boolean isDirty(List<FlashRule> currentRules)
+    private boolean isModified(List<FlashRule> currentRules)
     {
         return this.workingType != this.savedType || !this.workingCustom.sameValuesAs(this.savedCustom) ||
                 !FlashRule.listsSameValues(currentRules, this.savedRules);
@@ -565,39 +548,28 @@ public final class VisualSwapConfigScreen extends Screen
     {
         boolean wasBlocked = this.conflictCount > 0;
         this.conflictCount = (this.list != null) ? this.list.recomputeConflicts() : 0;
-        if ((this.conflictCount > 0) != wasBlocked) applyDoneState(this.conflictCount == 0);
+        if ((this.conflictCount > 0) != wasBlocked)
+        {
+            applyDoneState(this.conflictCount == 0 ? DoneButtonState.ENABLED : DoneButtonState.CONFLICTS);
+        }
     }
 
     /// Enable/disable the Done button and set the matching tooltip — a conflicting config can never be saved.
-    private void applyDoneState(boolean allowSave)
+    private void applyDoneState(DoneButtonState newState)
     {
         if (this.doneButton == null) return;
-        this.doneButton.active = allowSave;
-        this.doneButton.setTooltip(Tooltip.create(Component.literal(allowSave
-                                                                    ? "Save your changes and close."
-                                                                    : "Resolve the conflicting rules (same item & trigger) before saving.")));
+        this.doneButton.active = newState.allowsSaving();
+        this.doneButton.setTooltip(Tooltip.create(Component.literal(newState.getMessage())));
     }
 
     private void onDone()
     {
-        if (this.conflictCount > 0) return;   // Done is disabled while conflicts exist; guard the keyboard path too
         int invalid = this.list.invalidCount();
-        if (invalid > 0)
-        {
-            openConfirm(
-                    "Save with invalid rules?", List.of(
-                            invalid + (invalid == 1 ? " rule has" : " rules have") + " an unknown or blank item id.",
-                            "They won't flash until fixed. Save anyway?"
-                    ), "Save anyway", this::commit
-            );
-        }
-        else
-        {
-            commit();
-        }
+        if (this.conflictCount > 0 || invalid > 0) return;
+        saveConfig();
     }
 
-    private void commit()
+    private void saveConfig()
     {
         ModConfig cfg = ModConfig.get();
         cfg.preset = this.workingType;
@@ -611,7 +583,7 @@ public final class VisualSwapConfigScreen extends Screen
     public void onClose()
     {
         List<FlashRule> current = (this.list != null) ? this.list.toRules() : this.savedRules;
-        if (isDirty(current))
+        if (isModified(current))
         {
             openConfirm(
                     "Discard unsaved changes?",
@@ -626,25 +598,44 @@ public final class VisualSwapConfigScreen extends Screen
         }
     }
 
-    /* OVERRIDES — the overlay layer sees every input first and renders last (topmost) */
+    /* GUI */
+
+    /// Drop the preview's flash registrations so a later screen's item at the same coords can't get silhouetted.
+    @Override
+    public void removed() { ItemFlashPreview.clear(); }
 
     @Override
     public void extractRenderState(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a)
     {
-        updateConflictState();   // trigger/item edits don't rebuild — refresh the cross/Done state before drawing
-        extractScrollPanel(graphics);
-        // A modal overlay captures input, so the page beneath it must render with an off-screen mouse — otherwise
-        // covered widgets light up their hover outlines and steal the cursor through the overlay. The overlay itself,
-        // drawn next, still gets the real coordinates.
+        updateConflictState();
+        styleScrollPanel(graphics);
+        // move mouse offscreen for screen's widget when modal is opened
         boolean modal = this.overlays.isModalOpen();
         super.extractRenderState(graphics, modal ? -1 : mouseX, modal ? -1 : mouseY, a);
-        extractStatusMarker(graphics);
+        addStatusMarker(graphics);
         this.overlays.extract(graphics, mouseX, mouseY, a);
     }
 
-    /// A small marker just right of the title: a red cross while any rule conflicts (saving is blocked), else an amber
-    /// dot while there are unsaved changes.
-    private void extractStatusMarker(GuiGraphicsExtractor graphics)
+    private void styleScrollPanel(GuiGraphicsExtractor graphics)
+    {
+        if (this.scrollArea == null) return;
+
+        int x = this.scrollArea.getX();
+        int y = this.scrollArea.getY();
+        int w = this.scrollArea.getWidth();
+        int h = this.scrollArea.getHeight();
+        boolean inWorld = this.minecraft.level != null;
+
+        Identifier background = inWorld ? INWORLD_MENU_LIST_BACKGROUND : MENU_LIST_BACKGROUND;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, background, x, y, (float) (x + w), (float) (y + h), w, h, 32, 32);
+
+        Identifier headerSeparator = inWorld ? INWORLD_HEADER_SEPARATOR : HEADER_SEPARATOR;
+        Identifier footerSeparator = inWorld ? INWORLD_FOOTER_SEPARATOR : FOOTER_SEPARATOR;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, headerSeparator, x, y - 2, 0.0f, 0.0f, w, 2, 32, 2);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, footerSeparator, x, y + h, 0.0f, 0.0f, w, 2, 32, 2);
+    }
+
+    private void addStatusMarker(GuiGraphicsExtractor graphics)
     {
         if (this.layout == null) return;
         int size = 8;
@@ -654,11 +645,13 @@ public final class VisualSwapConfigScreen extends Screen
         {
             Icons.blit(graphics, Icons.DELETE, iconX, iconY, size, CONFLICT_ARGB);   // DELETE is a ✕ glyph
         }
-        else if (this.dirtyState)
+        else if (this.isModified)
         {
             Icons.blit(graphics, Icons.DIRTY, iconX, iconY, size, DIRTY_ARGB);
         }
     }
+
+    /* INPUT */
 
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick)
@@ -703,28 +696,23 @@ public final class VisualSwapConfigScreen extends Screen
         return this.overlays.charTyped(event) || super.charTyped(event);
     }
 
-    /// The vanilla scrollable-list look for the content viewport: a tiled dark panel behind it, capped by the
-    /// header/footer separator lines. The scrollbar itself is drawn by the ScrollableLayout.
-    private void extractScrollPanel(GuiGraphicsExtractor graphics)
+    /* HELPERS */
+
+    public enum DoneButtonState
     {
-        if (this.scrollArea == null) return;
+        ENABLED("Save your changes and close."),
+        CONFLICTS("Resolve the conflicting rules before saving."),
+        INVALID_RULE("Make sure all item identifiers are valid");
 
-        int x = this.scrollArea.getX();
-        int y = this.scrollArea.getY();
-        int w = this.scrollArea.getWidth();
-        int h = this.scrollArea.getHeight();
-        boolean inWorld = this.minecraft.level != null;
+        private final String message;
 
-        Identifier background = inWorld ? INWORLD_MENU_LIST_BACKGROUND : MENU_LIST_BACKGROUND;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, background, x, y, (float) (x + w), (float) (y + h), w, h, 32, 32);
+        DoneButtonState(String message)
+        {
+            this.message = message;
+        }
 
-        Identifier headerSeparator = inWorld ? INWORLD_HEADER_SEPARATOR : HEADER_SEPARATOR;
-        Identifier footerSeparator = inWorld ? INWORLD_FOOTER_SEPARATOR : FOOTER_SEPARATOR;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, headerSeparator, x, y - 2, 0.0f, 0.0f, w, 2, 32, 2);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, footerSeparator, x, y + h, 0.0f, 0.0f, w, 2, 32, 2);
+        public String getMessage() { return message; }
+
+        public boolean allowsSaving() { return this.equals(ENABLED); }
     }
-
-    /// Drop the preview's flash registrations so a later screen's item at the same coords can't get silhouetted.
-    @Override
-    public void removed() { ItemFlashPreview.clear(); }
 }

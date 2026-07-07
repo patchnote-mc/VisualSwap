@@ -284,6 +284,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.isValid = item != Items.AIR;
         this.previewItem = getItemStack(item);
         refreshItemColor();
+        this.list.notifyTextChanged(value);
     }
 
     /// Point the colour column at {@code preset}: only allow edits (picker) under Custom. The swatch tracks the list's

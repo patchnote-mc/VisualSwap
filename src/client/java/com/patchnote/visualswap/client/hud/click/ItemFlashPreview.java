@@ -25,10 +25,7 @@ public final class ItemFlashPreview
     public static void register(int x, int y, int tint) { TINTS.put(key(x, y), tint); }
 
     /// @return the registered tint for the item at ({@code x}, {@code y}), or null if none.
-    public static @Nullable Integer tintAt(int x, int y)
-    {
-        return TINTS.isEmpty() ? null : TINTS.get(key(x, y));
-    }
+    public static @Nullable Integer tintAt(int x, int y) { return TINTS.isEmpty() ? null : TINTS.get(key(x, y)); }
 
     private static long key(int x, int y) { return ((long) x << 32) | (y & 0xFFFFFFFFL); }
 }
