@@ -37,19 +37,20 @@ public final class ItemFlash
     public void onTick(int tick, int currentSlot, ItemStack selectedStack, boolean attackDown, boolean useDown,
                        boolean attackPressed, boolean usePressed)
     {
-        FlashRule rule = getRuleFor(selectedStack);
+        // Resolve attack and use independently so two rules for one item can each cover their own input (e.g. Attack +
+        // Use both apply). A config-screen/load-time conflict block keeps two rules from ever claiming the same input.
+        FlashRule attackRule = getRuleFor(selectedStack, true);
+        FlashRule useRule = getRuleFor(selectedStack, false);
         boolean validSlot = currentSlot >= 0 && currentSlot < HOTBAR_SLOTS;
-        //@formatter:off
-        boolean attackFlashActive = rule != null && rule.flashesAt().flashesOnAttack();
-        boolean useFlashActive = rule != null && rule.flashesAt().flashesOnUse();
-        //@formatter:on
 
-        boolean pressedThisTick = validSlot && ((attackFlashActive && attackPressed) || (useFlashActive && usePressed));
-        boolean keyHeldThisTick = (attackFlashActive && attackDown) || (useFlashActive && useDown);
+        boolean attackPressedThisTick = validSlot && attackRule != null && attackPressed;
+        boolean usePressedThisTick = validSlot && useRule != null && usePressed;
+        boolean keyHeldThisTick = (attackRule != null && attackDown) || (useRule != null && useDown);
 
-        if (pressedThisTick)
+        if (attackPressedThisTick || usePressedThisTick)
         {
-            this.slotsTint[currentSlot] = calculateTintFor(rule);
+            FlashRule active = attackPressedThisTick ? attackRule : useRule;
+            this.slotsTint[currentSlot] = calculateTintFor(active);
             this.slotsExpirationTick[currentSlot] = tick + FLASH_VISIBLE_TICKS;
             this.heldSlot = keyHeldThisTick ? currentSlot : NO_SLOT;
         }
@@ -95,7 +96,9 @@ public final class ItemFlash
         return (gammaByte << 24) | (color & 0xFFFFFF);
     }
 
-    private static @Nullable FlashRule getRuleFor(ItemStack stack)
+    /// The first rule for {@code stack}'s item that flashes on the given input — attack when {@code forAttack}, else use
+    /// — or null when none matches. Resolving each input separately lets two rules for one item cover different inputs.
+    private static @Nullable FlashRule getRuleFor(ItemStack stack, boolean forAttack)
     {
         if (stack == null || stack.isEmpty()) return null;
 
@@ -103,7 +106,8 @@ public final class ItemFlash
         for (FlashRule rule : ModConfig.get().clickFlashRules)
         {
             if (rule == null || rule.item() == null || rule.flashesAt() == null) continue;
-            if (held.equals(Identifier.tryParse(rule.item()))) return rule;
+            boolean covers = forAttack ? rule.flashesAt().flashesOnAttack() : rule.flashesAt().flashesOnUse();
+            if (covers && held.equals(Identifier.tryParse(rule.item()))) return rule;
         }
         return null;
     }

@@ -42,9 +42,10 @@ public final class FlashRulesList implements Layout
     static final int TEXT_INVALID = 0xFFFF5555;
     static final int TEXT_MUTED = 0xFF97979E;  // greyed hex text under a non-editable (non-Custom) preset
 
-    // Per-row unsaved-changes dot in the left gutter.
+    // Per-row marker in the left gutter.
     static final int NEW_ARGB = 0xFF4FC463;       // green — a rule added this session
     static final int MODIFIED_ARGB = 0xFFF09A3C;  // orange — a saved rule that's been edited
+    static final int CONFLICT_ARGB = 0xFFE0453A;  // red cross — a rule conflicting with another (same item + trigger)
 
     static final int SLOT_BG = 0xFF26262B;
     static final int SLOT_BORDER = 0xFF4A4A52;
@@ -155,6 +156,23 @@ public final class FlashRulesList implements Layout
         int n = 0;
         for (FlashRuleRow row : this.rows) if (!row.isItemValid()) n++;
         return n;
+    }
+
+    /// Recompute which rows conflict (same item + overlapping trigger) from the rows' current values and tag each so its
+    /// gutter marker turns into a red cross. Considers every row, including filtered-out ones. Cheap for these small
+    /// lists; the screen calls it each frame because trigger/item edits don't rebuild the page. Returns the conflict
+    /// count, which blocks saving while it is > 0.
+    public int recomputeConflicts()
+    {
+        boolean[] flags = FlashRule.conflictFlags(toRules());
+        int count = 0;
+        for (int i = 0; i < this.rows.size(); i++)
+        {
+            boolean conflicting = flags[i];
+            this.rows.get(i).setConflicting(conflicting);
+            if (conflicting) count++;
+        }
+        return count;
     }
 
     /// Insert a fresh, blank rule at the TOP and ask the screen to re-lay-out the page. The screen focuses and scrolls

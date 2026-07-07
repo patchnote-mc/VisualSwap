@@ -144,7 +144,14 @@ there are two source sets, both registered as the `visual-swap` mod:
     from (stamped self on the snapshot, carried by the copy ctor); rows draw a left-gutter dot
     — **green** when `isNew()` (no origin: added or duplicated) or **orange** when `isModified()`
     (origin present but values differ). A bulk **Reset rules** value-matches defaults back to
-    unclaimed saved rules (`linkToSavedByValue`) so only genuine deltas light up. **Split resets:** **Reset rules** (rules
+    unclaimed saved rules (`linkToSavedByValue`) so only genuine deltas light up. **Rule conflicts:** two
+    rules for the **same item** whose triggers **overlap** (both Attack, or both Use — `Both` covers each;
+    `FlashRule.conflictFlags`) are ambiguous, so they're flagged — a **red ✕** in each conflicting row's gutter
+    (reusing the `delete` X glyph) and, replacing the amber dot, beside the title; while any exists the **Done** button
+    is disabled (recomputed live each frame via `FlashRulesList.recomputeConflicts`, since trigger/item edits don't
+    rebuild). Non-overlapping rules for one item are fine and **all apply** — the runtime resolves the first matching
+    rule *per input* (`ItemFlash.getRuleFor(stack, forAttack)`), and `ModConfig.validatePostLoad` drops conflicting
+    extras from a hand-edited file (`FlashRule.withoutConflicts`, keeping the first per input). **Split resets:** **Reset rules** (rules
     table → `FlashRule.defaultFlashRules()`) and **Reset colours** (Custom From/To + size
     → factory), each gated to when it would actually change something. **Search filter**
     (`FlashRulesList.setFilter`, view-only — `toRules()` still returns all), **duplicate**

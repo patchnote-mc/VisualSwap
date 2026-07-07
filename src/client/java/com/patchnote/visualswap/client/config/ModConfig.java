@@ -51,5 +51,8 @@ public final class ModConfig implements ConfigData
         }
         this.clickFlashRules.removeIf(Objects::isNull);
         for (FlashRule rule : this.clickFlashRules) rule.normalize();
+        // Drop conflicting rules (same item + overlapping trigger) a hand-edited file may hold — keep the first per
+        // input, matching how the runtime resolves a click. The config screen blocks saving these in the first place.
+        this.clickFlashRules = FlashRule.withoutConflicts(this.clickFlashRules);
     }
 }

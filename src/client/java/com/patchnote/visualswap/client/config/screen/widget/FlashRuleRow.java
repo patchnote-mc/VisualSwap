@@ -52,6 +52,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
 
     // state
     private boolean isValid;
+    private boolean conflicting;   // set by the list each frame; drives the red-cross gutter marker
     private ItemStack previewItem;
 
     FlashRuleRow(FlashRulesList list, FlashRule rule)
@@ -161,6 +162,10 @@ public final class FlashRuleRow extends AbstractContainerWidget
     /// flashes. The screen counts these to warn before saving.
     public boolean isItemValid() { return this.isValid; }
 
+    /// Tag this row as conflicting with another rule (same item + overlapping trigger). Recomputed by the list each
+    /// frame (see {@link FlashRulesList#recomputeConflicts}); shows a red cross in the gutter and blocks saving.
+    void setConflicting(boolean conflicting) { this.conflicting = conflicting; }
+
     /// Give keyboard focus to the item id box (used when the screen adds a fresh rule so the user can type at once).
     public void focusItemInput()
     {
@@ -229,12 +234,21 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.duplicateButton.extractRenderState(g, mouseX, mouseY, a);
         this.deleteButton.extractRenderState(g, mouseX, mouseY, a);
 
-        // unsaved-changes marker in the left gutter: green when newly added, orange when an existing rule was edited
-        int marker = this.rule.isNew() ? NEW_ARGB : this.rule.isModified() ? MODIFIED_ARGB : 0;
-        if (marker != 0)
+        // left-gutter marker: a red cross when this rule conflicts with another (same item + trigger, blocks saving),
+        // else the unsaved-changes dot — green when newly added, orange when an existing rule was edited.
+        if (this.conflicting)
         {
-            int dot = 6;
-            Icons.blit(g, Icons.DIRTY, getX() - 2 - dot, midY - dot / 2, dot, marker);
+            int cross = 7;
+            Icons.blit(g, Icons.DELETE, getX() - 2 - cross, midY - cross / 2, cross, CONFLICT_ARGB);  // DELETE is a ✕ glyph
+        }
+        else
+        {
+            int marker = this.rule.isNew() ? NEW_ARGB : this.rule.isModified() ? MODIFIED_ARGB : 0;
+            if (marker != 0)
+            {
+                int dot = 6;
+                Icons.blit(g, Icons.DIRTY, getX() - 2 - dot, midY - dot / 2, dot, marker);
+            }
         }
     }
 

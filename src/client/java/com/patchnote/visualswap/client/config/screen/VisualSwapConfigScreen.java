@@ -63,6 +63,7 @@ public final class VisualSwapConfigScreen extends Screen
     private static final int MUTED_RGB = 0x8A8A90;      // count label + empty-state message
     private static final int SWATCH_BORDER = 0xFF4A4A52;
     private static final int DIRTY_ARGB = 0xFFF0B84C;   // amber unsaved-changes dot beside the title
+    private static final int CONFLICT_ARGB = 0xFFE0453A; // red cross beside the title while a conflict blocks saving
 
     // Vanilla list-panel textures (menu_list_background is private in AbstractSelectionList, so re-declared here).
     private static final Identifier MENU_LIST_BACKGROUND = Identifier.withDefaultNamespace(
@@ -95,6 +96,12 @@ public final class VisualSwapConfigScreen extends Screen
 
     /// Recomputed each init; drives the header dot, the Discard button, and the confirm-before-leaving guard.
     private boolean dirtyState;
+
+    /// Number of rules that conflict with another (same item + overlapping trigger). Recomputed live every frame — a
+    /// trigger/item edit can create or clear a conflict without a rebuild — and while it is > 0 the title shows a red
+    /// cross and {@link #doneButton} is disabled, so a conflicting config can never be saved.
+    private int conflictCount;
+    private @Nullable Button doneButton;   // held so the live conflict check can toggle whether saving is allowed
 
     /// One-shot: when set, the next rebuild snaps the rules viewport to the top (a filter/reset/discard replaces the
     /// visible set) instead of preserving the prior scroll position.
@@ -201,6 +208,7 @@ public final class VisualSwapConfigScreen extends Screen
                                        rule -> this.previewRule = rule, this.overlays);
         this.list.setFilter(this.filterText);
         this.previewRule = this.list.ruleAt(previewIdx, "minecraft:mace");
+        this.conflictCount = this.list.recomputeConflicts();
 
         StringWidget countWidget = new StringWidget(rowWidth, this.font.lineHeight,
                                                     Component.literal(countText()).withColor(MUTED_RGB), this.font);
@@ -230,7 +238,9 @@ public final class VisualSwapConfigScreen extends Screen
         discardButton.setTooltip(Tooltip.create(Component.literal("Revert all unsaved changes to your saved config.")));
         footer.addChild(discardButton);
         footer.addChild(Button.builder(Component.literal("Cancel"), b -> onClose()).width(80).build());
-        footer.addChild(Button.builder(Component.literal("Done"), b -> onDone()).width(80).build());
+        this.doneButton = Button.builder(Component.literal("Done"), b -> onDone()).width(80).build();
+        applyDoneState(this.conflictCount == 0);
+        footer.addChild(this.doneButton);
 
         this.layout.visitWidgets(this::addRenderableWidget);
         this.scrollContainer = null;
@@ -495,8 +505,29 @@ public final class VisualSwapConfigScreen extends Screen
                 || !FlashRule.listsSameValues(currentRules, this.savedRules);
     }
 
+    /// Recompute the live conflict count (trigger/item edits don't rebuild the page) and toggle whether saving is
+    /// allowed. Called each frame before rendering, so the red cross and the disabled Done button stay in step with
+    /// edits the user just made.
+    private void updateConflictState()
+    {
+        boolean wasBlocked = this.conflictCount > 0;
+        this.conflictCount = (this.list != null) ? this.list.recomputeConflicts() : 0;
+        if ((this.conflictCount > 0) != wasBlocked) applyDoneState(this.conflictCount == 0);
+    }
+
+    /// Enable/disable the Done button and set the matching tooltip — a conflicting config can never be saved.
+    private void applyDoneState(boolean allowSave)
+    {
+        if (this.doneButton == null) return;
+        this.doneButton.active = allowSave;
+        this.doneButton.setTooltip(Tooltip.create(Component.literal(allowSave
+                ? "Save your changes and close."
+                : "Resolve the conflicting rules (same item & trigger) before saving.")));
+    }
+
     private void onDone()
     {
+        if (this.conflictCount > 0) return;   // Done is disabled while conflicts exist; guard the keyboard path too
         int invalid = this.list.invalidCount();
         if (invalid > 0)
         {
@@ -542,24 +573,33 @@ public final class VisualSwapConfigScreen extends Screen
     @Override
     public void extractRenderState(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a)
     {
+        updateConflictState();   // trigger/item edits don't rebuild — refresh the cross/Done state before drawing
         extractScrollPanel(graphics);
         // A modal overlay captures input, so the page beneath it must render with an off-screen mouse — otherwise
         // covered widgets light up their hover outlines and steal the cursor through the overlay. The overlay itself,
         // drawn next, still gets the real coordinates.
         boolean modal = this.overlays.isModalOpen();
         super.extractRenderState(graphics, modal ? -1 : mouseX, modal ? -1 : mouseY, a);
-        extractDirtyMarker(graphics);
+        extractStatusMarker(graphics);
         this.overlays.extract(graphics, mouseX, mouseY, a);
     }
 
-    /// A small amber dot just right of the title while there are unsaved changes.
-    private void extractDirtyMarker(GuiGraphicsExtractor graphics)
+    /// A small marker just right of the title: a red cross while any rule conflicts (saving is blocked), else an amber
+    /// dot while there are unsaved changes.
+    private void extractStatusMarker(GuiGraphicsExtractor graphics)
     {
-        if (!this.dirtyState || this.layout == null) return;
+        if (this.layout == null) return;
         int size = 8;
         int iconX = this.width / 2 + this.font.width(getTitle()) / 2 + 4;
         int iconY = (this.layout.getHeaderHeight() - size) / 2;
-        Icons.blit(graphics, Icons.DIRTY, iconX, iconY, size, DIRTY_ARGB);
+        if (this.conflictCount > 0)
+        {
+            Icons.blit(graphics, Icons.DELETE, iconX, iconY, size, CONFLICT_ARGB);   // DELETE is a ✕ glyph
+        }
+        else if (this.dirtyState)
+        {
+            Icons.blit(graphics, Icons.DIRTY, iconX, iconY, size, DIRTY_ARGB);
+        }
     }
 
     @Override

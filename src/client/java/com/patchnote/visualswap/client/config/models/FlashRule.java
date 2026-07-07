@@ -1,5 +1,7 @@
 package com.patchnote.visualswap.client.config.models;
 
+import net.minecraft.resources.Identifier;
+
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -154,6 +156,75 @@ public final class FlashRule
         for (int i = 0; i < a.size(); i++)
             if (!a.get(i).sameValuesAs(b.get(i))) return false;
         return true;
+    }
+
+    /* CONFLICTS */
+
+    /// Two rules "conflict" when they target the same item and their triggers overlap — both fire on attack, or both on
+    /// use ({@link FlashTrigger#BOTH} covers each). It's then ambiguous which rule's intensity/colour a given click
+    /// should use, so the runtime can only honour one. Non-overlapping rules for one item (e.g. Attack + Use) are fine —
+    /// each drives its own input and all apply. Rules with a blank/unparseable item never match a held item, so they
+    /// can't conflict (a blank id is surfaced separately as an invalid rule).
+    ///
+    /// @return a flag per rule (parallel to {@code rules}), true where that rule overlaps another one.
+    public static boolean[] conflictFlags(List<FlashRule> rules)
+    {
+        boolean[] flags = new boolean[rules.size()];
+        for (int i = 0; i < rules.size(); i++)
+        {
+            String keyI = conflictKey(rules.get(i));
+            if (keyI == null) continue;
+            for (int j = i + 1; j < rules.size(); j++)
+            {
+                if (!keyI.equals(conflictKey(rules.get(j)))) continue;
+                if (triggersOverlap(rules.get(i).flashesAt(), rules.get(j).flashesAt()))
+                {
+                    flags[i] = true;
+                    flags[j] = true;
+                }
+            }
+        }
+        return flags;
+    }
+
+    /// A copy of {@code rules} with every rule that conflicts with an earlier kept rule dropped — keeping the first rule
+    /// for each item+input. This is the load-time counterpart to the screen's save block (the screen refuses to save a
+    /// conflicting set); the kept order matches how the runtime resolves a click (first matching rule per input), so
+    /// nothing that would actually flash is lost.
+    public static List<FlashRule> withoutConflicts(List<FlashRule> rules)
+    {
+        List<FlashRule> kept = new ArrayList<>(rules.size());
+        for (FlashRule candidate : rules)
+        {
+            String key = conflictKey(candidate);
+            boolean conflicts = false;
+            if (key != null)
+            {
+                for (FlashRule k : kept)
+                    if (key.equals(conflictKey(k)) && triggersOverlap(candidate.flashesAt(), k.flashesAt()))
+                    {
+                        conflicts = true;
+                        break;
+                    }
+            }
+            if (!conflicts) kept.add(candidate);
+        }
+        return kept;
+    }
+
+    private static boolean triggersOverlap(FlashTrigger a, FlashTrigger b)
+    {
+        if (a == null || b == null) return false;
+        return (a.flashesOnAttack() && b.flashesOnAttack()) || (a.flashesOnUse() && b.flashesOnUse());
+    }
+
+    /// The canonical item id two rules must share to conflict — resolved the same way the runtime lookup does (so
+    /// "mace" and "minecraft:mace" match), or null when the id is blank/unparseable (and so can never match a held item).
+    private static String conflictKey(FlashRule rule)
+    {
+        if (rule == null || rule.item() == null || rule.item().isBlank()) return null;
+        Identifier id = Identifier.tryParse(rule.item().trim());
+        return (id == null) ? null : id.toString();
     }
 
     private static Map<PresetType, Integer> defaultColors()
