@@ -1,0 +1,11 @@
+net.minecraft.client.renderer.RenderPipelines (26.2) — registry of built-in GUI/world RenderPipeline constants.
+
+Verified (client_src RenderPipelines.java):
+- public static final RenderPipeline GUI            (line 120) — GUI_SNIPPET, core/gui shader, POSITION_COLOR, BlendFunction.TRANSLUCENT. Default for GuiGraphicsExtractor.fill(x0,y0,x1,y1,col).
+- public static final RenderPipeline GUI_INVERT     (line 121) — same GUI_SNIPPET but ColorTargetState(BlendFunction.INVERT). Pass to fill(RenderPipeline,...) to draw the photographic-negative of the background (guaranteed-visible on any bg). Src colour should be OPAQUE WHITE for a clean 1-dst inversion; INVERT ignores src alpha for RGB. Same blend the vanilla crosshair uses.
+- public static final RenderPipeline GUI_TEXTURED   (line 123) — GUI_TEXTURED_SNIPPET, position_tex_color + SAMPLER0. For blit; NOT usable with fill (fill emits POSITION_COLOR, no tex coords).
+- public static final RenderPipeline CROSSHAIR      (line 130) — GUI_TEXTURED_SNIPPET + BlendFunction.INVERT. Hud.extractCrosshair blitSprite()s the crosshair sprite through it.
+
+com.mojang.blaze3d.pipeline.BlendFunction.INVERT (line 18) = new BlendFunction(ONE_MINUS_DST_COLOR, ONE_MINUS_SRC_COLOR, ONE, ZERO). Colour out = src*(1-dst)+dst*(1-src); alpha out = srcA. White src -> out = 1-dst (pure invert). Fails only at exactly 50% grey (1-0.5=0.5) — inherent limit shared by the vanilla crosshair.
+
+Used by: SwapHitGlyph (Vanilla preset draws each glyph cell via fill(GUI_INVERT, ..., 0xFFFFFFFF)).

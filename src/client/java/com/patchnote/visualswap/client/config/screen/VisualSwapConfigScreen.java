@@ -53,7 +53,7 @@ public final class VisualSwapConfigScreen extends Screen
     private static final int CONTENT_SPACING = 6;
     private static final int COLOR_ROW_GAP = 4; // From ↔ To sit tighter as a pair
     private static final int SECTION_GAP = 8;   // extra breathing room above the rules table
-    private static final int SCROLL_MIN_HEIGHT = 40;
+    private static final int SCROLL_MIN_HEIGHT = 10;
     private static final int CONTENT_TOP_GAP = 4;    // gap below the fixed title header before the rules header
     private static final int HEADER_TO_SCROLL_GAP = 4;
     private static final int SCROLLBAR_RESERVE = 10; // ScrollableLayout's per-side reserve (spacing 4 + scrollbar 6)
@@ -133,7 +133,8 @@ public final class VisualSwapConfigScreen extends Screen
 
         this.savedType = cfg.preset;
         this.savedCustom = new Preset(cfg.customPresetData);
-        this.savedRules = cfg.clickFlashRules.stream().map(FlashRule::new).toList();
+        this.savedRules = cfg.clickFlashRules.stream()
+                .map(FlashRule::new).toList();
         // Each saved rule is its own baseline; working copies inherit the link (copy ctor) to drive per-row markers.
         for (FlashRule saved : this.savedRules) saved.setSavedOrigin(saved);
     }
@@ -148,7 +149,11 @@ public final class VisualSwapConfigScreen extends Screen
         // Choose the rules seed: an explicit pending seed (reset/discard) wins; otherwise carry the current rows over
         // (preserving in-progress edits across a resize / add / remove); otherwise the saved snapshot (first open).
         List<FlashRule> seed;
-        if (this.pendingSeed != null) { seed = this.pendingSeed; this.pendingSeed = null; }
+        if (this.pendingSeed != null)
+        {
+            seed = this.pendingSeed;
+            this.pendingSeed = null;
+        }
         else if (this.list != null) { seed = this.list.toRules(); }
         else { seed = this.savedRules; }
 
@@ -158,8 +163,8 @@ public final class VisualSwapConfigScreen extends Screen
 
         this.dirtyState = isDirty(seed);
         boolean resetRulesEnabled = !FlashRule.listsSameValues(seed, FlashRule.defaultFlashRules());
-        boolean resetColorsEnabled = this.workingType.isCustom()
-                && !this.workingCustom.sameValuesAs(PresetType.CUSTOM.createDefault());
+        boolean resetColorsEnabled =
+                this.workingType.isCustom() && !this.workingCustom.sameValuesAs(PresetType.CUSTOM.createDefault());
 
         this.layout = new HeaderAndFooterLayout(this);
         this.layout.addTitleHeader(getTitle(), this.font);
@@ -175,15 +180,30 @@ public final class VisualSwapConfigScreen extends Screen
         GridLayout top = new GridLayout().columnSpacing(COL_GAP).rowSpacing(COLOR_ROW_GAP);
         top.defaultCellSetting().alignVerticallyMiddle();
 
-        CycleButton<PresetType> presetButton = CycleButton.<PresetType>builder(PresetType::getNameComponent, this.workingType)
-                .withValues(PresetType.VANILLA, PresetType.PRACTICE, PresetType.CUSTOM)
-                .create(0, 0, colW, CHIP_H, Component.literal("Preset"), (button, value) -> setPreset(value));
+        CycleButton<PresetType> presetButton = CycleButton.<PresetType>builder(
+                PresetType::getNameComponent,
+                this.workingType
+        ).withValues(PresetType.VANILLA, PresetType.PRACTICE, PresetType.CUSTOM).create(
+                0,
+                0,
+                colW,
+                CHIP_H,
+                Component.literal("Preset"),
+                (button, value) -> setPreset(value)
+        );
         presetButton.setTooltip(Tooltip.create(Component.literal(
                 "Highlight preset. Vanilla and Practice are fixed; Custom is fully editable.")));
         top.addChild(presetButton, 0, 0);
 
-        this.slider = new SizeSlider(0, 0, colW, CHIP_H, this.workingType.getDisplayName(), effectiveSize(),
-                                     this.workingCustom::setSizeMultiplier);
+        this.slider = new SizeSlider(
+                0,
+                                     0,
+                                     colW,
+                                     CHIP_H,
+                                     this.workingType.getDisplayName(),
+                                     effectiveSize(),
+                                     this.workingCustom::setSizeMultiplier
+        );
         this.slider.active = this.workingType.isColorEditable();
         this.slider.setTooltip(Tooltip.create(Component.literal("Scale of the swap highlight overlay.")));
         top.addChild(this.slider, 1, 0);
@@ -192,36 +212,69 @@ public final class VisualSwapConfigScreen extends Screen
         top.addChild(colorRow("From", this::effectiveFrom, this.workingCustom::setFromColor), 0, 1);
         top.addChild(colorRow("To", this::effectiveTo, this.workingCustom::setToColor), 1, 1);
 
-        top.addChild(new HotbarSwapPreview(this::effectiveFrom, this::effectiveTo, () -> this.workingType,
-                                           () -> this.previewRule, this.overlays), 0, 2);
+        top.addChild(
+                new HotbarSwapPreview(
+                        this::effectiveFrom,
+                        this::effectiveTo,
+                        () -> this.workingType,
+                        () -> this.previewRule,
+                        this.overlays
+                ), 0, 2
+        );
 
-        IconButton resetColorsButton = new IconButton(CHIP_H, Icons.RESET,
-                                                      Component.literal("Reset colours & size to defaults"),
-                                                      this::confirmResetColors);
+        IconButton resetColorsButton = new IconButton(
+                CHIP_H, Icons.RESET, //
+                Component.literal("Reset colours & size to defaults"), this::confirmResetColors
+        );
         resetColorsButton.active = resetColorsEnabled;
-        top.addChild(resetColorsButton, 1, 2, s -> s.alignHorizontallyLeft());
+        top.addChild(resetColorsButton, 1, 2, LayoutSettings::alignHorizontallyLeft);
 
         content.addChild(top, LayoutSettings::alignHorizontallyCenter);
 
         // rules table — build first so the count + empty-state can read its filtered size
-        this.list = new FlashRulesList(rowWidth, this.workingType, seed, this::rebuildWidgets,
-                                       rule -> this.previewRule = rule, this.overlays);
+        this.list = new FlashRulesList(
+                rowWidth,
+                                       this.workingType,
+                                       seed,
+                                       this::rebuildWidgets,
+                                       rule -> this.previewRule = rule,
+                                       this.overlays
+        );
         this.list.setFilter(this.filterText);
         this.previewRule = this.list.ruleAt(previewIdx, "minecraft:mace");
         this.conflictCount = this.list.recomputeConflicts();
+        // --- fixed rules header (search + column captions + Add/Clear/Reset); positioned in arrangeContents ---
+        this.tableHeader = new RuleColumnsHeader(
+                rowWidth,
+                this.filterText,
+                this::onSearchEdited,
+                this::addRuleClearingFilter,
+                this::confirmClear,
+                this::confirmResetRules,
+                this.list.totalCount() > 0,
+                resetRulesEnabled
+        );
+        content.addChild(this.tableHeader, LayoutSettings::alignVerticallyMiddle);
 
-        StringWidget countWidget = new StringWidget(rowWidth, this.font.lineHeight,
-                                                    Component.literal(countText()).withColor(MUTED_RGB), this.font);
-        content.addChild(countWidget, s -> s.alignHorizontallyCenter().paddingTop(SECTION_GAP - CONTENT_SPACING));
+        if (!this.filterText.isEmpty())
+        {
+            LinearLayout row = LinearLayout.horizontal();
+            row.addChild(SpacerElement.width(rowWidth - this.font.width(countText())));
+            row.addChild(new StringWidget(Component.literal(countText()).withColor(MUTED_RGB), this.font));
+            content.addChild(row);
+        }
+
         content.addChild(this.list, LayoutSettings::alignHorizontallyCenter);
 
         if (this.list.visibleCount() == 0)
         {
             String msg = this.list.totalCount() == 0
-                    ? "No rules yet — use the + button above to add one"
-                    : "No rules match \"" + this.filterText + "\"";
-            content.addChild(new StringWidget(Component.literal(msg).withColor(MUTED_RGB), this.font),
-                             s -> s.alignHorizontallyCenter().paddingTop(SECTION_GAP));
+                         ? "No rules yet — use the + button above to add one"
+                         : "No rules match \"" + this.filterText + "\"";
+            content.addChild(
+                    new StringWidget(Component.literal(msg).withColor(MUTED_RGB), this.font),
+                    s -> s.alignHorizontallyCenter().paddingVertical(SECTION_GAP)
+            );
         }
 
         // --- wrap the content in a full-width scroll viewport so the panel + scrollbar reach the screen edges ---
@@ -246,12 +299,6 @@ public final class VisualSwapConfigScreen extends Screen
         this.scrollContainer = null;
         this.scrollArea.visitWidgets(w -> this.scrollContainer = w);   // capture the inner scroll widget for row focus
 
-        // --- fixed rules header (search + column captions + Add/Clear/Reset); positioned in arrangeContents ---
-        this.tableHeader = new RuleColumnsHeader(rowWidth, this.filterText, this::onSearchEdited,
-                                                 this::addRuleClearingFilter, this::confirmClear, this::confirmResetRules,
-                                                 this.list.totalCount() > 0, resetRulesEnabled);
-        addRenderableWidget(this.tableHeader);
-
         arrangeContents();
         restoreScroll(previousScroll);
         applyPendingFocus();
@@ -261,20 +308,15 @@ public final class VisualSwapConfigScreen extends Screen
     /// The fixed header, then the scroll viewport below it — dropping HeaderAndFooterLayout's ~30px content margin.
     private void arrangeContents()
     {
-        this.scrollArea.setMaxHeight(SCROLL_MIN_HEIGHT);
         this.layout.arrangeElements();
+        int available = this.height - this.layout.getFooterHeight() - this.layout.getHeaderHeight();
 
-        int top = this.layout.getHeaderHeight() + CONTENT_TOP_GAP;
-        this.tableHeader.setX((this.width - this.tableHeader.getWidth()) / 2);
-        this.tableHeader.setY(top);
-
-        int scrollTop = top + RuleColumnsHeader.HEIGHT + HEADER_TO_SCROLL_GAP;
-        int available = this.height - this.layout.getFooterHeight() - scrollTop;
+        // set scrollArea position and size
+        this.scrollArea.setY(this.layout.getHeaderHeight());
         this.scrollArea.setMaxHeight(Math.max(SCROLL_MIN_HEIGHT, available));
-        this.scrollArea.setY(scrollTop);
     }
 
-    /// Honour a pending focus request from the last action: the search box after a filter edit, or the new top row's
+    /// Honor a pending focus request from the last action: the search box after a filter edit, or the new top row's
     /// item box after an add. Kept to the end of init so the widgets exist and are positioned.
     private void applyPendingFocus()
     {
@@ -346,8 +388,10 @@ public final class VisualSwapConfigScreen extends Screen
     private LinearLayout colorRow(String label, IntSupplier color, IntConsumer onEdit)
     {
         LinearLayout row = LinearLayout.horizontal().spacing(COLOR_GAP);
-        row.addChild(new StringWidget(COLOR_LABEL_W, CHIP_H, Component.literal(label).withColor(LABEL_RGB), this.font),
-                     LayoutSettings::alignVerticallyMiddle);
+        row.addChild(
+                new StringWidget(COLOR_LABEL_W, CHIP_H, Component.literal(label).withColor(LABEL_RGB), this.font),
+                LayoutSettings::alignVerticallyMiddle
+        );
 
         ColorSwatch swatch = new ColorSwatch(COLOR_SWATCH, SWATCH_BORDER, color);
         swatch.setOnPress(() -> openPicker(swatch, color.getAsInt(), onEdit));
@@ -411,26 +455,42 @@ public final class VisualSwapConfigScreen extends Screen
 
     private void confirmResetRules()
     {
-        openConfirm("Reset rules?", List.of("Replace the whole table with the default rule set?"),
-                    "Reset", this::doResetRules);
+        openConfirm(
+                "Reset rules?",
+                List.of("Replace the whole table with the default rule set?"),
+                "Reset",
+                this::doResetRules
+        );
     }
 
     private void confirmResetColors()
     {
-        openConfirm("Reset colours?", List.of("Reset the highlight colours and size to their defaults?"),
-                    "Reset", this::doResetColors);
+        openConfirm(
+                "Reset colours?",
+                List.of("Reset the highlight colours and size to their defaults?"),
+                "Reset",
+                this::doResetColors
+        );
     }
 
     private void confirmClear()
     {
-        openConfirm("Clear all rules?", List.of("Remove every rule from the table?"),
-                    "Clear all", () -> this.list.clear());
+        openConfirm(
+                "Clear all rules?",
+                List.of("Remove every rule from the table?"),
+                "Clear all",
+                () -> this.list.clear()
+        );
     }
 
     private void confirmDiscard()
     {
-        openConfirm("Discard changes?", List.of("Revert every unsaved change to your saved config?"),
-                    "Discard", this::doDiscard);
+        openConfirm(
+                "Discard changes?",
+                List.of("Revert every unsaved change to your saved config?"),
+                "Discard",
+                this::doDiscard
+        );
     }
 
     private void doResetRules()
@@ -482,17 +542,19 @@ public final class VisualSwapConfigScreen extends Screen
     /// Open a modal confirmation (its own screen) for a destructive action; only Confirm runs {@code action}.
     private void openConfirm(String title, List<String> lines, String confirmLabel, Runnable action)
     {
-        ConfirmModal.open(Component.literal(title),
-                          lines.stream().<Component>map(Component::literal).toList(),
-                          Component.literal(confirmLabel), action);
+        ConfirmModal.open(
+                Component.literal(title),
+                lines.stream()
+                        .<Component>map(Component::literal).toList(),
+                Component.literal(confirmLabel),
+                action
+        );
     }
 
-    /// The rule-count line above the table: a plain total, or "N of M shown" while a filter is active.
+    /// The rule-count line above the table: "N of M shown" while a filter is active.
     private String countText()
     {
-        int total = this.list.totalCount();
-        if (this.filterText.isEmpty()) return total + (total == 1 ? " rule" : " rules");
-        return this.list.visibleCount() + " of " + total + " shown";
+        return this.list.visibleCount() + " of " + this.list.totalCount() + " shown";
     }
 
     /* DIRTY STATE / SAVE / CLOSE */
@@ -500,9 +562,8 @@ public final class VisualSwapConfigScreen extends Screen
     /// True when the working state differs from the saved snapshot.
     private boolean isDirty(List<FlashRule> currentRules)
     {
-        return this.workingType != this.savedType
-                || !this.workingCustom.sameValuesAs(this.savedCustom)
-                || !FlashRule.listsSameValues(currentRules, this.savedRules);
+        return this.workingType != this.savedType || !this.workingCustom.sameValuesAs(this.savedCustom) ||
+                !FlashRule.listsSameValues(currentRules, this.savedRules);
     }
 
     /// Recompute the live conflict count (trigger/item edits don't rebuild the page) and toggle whether saving is
@@ -521,8 +582,8 @@ public final class VisualSwapConfigScreen extends Screen
         if (this.doneButton == null) return;
         this.doneButton.active = allowSave;
         this.doneButton.setTooltip(Tooltip.create(Component.literal(allowSave
-                ? "Save your changes and close."
-                : "Resolve the conflicting rules (same item & trigger) before saving.")));
+                                                                    ? "Save your changes and close."
+                                                                    : "Resolve the conflicting rules (same item & trigger) before saving.")));
     }
 
     private void onDone()
@@ -532,10 +593,11 @@ public final class VisualSwapConfigScreen extends Screen
         if (invalid > 0)
         {
             openConfirm(
-                    "Save with invalid rules?",
-                    List.of(invalid + (invalid == 1 ? " rule has" : " rules have") + " an unknown or blank item id.",
-                            "They won't flash until fixed. Save anyway?"),
-                    "Save anyway", this::commit);
+                    "Save with invalid rules?", List.of(
+                            invalid + (invalid == 1 ? " rule has" : " rules have") + " an unknown or blank item id.",
+                            "They won't flash until fixed. Save anyway?"
+                    ), "Save anyway", this::commit
+            );
         }
         else
         {
@@ -559,8 +621,12 @@ public final class VisualSwapConfigScreen extends Screen
         List<FlashRule> current = (this.list != null) ? this.list.toRules() : this.savedRules;
         if (isDirty(current))
         {
-            openConfirm("Discard unsaved changes?", List.of("You have unsaved changes. Leave without saving?"),
-                        "Discard", () -> this.minecraft.setScreenAndShow(this.parent));
+            openConfirm(
+                    "Discard unsaved changes?",
+                    List.of("You have unsaved changes. Leave without saving?"),
+                    "Discard",
+                    () -> this.minecraft.setScreenAndShow(this.parent)
+            );
         }
         else
         {

@@ -1,11 +1,11 @@
 package com.patchnote.visualswap.client.hud;
 
+import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.particles.SwapHitMasks;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.minecraft.client.DeltaTracker;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import org.jspecify.annotations.NonNull;
 
 public final class SwapHitGlyph implements HudElement
@@ -68,6 +68,8 @@ public final class SwapHitGlyph implements HudElement
         int left = (graphics.guiWidth() / 2) - (cols * SCALE / 2);
         int top = (graphics.guiHeight() / 2) - (rows * SCALE / 2) + VERTICAL_OFFSET;
 
+        boolean vanilla = ModConfig.get().preset.isVanilla();
+
         for (int row = 0; row < rows; row++)
         {
             for (int col = 0; col < cols; col++)
@@ -78,17 +80,38 @@ public final class SwapHitGlyph implements HudElement
                 }
                 int x = left + col * SCALE;
                 int y = top + row * SCALE;
-                graphics.fill(x, y, x + SCALE, y + SCALE, color);
+                graphics.fill(
+                        vanilla ? RenderPipelines.GUI_INVERT : RenderPipelines.GUI,
+                        x,
+                        y,
+                        x + SCALE,
+                        y + SCALE,
+                        color
+                );
             }
         }
 
-        // Chain counter ("x2", "x3", ...) drawn to the right of the glyph, vertically centred on it.
+        // chain count
         if (this.chainCount >= 2)
         {
-            Font font = Minecraft.getInstance().font;
-            int textX = left + cols * SCALE + COUNTER_GAP;
-            int textY = top + (rows * SCALE - font.lineHeight) / 2;
-            graphics.text(font, "x" + this.chainCount, textX, textY, color);
+            int markWidth = SCALE;
+            int markHeight = rows * SCALE;
+
+            int startX = left + cols * SCALE + COUNTER_GAP;
+
+            for (int i = 0; i < this.chainCount; i++)
+            {
+                int x = startX + i * (markWidth + SCALE);
+
+                graphics.fill(
+                        vanilla ? RenderPipelines.GUI_INVERT : RenderPipelines.GUI,
+                        x,
+                        top,
+                        x + markWidth,
+                        top + markHeight,
+                        color
+                );
+            }
         }
     }
 
