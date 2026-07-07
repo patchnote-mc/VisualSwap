@@ -27,7 +27,9 @@ public final class ColorPickerOverlay extends Overlay
 {
     public enum Mode
     {
-        WHEEL, SLIDERS, HEX
+        WHEEL,
+        SLIDERS,
+        HEX
     }
 
     private static final int PAD = 6;         // inner margin from the panel edge to the content
@@ -82,11 +84,33 @@ public final class ColorPickerOverlay extends Overlay
 
         int tabsW = CONTENT_W - CHIP - TAB_GAP;
         int tabW = (tabsW - 2 * TAB_GAP) / 3;
-        addChild(new TabButton(x, tabsY, tabW, TAB_H, "Wheel", () -> this.mode == Mode.WHEEL, () -> setMode(Mode.WHEEL)));
-        addChild(new TabButton(x + tabW + TAB_GAP, tabsY, tabW, TAB_H, "Sliders",
-                               () -> this.mode == Mode.SLIDERS, () -> setMode(Mode.SLIDERS)));
-        addChild(new TabButton(x + 2 * (tabW + TAB_GAP), tabsY, tabW, TAB_H, "Hex",
-                               () -> this.mode == Mode.HEX, () -> setMode(Mode.HEX)));
+        addChild(new TabButton(
+                x,
+                               tabsY,
+                               tabW,
+                               TAB_H,
+                               "Wheel",
+                               () -> this.mode == Mode.WHEEL,
+                               () -> setMode(Mode.WHEEL)
+        ));
+        addChild(new TabButton(
+                x + tabW + TAB_GAP,
+                               tabsY,
+                               tabW,
+                               TAB_H,
+                               "Sliders",
+                               () -> this.mode == Mode.SLIDERS,
+                               () -> setMode(Mode.SLIDERS)
+        ));
+        addChild(new TabButton(
+                x + 2 * (tabW + TAB_GAP),
+                               tabsY,
+                               tabW,
+                               TAB_H,
+                               "Hex",
+                               () -> this.mode == Mode.HEX,
+                               () -> setMode(Mode.HEX)
+        ));
 
         buildWheelTab(x);
         buildSlidersTab(x);
@@ -99,8 +123,8 @@ public final class ColorPickerOverlay extends Overlay
     @Override
     protected int pad() { return PAD; }
 
-    /// Top of the tab body — derived live from the current origin so it tracks {@link #position} instead of freezing
-    /// at the construction-time (0,0) origin (children shift with the overlay; free-form content must too).
+    /// Top of the tab body — derived live from the current origin so it tracks {@link #position} instead of freezing at
+    /// the construction-time (0,0) origin (children shift with the overlay; free-form content must too).
     private int bodyY() { return contentY() + TAB_H + TABS_TO_BODY; }
 
     /* TAB CONTENT */
@@ -108,8 +132,13 @@ public final class ColorPickerOverlay extends Overlay
     private void buildWheelTab(int x)
     {
         int wheelX = x + (CONTENT_W - HueSatWheel.SIZE) / 2;
-        this.wheelWidgets.add(addChild(new HueSatWheel(wheelX, bodyY(), () -> new float[]{this.hue, this.sat, this.val},
-                                                       (h, s) -> { this.hue = h; this.sat = s; push(); })));
+        this.wheelWidgets.add(addChild(new HueSatWheel(
+                wheelX, bodyY(), () -> new float[]{this.hue, this.sat, this.val}, (h, s) -> {
+            this.hue = h;
+            this.sat = s;
+            push();
+        }
+        )));
         int slidersY = bodyY() + HueSatWheel.SIZE + WHEEL_GAP;
         this.wheelWidgets.add(addChild(valueSlider(x, slidersY)));
         if (this.alphaEnabled) this.wheelWidgets.add(addChild(alphaSlider(x, slidersY + ROW_STEP)));
@@ -118,27 +147,40 @@ public final class ColorPickerOverlay extends Overlay
     private void buildSlidersTab(int x)
     {
         // hue is periodic — wrap to [0, 360) so the far-right (360°) collapses to red at the left, not a stuck thumb
-        this.sliderWidgets.add(addChild(slider(x, bodyY(),
-                                               () -> this.hue / 360.0,
-                                               v -> { this.hue = (float) (v * 360.0 % 360.0); push(); },
-                                               f -> ColorHelpers.hsvToArgb((float) (f * 360.0), 1f, 1f, 255), false)));
-        this.sliderWidgets.add(addChild(slider(x, bodyY() + ROW_STEP,
-                                               () -> this.sat, v -> { this.sat = (float) v; push(); },
-                                               f -> ColorHelpers.hsvToArgb(this.hue, (float) f, this.val, 255), false)));
+        this.sliderWidgets.add(addChild(slider(
+                x, bodyY(), () -> this.hue / 360.0, v -> {
+                    this.hue = (float) (v * 360.0 % 360.0);
+                    push();
+                }, f -> ColorHelpers.hsvToArgb((float) (f * 360.0), 1f, 1f, 255), false
+        )));
+        this.sliderWidgets.add(addChild(slider(
+                x, bodyY() + ROW_STEP, () -> this.sat, v -> {
+                    this.sat = (float) v;
+                    push();
+                }, f -> ColorHelpers.hsvToArgb(this.hue, (float) f, this.val, 255), false
+        )));
         this.sliderWidgets.add(addChild(valueSlider(x, bodyY() + 2 * ROW_STEP)));
         if (this.alphaEnabled) this.sliderWidgets.add(addChild(alphaSlider(x, bodyY() + 3 * ROW_STEP)));
     }
 
     private GradientSlider valueSlider(int x, int y)
     {
-        return slider(x, y, () -> this.val, v -> { this.val = (float) v; push(); },
-                      f -> ColorHelpers.hsvToArgb(this.hue, this.sat, (float) f, 255), false);
+        return slider(
+                x, y, () -> this.val, v -> {
+                    this.val = (float) v;
+                    push();
+                }, f -> ColorHelpers.hsvToArgb(this.hue, this.sat, (float) f, 255), false
+        );
     }
 
     private GradientSlider alphaSlider(int x, int y)
     {
-        return slider(x, y, () -> this.alpha / 255.0, v -> { this.alpha = (int) Math.round(v * 255.0); push(); },
-                      f -> ColorHelpers.hsvToArgb(this.hue, this.sat, this.val, (int) Math.round(f * 255.0)), true);
+        return slider(
+                x, y, () -> this.alpha / 255.0, v -> {
+                    this.alpha = (int) Math.round(v * 255.0);
+                    push();
+                }, f -> ColorHelpers.hsvToArgb(this.hue, this.sat, this.val, (int) Math.round(f * 255.0)), true
+        );
     }
 
     private GradientSlider slider(int x, int y, DoubleSupplier get, DoubleConsumer set, DoubleToIntFunction track,
@@ -251,10 +293,11 @@ public final class ColorPickerOverlay extends Overlay
         int y = contentY();
         g.fill(x - 1, y - 1, x + CHIP + 1, y + CHIP + 1, PANEL_BORDER);
         int half = CHIP / 2;
-        g.fill(x, y, x + half, y + half, 0xFF9E9E9E);
-        g.fill(x + half, y, x + CHIP, y + half, 0xFF6B6B6B);
-        g.fill(x, y + half, x + half, y + CHIP, 0xFF6B6B6B);
-        g.fill(x + half, y + half, x + CHIP, y + CHIP, 0xFF9E9E9E);
+        // checker
+        g.fill(x, y, x + half, y + half, 0xFF000000);               // tl
+        g.fill(x + half, y, x + CHIP, y + half, 0xFFFFFFFF);        // tr
+        g.fill(x, y + half, x + half, y + CHIP, 0xFFFFFFFF);        // bl
+        g.fill(x + half, y + half, x + CHIP, y + CHIP, 0xFF000000); // br
         g.fill(x, y, x + CHIP, y + CHIP, argb());
     }
 

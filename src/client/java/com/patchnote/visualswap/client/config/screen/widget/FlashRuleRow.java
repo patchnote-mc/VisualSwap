@@ -70,13 +70,21 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.onButton = createTriggerSelector(rule);
         this.intensityButton = createIntensitySelector(rule);
         this.colorSwatch = new ColorSwatch(
-                COLOR_SWATCH, SLOT_BORDER,
+                COLOR_SWATCH,
                 () -> 0xFF000000 | (this.rule.colorFor(this.list.preset()) & 0xFFFFFF)
         );
-        this.duplicateButton = new IconButton(DUPLICATE_WIDTH, Icons.DUPLICATE,
-                                              Component.literal("Duplicate this rule"), () -> this.list.duplicate(this));
-        this.deleteButton = new IconButton(DELETE_WIDTH, Icons.DELETE,
-                                           Component.literal("Delete this rule"), () -> this.list.removeRule(this));
+        this.duplicateButton = new IconButton(
+                DUPLICATE_WIDTH,
+                Icons.DUPLICATE,
+                Component.literal("Duplicate this rule"),
+                () -> this.list.duplicate(this)
+        );
+        this.deleteButton = new IconButton(
+                DELETE_WIDTH,
+                Icons.DELETE,
+                Component.literal("Delete this rule"),
+                () -> this.list.removeRule(this)
+        );
 
         this.colorSwatch.setOnPress(this::openColorPicker);
         this.colorSwatch.setClickable(list.preset().isColorEditable());
@@ -86,8 +94,14 @@ public final class FlashRuleRow extends AbstractContainerWidget
 
         refreshItemColor();
 
-        this.children = List.of(this.itemBox, this.onButton, this.intensityButton, this.colorSwatch,
-                                this.duplicateButton, this.deleteButton);
+        this.children = List.of(
+                this.itemBox,
+                this.onButton,
+                this.intensityButton,
+                this.colorSwatch,
+                this.duplicateButton,
+                this.deleteButton
+        );
     }
 
     /// A rule tint is RGB-only (its alpha byte carries the flash gamma), so the picker hides alpha and writes the
@@ -96,11 +110,10 @@ public final class FlashRuleRow extends AbstractContainerWidget
     private void openColorPicker()
     {
         ColorPickerOverlay picker = new ColorPickerOverlay(
-                this.rule.colorFor(this.list.preset()), false,
-                argb -> {
-                    this.rule.setColorFor(this.list.preset(), 0xFF000000 | (argb & 0xFFFFFF));
-                    this.list.notifyColorEdited(this.rule);
-                }
+                this.rule.colorFor(this.list.preset()), false, argb -> {
+            this.rule.setColorFor(this.list.preset(), 0xFF000000 | (argb & 0xFFFFFF));
+            this.list.notifyColorEdited(this.rule);
+        }
         );
         picker.position(this.colorSwatch.getX() - 8, this.colorSwatch.getY() + this.colorSwatch.getHeight() + 4);
         this.list.overlays().open(picker);
@@ -239,7 +252,14 @@ public final class FlashRuleRow extends AbstractContainerWidget
         if (this.conflicting)
         {
             int cross = 7;
-            Icons.blit(g, Icons.DELETE, getX() - 2 - cross, midY - cross / 2, cross, CONFLICT_ARGB);  // DELETE is a ✕ glyph
+            Icons.blit(
+                    g,
+                    Icons.DELETE,
+                    getX() - 2 - cross,
+                    midY - cross / 2,
+                    cross,
+                    CONFLICT_ARGB
+            );  // DELETE is a ✕ glyph
         }
         else
         {
@@ -287,14 +307,11 @@ public final class FlashRuleRow extends AbstractContainerWidget
         if (item == Items.AIR) return ItemStack.EMPTY;
 
         // if item model already loaded
-        if (BuiltInRegistries.ITEM.wrapAsHolder(item)
-                .areComponentsBound()) return new ItemStack(item);
+        if (BuiltInRegistries.ITEM.wrapAsHolder(item).areComponentsBound()) return new ItemStack(item);
 
         // load item model
         Identifier id = BuiltInRegistries.ITEM.getKey(item);
-        DataComponentMap components = DataComponentMap.builder()
-                .set(DataComponents.ITEM_MODEL, id)
-                .build();
+        DataComponentMap components = DataComponentMap.builder().set(DataComponents.ITEM_MODEL, id).build();
         return new ItemStack(Holder.direct(item, components));
     }
 }

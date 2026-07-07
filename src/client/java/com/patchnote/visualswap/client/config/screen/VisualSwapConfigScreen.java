@@ -54,14 +54,11 @@ public final class VisualSwapConfigScreen extends Screen
     private static final int COLOR_ROW_GAP = 4; // From ↔ To sit tighter as a pair
     private static final int SECTION_GAP = 8;   // extra breathing room above the rules table
     private static final int SCROLL_MIN_HEIGHT = 10;
-    private static final int CONTENT_TOP_GAP = 4;    // gap below the fixed title header before the rules header
-    private static final int HEADER_TO_SCROLL_GAP = 4;
     private static final int SCROLLBAR_RESERVE = 10; // ScrollableLayout's per-side reserve (spacing 4 + scrollbar 6)
 
     // StringWidget colours are RGB (styled via Component#withColor); swatch colours are ARGB.
     private static final int LABEL_RGB = 0xB9B9C0;
     private static final int MUTED_RGB = 0x8A8A90;      // count label + empty-state message
-    private static final int SWATCH_BORDER = 0xFF4A4A52;
     private static final int DIRTY_ARGB = 0xFFF0B84C;   // amber unsaved-changes dot beside the title
     private static final int CONFLICT_ARGB = 0xFFE0453A; // red cross beside the title while a conflict blocks saving
 
@@ -183,26 +180,21 @@ public final class VisualSwapConfigScreen extends Screen
         CycleButton<PresetType> presetButton = CycleButton.<PresetType>builder(
                 PresetType::getNameComponent,
                 this.workingType
-        ).withValues(PresetType.VANILLA, PresetType.PRACTICE, PresetType.CUSTOM).create(
-                0,
-                0,
-                colW,
-                CHIP_H,
-                Component.literal("Preset"),
-                (button, value) -> setPreset(value)
-        );
-        presetButton.setTooltip(Tooltip.create(Component.literal(
-                "Highlight preset. Vanilla and Practice are fixed; Custom is fully editable.")));
+        ).withValues(
+                PresetType.VANILLA,
+                PresetType.PRACTICE,
+                PresetType.CUSTOM
+        ).create(0, 0, colW, CHIP_H, Component.literal("Preset"), (button, value) -> setPreset(value));
         top.addChild(presetButton, 0, 0);
 
         this.slider = new SizeSlider(
                 0,
-                                     0,
-                                     colW,
-                                     CHIP_H,
-                                     this.workingType.getDisplayName(),
-                                     effectiveSize(),
-                                     this.workingCustom::setSizeMultiplier
+                0,
+                colW,
+                CHIP_H,
+                this.workingType.getDisplayName(),
+                effectiveSize(),
+                this.workingCustom::setSizeMultiplier
         );
         this.slider.active = this.workingType.isColorEditable();
         this.slider.setTooltip(Tooltip.create(Component.literal("Scale of the swap highlight overlay.")));
@@ -234,11 +226,11 @@ public final class VisualSwapConfigScreen extends Screen
         // rules table — build first so the count + empty-state can read its filtered size
         this.list = new FlashRulesList(
                 rowWidth,
-                                       this.workingType,
-                                       seed,
-                                       this::rebuildWidgets,
-                                       rule -> this.previewRule = rule,
-                                       this.overlays
+                this.workingType,
+                seed,
+                this::rebuildWidgets,
+                rule -> this.previewRule = rule,
+                this.overlays
         );
         this.list.setFilter(this.filterText);
         this.previewRule = this.list.ruleAt(previewIdx, "minecraft:mace");
@@ -393,7 +385,7 @@ public final class VisualSwapConfigScreen extends Screen
                 LayoutSettings::alignVerticallyMiddle
         );
 
-        ColorSwatch swatch = new ColorSwatch(COLOR_SWATCH, SWATCH_BORDER, color);
+        ColorSwatch swatch = new ColorSwatch(COLOR_SWATCH, color);
         swatch.setOnPress(() -> openPicker(swatch, color.getAsInt(), onEdit));
         swatch.setClickable(this.workingType.isColorEditable());
         row.addChild(swatch, LayoutSettings::alignVerticallyMiddle);

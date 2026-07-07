@@ -10,6 +10,7 @@ import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.client.gui.layouts.LinearLayout;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -133,7 +134,7 @@ public final class FlashRulesList implements Layout
 
     /// The topmost row (where {@link #addRule} inserts), or null when the table is empty — used to focus a just-added
     /// rule's item box.
-    public @Nullable FlashRuleRow firstRow() { return this.rows.isEmpty() ? null : this.rows.get(0); }
+    public @Nullable FlashRuleRow firstRow() { return this.rows.isEmpty() ? null : this.rows.getFirst(); }
 
     /// The row at {@code index} in full (unfiltered) order, or null when out of range — used to scroll a specific row
     /// (a just-duplicated one) into view after a rebuild.
@@ -158,10 +159,10 @@ public final class FlashRulesList implements Layout
         return n;
     }
 
-    /// Recompute which rows conflict (same item + overlapping trigger) from the rows' current values and tag each so its
-    /// gutter marker turns into a red cross. Considers every row, including filtered-out ones. Cheap for these small
-    /// lists; the screen calls it each frame because trigger/item edits don't rebuild the page. Returns the conflict
-    /// count, which blocks saving while it is > 0.
+    /// Recompute which rows conflict (same item + overlapping trigger) from the rows' current values and tag each so
+    /// its gutter marker turns into a red cross. Considers every row, including filtered-out ones. Cheap for these
+    /// small lists; the screen calls it each frame because trigger/item edits don't rebuild the page. Returns the
+    /// conflict count, which blocks saving while it is > 0.
     public int recomputeConflicts()
     {
         boolean[] flags = FlashRule.conflictFlags(toRules());
@@ -179,7 +180,10 @@ public final class FlashRulesList implements Layout
     /// the new top row into view after the rebuild (see its {@code focusNewRow} handling).
     public void addRule()
     {
-        this.rows.add(0, new FlashRuleRow(this, new FlashRule("minecraft:", FlashTrigger.ATTACK, FlashIntensity.HIGH)));
+        this.rows.addFirst(new FlashRuleRow(
+                this, //
+                new FlashRule("minecraft:", FlashTrigger.ATTACK, FlashIntensity.HIGH)
+        ));
         if (this.onChanged != null) this.onChanged.run();
     }
 
@@ -246,10 +250,10 @@ public final class FlashRulesList implements Layout
     public void arrangeElements() { this.layout.arrangeElements(); }
 
     @Override
-    public void visitChildren(Consumer<LayoutElement> visitor) { this.layout.visitChildren(visitor); }
+    public void visitChildren(@NonNull Consumer<LayoutElement> visitor) { this.layout.visitChildren(visitor); }
 
     @Override
-    public void visitWidgets(Consumer<AbstractWidget> visitor) { this.layout.visitWidgets(visitor); }
+    public void visitWidgets(@NonNull Consumer<AbstractWidget> visitor) { this.layout.visitWidgets(visitor); }
 
     @Override
     public void removeChildren() { this.layout.removeChildren(); }
