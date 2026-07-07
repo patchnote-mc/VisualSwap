@@ -49,13 +49,19 @@ public final class ItemFlash
 
         if (attackPressedThisTick || usePressedThisTick)
         {
+            // A press (re)lights this slot's own timeline and, if the key is down, begins the hold here.
             FlashRule active = attackPressedThisTick ? attackRule : useRule;
             this.slotsTint[currentSlot] = calculateTintFor(active);
             this.slotsExpirationTick[currentSlot] = tick + FLASH_VISIBLE_TICKS;
             this.heldSlot = keyHeldThisTick ? currentSlot : NO_SLOT;
         }
+        else if (validSlot && keyHeldThisTick && currentSlot == this.heldSlot)
+        {
+            // Hold sustains its own slot: the pressed slot is still selected and its key still held — keep it lit.
+        }
         else
         {
+            // Key released, or the selection moved off the pressed slot: end the hold. Timeline tails decay on their own.
             this.heldSlot = NO_SLOT;
         }
     }
