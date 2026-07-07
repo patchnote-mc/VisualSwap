@@ -17,6 +17,11 @@ public final class FlashRule
     /// (see {@link #colorFor}).
     private Map<PresetType, Integer> colors;
 
+    /// The saved-snapshot rule this working copy descends from, or null when the rule was newly added (or duplicated)
+    /// this editing session. Drives the per-row unsaved-changes marker (see {@link #isNew}/{@link #isModified}).
+    /// Transient: an in-memory editing link between working copies that must never reach the persisted config.
+    private transient FlashRule savedOrigin;
+
     public FlashRule(String item, FlashTrigger flashesAt, FlashIntensity intensity)
     {
         this.item = item;
@@ -32,6 +37,7 @@ public final class FlashRule
         this.flashesAt = other.flashesAt;
         this.intensity = other.intensity;
         this.colors = copyColors(other.colors);
+        this.savedOrigin = other.savedOrigin;
     }
 
     /* GETTERS & SETTERS */
@@ -68,6 +74,22 @@ public final class FlashRule
         this.intensity = intensity;
         return this;
     }
+
+    /// The saved-snapshot rule this working copy descends from, or null if it was added this session.
+    public FlashRule savedOrigin() { return savedOrigin; }
+
+    /// Links this working copy to the saved rule it descends from (null marks it as newly added). Returns {@code this}.
+    public FlashRule setSavedOrigin(FlashRule origin)
+    {
+        this.savedOrigin = origin;
+        return this;
+    }
+
+    /// True when this rule was added this editing session (no saved counterpart) — drives the green per-row marker.
+    public boolean isNew() { return savedOrigin == null; }
+
+    /// True when this rule descends from a saved rule but its values now differ — drives the orange per-row marker.
+    public boolean isModified() { return savedOrigin != null && !sameValuesAs(savedOrigin); }
 
     /// Sets the tint for {@code preset}. No-op for non-editable presets (only Custom is user-editable).
     public FlashRule setColorFor(PresetType preset, int color)

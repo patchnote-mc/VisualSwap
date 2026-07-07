@@ -42,6 +42,10 @@ public final class FlashRulesList implements Layout
     static final int TEXT_INVALID = 0xFFFF5555;
     static final int TEXT_MUTED = 0xFF97979E;  // greyed hex text under a non-editable (non-Custom) preset
 
+    // Per-row unsaved-changes dot in the left gutter.
+    static final int NEW_ARGB = 0xFF4FC463;       // green — a rule added this session
+    static final int MODIFIED_ARGB = 0xFFF09A3C;  // orange — a saved rule that's been edited
+
     static final int SLOT_BG = 0xFF26262B;
     static final int SLOT_BORDER = 0xFF4A4A52;
 
@@ -58,6 +62,9 @@ public final class FlashRulesList implements Layout
     /// Case-insensitive item-id substring the table is filtered by; empty shows every row. Filtering is view-only —
     /// hidden rows stay in {@link #rows} (and in {@link #toRules()}), they are just excluded from the layout.
     private String filter = "";
+
+    /// A freshly duplicated rule the screen should scroll into view after the next rebuild; consumed once.
+    private @Nullable FlashRule revealTarget;
 
     public FlashRulesList(int rowWidth, PresetType preset, List<FlashRule> rules, Runnable onChanged,
                           Consumer<FlashRule> onColorEdited, OverlayManager overlays)
@@ -127,6 +134,21 @@ public final class FlashRulesList implements Layout
     /// rule's item box.
     public @Nullable FlashRuleRow firstRow() { return this.rows.isEmpty() ? null : this.rows.get(0); }
 
+    /// The row at {@code index} in full (unfiltered) order, or null when out of range — used to scroll a specific row
+    /// (a just-duplicated one) into view after a rebuild.
+    public @Nullable FlashRuleRow rowAt(int index)
+    {
+        return (index >= 0 && index < this.rows.size()) ? this.rows.get(index) : null;
+    }
+
+    /// The rule flagged by the last {@link #duplicate} for the screen to scroll into view, cleared as it is read.
+    public @Nullable FlashRule consumeRevealTarget()
+    {
+        FlashRule target = this.revealTarget;
+        this.revealTarget = null;
+        return target;
+    }
+
     /// How many rows resolve to no real item (blank or unknown id) — surfaced as a warning before saving.
     public int invalidCount()
     {
@@ -135,20 +157,23 @@ public final class FlashRulesList implements Layout
         return n;
     }
 
-    /// Insert a fresh, blank rule at the TOP and ask the screen to re-lay-out the page. Top insertion keeps the new
-    /// row visible: a rebuild recreates the scroll viewport reset to the top, so the newest rule is always on screen.
+    /// Insert a fresh, blank rule at the TOP and ask the screen to re-lay-out the page. The screen focuses and scrolls
+    /// the new top row into view after the rebuild (see its {@code focusNewRow} handling).
     public void addRule()
     {
         this.rows.add(0, new FlashRuleRow(this, new FlashRule("minecraft:", FlashTrigger.ATTACK, FlashIntensity.HIGH)));
         if (this.onChanged != null) this.onChanged.run();
     }
 
-    /// Insert a copy of {@code row} directly below it — invoked by the row's own duplicate button.
+    /// Insert a copy of {@code row} directly below it — invoked by the row's own duplicate button. The copy is a brand
+    /// new rule (no saved origin → shown as newly added) and is flagged to be scrolled into view after the rebuild.
     void duplicate(FlashRuleRow row)
     {
         int i = this.rows.indexOf(row);
         if (i < 0) return;
-        this.rows.add(i + 1, new FlashRuleRow(this, new FlashRule(row.getRule())));
+        FlashRule copy = new FlashRule(row.getRule()).setSavedOrigin(null);
+        this.rows.add(i + 1, new FlashRuleRow(this, copy));
+        this.revealTarget = copy;
         if (this.onChanged != null) this.onChanged.run();
     }
 

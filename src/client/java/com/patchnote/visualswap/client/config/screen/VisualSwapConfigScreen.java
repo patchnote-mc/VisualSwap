@@ -96,6 +96,10 @@ public final class VisualSwapConfigScreen extends Screen
     /// Recomputed each init; drives the header dot, the Discard button, and the confirm-before-leaving guard.
     private boolean dirtyState;
 
+    /// One-shot: when set, the next rebuild snaps the rules viewport to the top (a filter/reset/discard replaces the
+    /// visible set) instead of preserving the prior scroll position.
+    private boolean resetScroll;
+
     private HeaderAndFooterLayout layout;
     private RuleColumnsHeader tableHeader;
     private ScrollableLayout scrollArea;
@@ -123,12 +127,16 @@ public final class VisualSwapConfigScreen extends Screen
         this.savedType = cfg.preset;
         this.savedCustom = new Preset(cfg.customPresetData);
         this.savedRules = cfg.clickFlashRules.stream().map(FlashRule::new).toList();
+        // Each saved rule is its own baseline; working copies inherit the link (copy ctor) to drive per-row markers.
+        for (FlashRule saved : this.savedRules) saved.setSavedOrigin(saved);
     }
 
     @Override
     protected void init()
     {
         this.overlays.close();  // rebuild invalidates overlay anchors
+
+        double previousScroll = currentScroll();   // preserved across the rebuild (unless resetScroll snaps to top)
 
         // Choose the rules seed: an explicit pending seed (reset/discard) wins; otherwise carry the current rows over
         // (preserving in-progress edits across a resize / add / remove); otherwise the saved snapshot (first open).
@@ -138,6 +146,8 @@ public final class VisualSwapConfigScreen extends Screen
         else { seed = this.savedRules; }
 
         int previewIdx = (this.previewRule != null) ? seed.indexOf(this.previewRule) : -1;
+        FlashRule revealTarget = (this.list != null) ? this.list.consumeRevealTarget() : null;
+        int revealIdx = (revealTarget != null) ? seed.indexOf(revealTarget) : -1;
 
         this.dirtyState = isDirty(seed);
         boolean resetRulesEnabled = !FlashRule.listsSameValues(seed, FlashRule.defaultFlashRules());
@@ -233,7 +243,9 @@ public final class VisualSwapConfigScreen extends Screen
         addRenderableWidget(this.tableHeader);
 
         arrangeContents();
+        restoreScroll(previousScroll);
         applyPendingFocus();
+        revealRow(revealIdx);
     }
 
     /// The fixed header, then the scroll viewport below it — dropping HeaderAndFooterLayout's ~30px content margin.
@@ -274,6 +286,32 @@ public final class VisualSwapConfigScreen extends Screen
             }
             this.focusNewRow = false;
         }
+    }
+
+    /// The rules viewport's current scroll offset (0 before the first init, when there is no container yet).
+    private double currentScroll()
+    {
+        return (this.scrollContainer instanceof AbstractScrollArea area) ? area.scrollAmount() : 0.0;
+    }
+
+    /// After a rebuild, put the viewport back where it was — so adding, duplicating or deleting a row keeps the user's
+    /// place instead of snapping to the top. A pending {@link #resetScroll} (filter/reset/discard) forces the top.
+    private void restoreScroll(double previous)
+    {
+        if (this.scrollContainer instanceof AbstractScrollArea area)
+        {
+            area.setScrollAmount(this.resetScroll ? 0.0 : previous);   // setScrollAmount clamps to the new max
+        }
+        this.resetScroll = false;
+    }
+
+    /// Bring the row at {@code index} (in full order) into view after a rebuild — used to reveal a freshly duplicated
+    /// row. A negative index means nothing to reveal.
+    private void revealRow(int index)
+    {
+        if (index < 0) return;
+        FlashRuleRow row = this.list.rowAt(index);
+        if (row != null) ensureRowVisible(row);
     }
 
     /// Scroll the rules viewport just enough to bring {@code row} fully into view (a no-op when it already is).
@@ -348,6 +386,7 @@ public final class VisualSwapConfigScreen extends Screen
         if (text.equals(this.filterText)) return;
         this.filterText = text;
         this.refocusSearch = true;
+        this.resetScroll = true;   // a filter change replaces the visible set — show it from the top
         rebuildWidgets();
     }
 
@@ -386,8 +425,31 @@ public final class VisualSwapConfigScreen extends Screen
 
     private void doResetRules()
     {
-        this.pendingSeed = FlashRule.defaultFlashRules();
+        List<FlashRule> defaults = FlashRule.defaultFlashRules();
+        linkToSavedByValue(defaults);   // defaults that match a saved rule read as unchanged; the rest as newly added
+        this.pendingSeed = defaults;
+        this.resetScroll = true;
         rebuildWidgets();
+    }
+
+    /// Point each rule in {@code rules} at the first not-yet-claimed saved rule with equal values, so a bulk replace
+    /// (reset) shows a green/orange marker only for rows that actually differ from the saved config. Unmatched rules
+    /// keep their null origin and read as newly added.
+    private void linkToSavedByValue(List<FlashRule> rules)
+    {
+        boolean[] claimed = new boolean[this.savedRules.size()];
+        for (FlashRule rule : rules)
+        {
+            for (int i = 0; i < this.savedRules.size(); i++)
+            {
+                if (!claimed[i] && rule.sameValuesAs(this.savedRules.get(i)))
+                {
+                    rule.setSavedOrigin(this.savedRules.get(i));
+                    claimed[i] = true;
+                    break;
+                }
+            }
+        }
     }
 
     private void doResetColors()
@@ -403,6 +465,7 @@ public final class VisualSwapConfigScreen extends Screen
         this.filterText = "";
         this.pendingSeed = this.savedRules;
         this.list = null;
+        this.resetScroll = true;
         rebuildWidgets();
     }
 

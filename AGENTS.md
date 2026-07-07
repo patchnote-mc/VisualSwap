@@ -96,9 +96,13 @@ there are two source sets, both registered as the `visual-swap` mod:
     intensity cycle chips, a tint-colour **swatch only** — click opens the picker, no
     inline hex box — and **duplicate + delete** `IconButton`s). Row
     add/remove/duplicate/clear/reset and every filter keystroke re-init via
-    `rebuildWidgets()`; new rules insert at the **top**, and the screen focuses the new
-    row's item box and scrolls it into view (`FlashRuleRow.focusItemInput` +
-    `ensureRowVisible` via the captured scroll container's `AbstractScrollArea`).
+    `rebuildWidgets()`. Each rebuild **preserves the scroll position** (captured/restored
+    via the scroll container's `AbstractScrollArea` — `currentScroll`/`restoreScroll`) instead
+    of snapping to the top; content-replacing actions (filter/reset/discard) opt back into
+    top via `resetScroll`. New rules insert at the **top** and the screen focuses the new
+    row's item box and scrolls it in (`FlashRuleRow.focusItemInput` + `ensureRowVisible`);
+    a **duplicated** row is flagged (`FlashRulesList.consumeRevealTarget`, resolved to an
+    index like the preview target) and `revealRow`/`ensureRowVisible`'d into view.
     **Icons:** the add / delete(X) / duplicate / reset / clear / search / dirty-dot glyphs
     are Material Symbols SVGs rasterized to white 128² PNGs (+ a `blur` `.png.mcmeta` for
     smooth downscaling) by `.gen/gen_icons.py` (cairosvg) into
@@ -135,7 +139,12 @@ there are two source sets, both registered as the `visual-swap` mod:
     saved config on open and diffs the working state against it (`Preset.sameValuesAs`,
     `FlashRule.sameValuesAs`/`listsSameValues`) to drive an **unsaved-changes** state — an
     amber dirty-dot icon beside the title, a gated **Discard** button (reverts to the
-    snapshot), and a confirm-before-leaving guard on Cancel/Esc. **Split resets:** **Reset rules** (rules
+    snapshot), and a confirm-before-leaving guard on Cancel/Esc. **Per-row markers:** each
+    working `FlashRule` carries a transient `savedOrigin` link to the saved rule it descends
+    from (stamped self on the snapshot, carried by the copy ctor); rows draw a left-gutter dot
+    — **green** when `isNew()` (no origin: added or duplicated) or **orange** when `isModified()`
+    (origin present but values differ). A bulk **Reset rules** value-matches defaults back to
+    unclaimed saved rules (`linkToSavedByValue`) so only genuine deltas light up. **Split resets:** **Reset rules** (rules
     table → `FlashRule.defaultFlashRules()`) and **Reset colours** (Custom From/To + size
     → factory), each gated to when it would actually change something. **Search filter**
     (`FlashRulesList.setFilter`, view-only — `toRules()` still returns all), **duplicate**

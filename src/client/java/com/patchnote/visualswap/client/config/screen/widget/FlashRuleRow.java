@@ -228,6 +228,14 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.colorSwatch.extractRenderState(g, mouseX, mouseY, a);
         this.duplicateButton.extractRenderState(g, mouseX, mouseY, a);
         this.deleteButton.extractRenderState(g, mouseX, mouseY, a);
+
+        // unsaved-changes marker in the left gutter: green when newly added, orange when an existing rule was edited
+        int marker = this.rule.isNew() ? NEW_ARGB : this.rule.isModified() ? MODIFIED_ARGB : 0;
+        if (marker != 0)
+        {
+            int dot = 6;
+            Icons.blit(g, Icons.DIRTY, getX() - 2 - dot, midY - dot / 2, dot, marker);
+        }
     }
 
     @Override
