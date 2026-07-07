@@ -78,17 +78,32 @@ there are two source sets, both registered as the `visual-swap` mod:
   - `com.patchnote.visualswap.client.config.screen.*` — the hand-built config
     GUI (`ModMenuIntegration` opens `VisualSwapConfigScreen`, no longer the
     AutoConfig auto-screen). Built on the vanilla `gui.layouts` package:
-    `HeaderAndFooterLayout` (fixed title-only header, fixed `+ Add rule`/Cancel/
-    Done footer) with the whole middle in a `ScrollableLayout` styled like a
+    `HeaderAndFooterLayout` (fixed title-only header, fixed **Discard/Cancel/Done**
+    footer) plus a fixed **rules header** (`RuleColumnsHeader`, an
+    `AbstractContainerWidget`) pinned just under the title — it hosts the **search box**
+    in the Item column (magnifier where the item icons sit), the Flash/Intensity column
+    captions, and the **Add / Clear / Reset** icon buttons on the right (aligned above
+    each row's duplicate/delete icons), all off the same right-anchored column maths as
+    the rows. The whole middle is a `ScrollableLayout` styled like a
     vanilla list panel (`menu_list_background` + header/footer separators drawn
     in the screen's `extractRenderState` override). Content: a 2×3 `GridLayout`
-    on top — preset selector & size slider | From/To colour rows |
-    `HotbarSwapPreview` — then `RuleColumnsHeader` captions over
-    `FlashRulesList`, now a plain vertical `Layout` of `FlashRuleRow`s (each an
+    on top — preset selector & size slider | From/To colour **swatches** |
+    `HotbarSwapPreview` + a **Reset colours** icon button in the bottom-right cell —
+    then a rule-count line over
+    `FlashRulesList`, a plain vertical `Layout` of `FlashRuleRow`s (each an
     `AbstractContainerWidget` with `NO_SCROLL`; the page owns all scrolling),
     one editable row per `ModConfig.FlashRule` (item id + live icon, flash-on /
-    intensity cycle chips, a per-row tint-colour hex box + live swatch, per-row
-    delete). Row add/remove re-inits via `rebuildWidgets()`. **Swap preview:**
+    intensity cycle chips, a tint-colour **swatch only** — click opens the picker, no
+    inline hex box — and **duplicate + delete** `IconButton`s). Row
+    add/remove/duplicate/clear/reset and every filter keystroke re-init via
+    `rebuildWidgets()`; new rules insert at the **top**, and the screen focuses the new
+    row's item box and scrolls it into view (`FlashRuleRow.focusItemInput` +
+    `ensureRowVisible` via the captured scroll container's `AbstractScrollArea`).
+    **Icons:** the add / delete(X) / duplicate / reset / clear / search / dirty-dot glyphs
+    are Material Symbols SVGs rasterized to white 128² PNGs (+ a `blur` `.png.mcmeta` for
+    smooth downscaling) by `.gen/gen_icons.py` (cairosvg) into
+    `src/main/resources/assets/visual-swap/textures/gui/icons/`, tinted per state and
+    scaled at blit time by `Icons.blit` / `IconButton`. **Swap preview:**
     `HotbarSwapPreview` renders two real hotbar slots (cropped `hud/hotbar`
     sprite, `hud/hotbar_selection` on the right slot), From/To fills behind the
     items exactly as `SwapHotbarHighlight` draws them in-game, and flashes the
@@ -108,16 +123,27 @@ there are two source sets, both registered as the `visual-swap` mod:
     to `customPresetData` under Custom else the type's default, and the render consumers
     (`SwapHotbarHighlight`, `SwapHitMasks`, `SwapParticleProvider`) read those. **Per-preset
     per-item colours:** each `FlashRule` stores a `Map<PresetType,Integer>` tint (see
-    `PresetType.getFlashTint`). The size slider, From/To boxes, and every row's
-    colour box show the *active preset's* effective value and are **editable only under
+    `PresetType.getFlashTint`). The size slider, From/To swatches, and every row's
+    colour swatch show the *active preset's* effective value and are **editable only under
     Custom** (`PresetType.isColorEditable()` — greyed/disabled otherwise); switching the
     preset re-points them all (`FlashRulesList.setPreset`, `SizeSlider.update`) while a
     working `Preset` copy preserves in-progress Custom edits across toggles. Widgets are
-    stock (`StringWidget`, `EditBox` for hex, `CycleButton`/`Button`/`SizeSlider`) plus
-    the custom `ColorSwatch`, `RuleColumnsHeader`, and `HotbarSwapPreview`.
+    stock (`StringWidget`, `EditBox` for the item id + search, `CycleButton`/`Button`/`SizeSlider`)
+    plus the custom `ColorSwatch`, `IconButton`, `RuleColumnsHeader`, and `HotbarSwapPreview`.
     Edits stay on working copies and are written back to `ModConfig` + `AutoConfig`
-    `save()` only on "Done". Uses the 26.2 extract-render model — see
-    `mc_decompiled/.knowledge/screen-and-widget-api.txt` and
+    `save()` only on "Done". **QOL/production (2026-07-07):** the screen snapshots the
+    saved config on open and diffs the working state against it (`Preset.sameValuesAs`,
+    `FlashRule.sameValuesAs`/`listsSameValues`) to drive an **unsaved-changes** state — an
+    amber dirty-dot icon beside the title, a gated **Discard** button (reverts to the
+    snapshot), and a confirm-before-leaving guard on Cancel/Esc. **Split resets:** **Reset rules** (rules
+    table → `FlashRule.defaultFlashRules()`) and **Reset colours** (Custom From/To + size
+    → factory), each gated to when it would actually change something. **Search filter**
+    (`FlashRulesList.setFilter`, view-only — `toRules()` still returns all), **duplicate**
+    / **clear-all** rows, a live rule count + **empty state**, an invalid-item warning on
+    Done (`FlashRulesList.invalidCount()`), and vanilla `.setTooltip` hints on the preset /
+    trigger / intensity / size / action controls. Destructive actions confirm through a
+    `ConfirmModal` (see the `screen.modal` package below). Uses the 26.2 extract-render
+    model — see `mc_decompiled/.knowledge/screen-and-widget-api.txt` and
     `mc_decompiled/.knowledge/gui-layouts.txt`.
   - `com.patchnote.visualswap.client.screen.overlay.*` — a reusable floating-layer
     framework for any screen (built for the config screen; intended for onboarding
@@ -134,10 +160,19 @@ there are two source sets, both registered as the `visual-swap` mod:
     value/alpha sliders (default, `HueSatWheel` — a `NativeImage`-baked
     `DynamicTexture`, value applied as a grey tint at blit), HSVA `GradientSlider`s,
     and hex entry; alpha controls only for the From/To colours — rule tints are
-    RGB-only. Live-applies by writing through the opener's hex box, so the normal
-    responder pipeline runs; HSV state is the source of truth so hue survives
-    zero-saturation edits). See
+    RGB-only. Live-applies by writing straight onto the target (the swatch's rule /
+    the working `Preset`), so no rebuild is needed; HSV state is the source of truth so
+    hue survives zero-saturation edits). See
     `mc_decompiled/.knowledge/tooltips.txt` + `.knowledge/dynamic-textures.txt`.
+  - `com.patchnote.visualswap.client.screen.modal.*` — modals that are their *own*
+    `Screen` (vs. the in-screen overlays above). `Modal` (abstract) captures whatever
+    screen was open as its **backdrop**, renders it dimmed behind a centred panel (via a
+    scrim + the backdrop's `extractRenderState` with an off-screen mouse), and returns to
+    it on close — so it owns all screen routing and can be opened from anywhere with
+    `open()`. `ConfirmModal` is the yes/no dialog (title + body + Cancel/Confirm) that
+    gates the reset/clear/discard/leave-unsaved actions; after Confirm runs the action it
+    returns to the backdrop **only if the action didn't itself navigate away** (checked
+    via `Minecraft.gui.screen()`).
 
 Mixins:
 

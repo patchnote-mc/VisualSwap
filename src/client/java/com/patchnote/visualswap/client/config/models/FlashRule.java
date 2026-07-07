@@ -111,6 +111,29 @@ public final class FlashRule
         return map;
     }
 
+    /// Value equality of a rule's settings — item, trigger, intensity, and the per-preset tints. Used to detect unsaved
+    /// edits; deliberately NOT {@code equals}, because the screen matches rules by identity (e.g. the preview target).
+    public boolean sameValuesAs(FlashRule other)
+    {
+        if (other == null) return false;
+        if (!java.util.Objects.equals(this.item, other.item)) return false;
+        if (this.flashesAt != other.flashesAt) return false;
+        if (this.intensity != other.intensity) return false;
+        for (PresetType p : PresetType.values())
+            if (this.colorFor(p) != other.colorFor(p)) return false;
+        return true;
+    }
+
+    /// True iff two rule lists are element-wise value-equal (order-sensitive) — see {@link #sameValuesAs}.
+    public static boolean listsSameValues(List<FlashRule> a, List<FlashRule> b)
+    {
+        if (a == b) return true;
+        if (a == null || b == null || a.size() != b.size()) return false;
+        for (int i = 0; i < a.size(); i++)
+            if (!a.get(i).sameValuesAs(b.get(i))) return false;
+        return true;
+    }
+
     private static Map<PresetType, Integer> defaultColors()
     {
         EnumMap<PresetType, Integer> map = new EnumMap<>(PresetType.class);

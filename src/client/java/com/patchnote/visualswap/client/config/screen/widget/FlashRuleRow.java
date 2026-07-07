@@ -5,14 +5,12 @@ import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.FlashTrigger;
 import com.patchnote.visualswap.client.config.models.PresetType;
 import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
-import com.patchnote.visualswap.client.utils.ColorHelpers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Button.OnPress;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.core.Holder;
@@ -30,10 +28,11 @@ import java.util.List;
 
 import static com.patchnote.visualswap.client.config.screen.widget.FlashRulesList.*;
 
-/// One rule's row: item id (with a live icon), flash-input and intensity cyclers, a tint colour (hex box + live
-/// swatch), and a delete button. It is a self-contained container widget — it positions and renders its own child
-/// widgets and routes events to them — so it can be stacked by a plain {@link net.minecraft.client.gui.layouts.Layout}
-/// (and later scrolled by the page) instead of being an entry in a self-scrolling list.
+/// One rule's row: item id (with a live icon), flash-input and intensity cyclers, a tint-colour swatch (click to open
+/// the picker), and duplicate + delete icon buttons. It is a self-contained container widget — it positions and renders
+/// its own child widgets and routes events to them — so it can be stacked by a plain
+/// {@link net.minecraft.client.gui.layouts.Layout} (and scrolled by the page) instead of being an entry in a
+/// self-scrolling list.
 public final class FlashRuleRow extends AbstractContainerWidget
 {
     /// Horizontal inset of the row content from its own edges — kept in step with the screen's column headers.
@@ -48,13 +47,12 @@ public final class FlashRuleRow extends AbstractContainerWidget
     private final CycleButton<FlashTrigger> onButton;
     private final CycleButton<FlashIntensity> intensityButton;
     private final ColorSwatch colorSwatch;
-    private final EditBox colorBox;
-    private final Button deleteButton;
+    private final IconButton duplicateButton;
+    private final IconButton deleteButton;
 
     // state
     private boolean isValid;
     private ItemStack previewItem;
-    private boolean refreshingColor;  // true while refreshColor programmatically rewrites the box (not a user edit)
 
     FlashRuleRow(FlashRulesList list, FlashRule rule)
     {
@@ -74,25 +72,34 @@ public final class FlashRuleRow extends AbstractContainerWidget
                 COLOR_SWATCH, SLOT_BORDER,
                 () -> 0xFF000000 | (this.rule.colorFor(this.list.preset()) & 0xFFFFFF)
         );
-        this.colorBox = createColorInput(rule);
-        this.deleteButton = createDeleteButton();
+        this.duplicateButton = new IconButton(DUPLICATE_WIDTH, Icons.DUPLICATE,
+                                              Component.literal("Duplicate this rule"), () -> this.list.duplicate(this));
+        this.deleteButton = new IconButton(DELETE_WIDTH, Icons.DELETE,
+                                           Component.literal("Delete this rule"), () -> this.list.removeRule(this));
 
         this.colorSwatch.setOnPress(this::openColorPicker);
         this.colorSwatch.setClickable(list.preset().isColorEditable());
 
+        this.onButton.setTooltip(Tooltip.create(Component.literal("When this item flashes: on attack, on use, or both")));
+        this.intensityButton.setTooltip(Tooltip.create(Component.literal("Flash strength (Low = subtle, High = punchy)")));
+
         refreshItemColor();
 
-        this.children = List.of(this.itemBox, this.onButton, this.intensityButton, this.colorSwatch, this.colorBox,
-                                this.deleteButton);
+        this.children = List.of(this.itemBox, this.onButton, this.intensityButton, this.colorSwatch,
+                                this.duplicateButton, this.deleteButton);
     }
 
-    /// A rule tint is RGB-only (its alpha byte carries the flash gamma), so the picker hides alpha. The picked colour
-    /// funnels through the hex box's responder — the same pipeline as typing (validation, preview retarget, live swatch).
+    /// A rule tint is RGB-only (its alpha byte carries the flash gamma), so the picker hides alpha and writes the
+    /// picked RGB straight onto the rule (opaque), then retargets the swap preview — the same effect the old hex box's
+    /// responder had.
     private void openColorPicker()
     {
         ColorPickerOverlay picker = new ColorPickerOverlay(
                 this.rule.colorFor(this.list.preset()), false,
-                argb -> this.colorBox.setValue(ColorHelpers.formatRgbHex(argb))
+                argb -> {
+                    this.rule.setColorFor(this.list.preset(), 0xFF000000 | (argb & 0xFFFFFF));
+                    this.list.notifyColorEdited(this.rule);
+                }
         );
         picker.position(this.colorSwatch.getX() - 8, this.colorSwatch.getY() + this.colorSwatch.getHeight() + 4);
         this.list.overlays().open(picker);
@@ -146,34 +153,21 @@ public final class FlashRuleRow extends AbstractContainerWidget
                 );
     }
 
-    private @NonNull EditBox createColorInput(FlashRule rule)
-    {
-        PresetType preset = this.list.preset();
-        EditBox input = new EditBox(
-                Minecraft.getInstance().font, //
-                0, 0, COLOR_BOX_WIDTH, WIDGET_HEIGHT, Component.literal("Tint colour")
-        );
-        input.setMaxLength(9);
-        input.setHint(Component.literal("RRGGBB"));
-        input.setTextColorUneditable(TEXT_MUTED);
-        input.setValue(ColorHelpers.formatRgbHex(rule.colorFor(preset)));
-        input.setEditable(preset.isColorEditable());
-        input.setResponder(this::onColorEdited);
-        input.moveCursorToStart(false);
-        return input;
-    }
-
-    private @NonNull Button createDeleteButton()
-    {
-        OnPress onPress = (Button b) -> this.list.removeRule(this);
-        return Button.builder(Component.literal("✕"), onPress)
-                .bounds(0, 0, DELETE_WIDTH, WIDGET_HEIGHT)
-                .build();
-    }
-
     /* GETTERS */
 
     public FlashRule getRule() { return this.rule; }
+
+    /// Whether this row's item id resolves to a real item — a blank or unknown id renders as an empty slot and never
+    /// flashes. The screen counts these to warn before saving.
+    public boolean isItemValid() { return this.isValid; }
+
+    /// Give keyboard focus to the item id box (used when the screen adds a fresh rule so the user can type at once).
+    public void focusItemInput()
+    {
+        setFocused(this.itemBox);
+        this.itemBox.setFocused(true);
+        this.itemBox.moveCursorToEnd(false);
+    }
 
     /* OVERRIDES */
 
@@ -206,20 +200,20 @@ public final class FlashRuleRow extends AbstractContainerWidget
             g.item(this.previewItem, left, iconY);
         }
 
-        // right-anchored columns: trigger | intensity | colour | delete
+        // right-anchored columns: trigger | intensity | colour swatch | duplicate | delete
         int deleteX = right - DELETE_WIDTH;
-        int colorX = deleteX - GAP - COLOR_WIDTH;
+        int duplicateX = deleteX - ACTION_GAP - DUPLICATE_WIDTH;
+        int colorX = duplicateX - GAP - COLOR_SWATCH;
         int intensityX = colorX - GAP - INTENSITY_WIDTH;
         int onX = intensityX - GAP - ON_WIDTH;
 
         this.deleteButton.setPosition(deleteX, widgetY);
+        this.duplicateButton.setPosition(duplicateX, widgetY);
         this.intensityButton.setPosition(intensityX, widgetY);
         this.onButton.setPosition(onX, widgetY);
 
-        // colour swatch (live) + hex box
-        int swatchY = midY - COLOR_SWATCH / 2;
-        this.colorSwatch.setPosition(colorX, swatchY);
-        this.colorBox.setPosition(colorX + COLOR_SWATCH + 4, widgetY);
+        // colour swatch (live), vertically centred in the row
+        this.colorSwatch.setPosition(colorX, midY - COLOR_SWATCH / 2);
 
         // item box fills the middle
         int boxX = left + ICON + GAP;
@@ -232,7 +226,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.onButton.extractRenderState(g, mouseX, mouseY, a);
         this.intensityButton.extractRenderState(g, mouseX, mouseY, a);
         this.colorSwatch.extractRenderState(g, mouseX, mouseY, a);
-        this.colorBox.extractRenderState(g, mouseX, mouseY, a);
+        this.duplicateButton.extractRenderState(g, mouseX, mouseY, a);
         this.deleteButton.extractRenderState(g, mouseX, mouseY, a);
     }
 
@@ -250,24 +244,11 @@ public final class FlashRuleRow extends AbstractContainerWidget
         refreshItemColor();
     }
 
-    private void onColorEdited(String value)
-    {
-        Integer color = ColorHelpers.parseHexColor(value);
-        this.colorBox.setTextColor(color != null ? TEXT_VALID : TEXT_INVALID);
-        // setColorFor no-ops for non-editable presets, so a programmatic setValue on preset switch can't corrupt them.
-        if (color != null) this.rule.setColorFor(this.list.preset(), color);
-        if (!this.refreshingColor) this.list.notifyColorEdited(this.rule);
-    }
-
-    /// Point the colour column at {@code preset}: show that preset's stored colour and only allow edits under Custom.
-    /// The swatch tracks the list's preset live, so it needs no explicit refresh.
+    /// Point the colour column at {@code preset}: only allow edits (picker) under Custom. The swatch tracks the list's
+    /// preset live, so its colour needs no explicit refresh.
     void refreshColor(PresetType preset)
     {
-        this.refreshingColor = true;
-        this.colorBox.setEditable(preset.isColorEditable());
-        this.colorBox.setValue(ColorHelpers.formatRgbHex(this.rule.colorFor(preset)));
         this.colorSwatch.setClickable(preset.isColorEditable());
-        this.refreshingColor = false;
     }
 
     private void refreshItemColor() { this.itemBox.setTextColor(this.isValid ? TEXT_VALID : TEXT_INVALID); }

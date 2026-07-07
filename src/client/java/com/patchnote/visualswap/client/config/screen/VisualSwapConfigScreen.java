@@ -6,12 +6,14 @@ import com.patchnote.visualswap.client.config.models.Preset;
 import com.patchnote.visualswap.client.config.models.PresetType;
 import com.patchnote.visualswap.client.config.screen.widget.*;
 import com.patchnote.visualswap.client.hud.click.ItemFlashPreview;
+import com.patchnote.visualswap.client.screen.modal.ConfirmModal;
 import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
 import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
-import com.patchnote.visualswap.client.utils.ColorHelpers;
 import me.shedaniel.autoconfig.AutoConfig;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.*;
+import net.minecraft.client.gui.components.events.ContainerEventHandler;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.*;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
@@ -24,38 +26,43 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
-/// The mod's config screen: a fixed title header, a fixed Add/Cancel/Done footer, and a scrollable middle (preset
-/// selector, size slider, From/To highlight colours, and the rules table) laid out with the vanilla `layouts` package
-/// and wrapped in a {@link ScrollableLayout}. The scroll viewport gets the vanilla list look — a tiled dark panel with
-/// top/bottom separators (drawn in {@link #extractScrollPanel}) plus the scrollbar the ScrollableLayout draws itself.
+/// The mod's config screen: a fixed title header, a fixed rules header (search box + column captions + Add/Clear/Reset
+/// icon buttons), a scrollable middle (preset selector, size slider, From/To colour swatches, and the rules table), and
+/// a fixed Discard/Cancel/Done footer, laid out with the vanilla `layouts` package and wrapped in a
+/// {@link ScrollableLayout}. The scroll viewport gets the vanilla list look — a tiled dark panel with top/bottom
+/// separators (drawn in {@link #extractScrollPanel}) plus the scrollbar the ScrollableLayout draws itself.
+///
+/// Nothing is written to {@link ModConfig} until "Done": the screen edits working copies ({@link #workingType},
+/// {@link #workingCustom}, and the {@link FlashRulesList}'s rule copies), compared against the saved snapshot captured
+/// at construction to drive the unsaved-changes ("dirty") state. Reset/Discard/Clear route through a
+/// {@link ConfirmModal}; colours are edited via the {@link ColorPickerOverlay} opened from each swatch.
 public final class VisualSwapConfigScreen extends Screen
 {
     private static final int CHIP_H = 20;
     private static final int COL_GAP = 8;       // between the top grid's columns
 
-    // Custom-colour row: a "From"/"To" caption, then a colour swatch, then the hex edit box.
+    // Custom-colour row: a "From"/"To" caption then a colour swatch (click opens the picker).
     private static final int COLOR_LABEL_W = 34;
     private static final int COLOR_SWATCH = 16;
-    private static final int COLOR_GAP = 6;     // swatch → hex box
+    private static final int COLOR_GAP = 6;     // caption → swatch
 
     // Vertical rhythm of the scrollable content column.
     private static final int CONTENT_SPACING = 6;
     private static final int COLOR_ROW_GAP = 4; // From ↔ To sit tighter as a pair
     private static final int SECTION_GAP = 8;   // extra breathing room above the rules table
     private static final int SCROLL_MIN_HEIGHT = 40;
-    private static final int CONTENT_TOP_GAP = 4;    // gap below the fixed header before the scroll panel
+    private static final int CONTENT_TOP_GAP = 4;    // gap below the fixed title header before the rules header
+    private static final int HEADER_TO_SCROLL_GAP = 4;
     private static final int SCROLLBAR_RESERVE = 10; // ScrollableLayout's per-side reserve (spacing 4 + scrollbar 6)
 
-    // StringWidget colours are RGB (styled via Component#withColor); EditBox/swatch colours are ARGB.
+    // StringWidget colours are RGB (styled via Component#withColor); swatch colours are ARGB.
     private static final int LABEL_RGB = 0xB9B9C0;
+    private static final int MUTED_RGB = 0x8A8A90;      // count label + empty-state message
     private static final int SWATCH_BORDER = 0xFF4A4A52;
-    private static final int TEXT_VALID = 0xFFE0E0E0;
-    private static final int TEXT_INVALID = 0xFFFF5555;
-    private static final int TEXT_MUTED = 0xFF97979E;
+    private static final int DIRTY_ARGB = 0xFFF0B84C;   // amber unsaved-changes dot beside the title
 
     // Vanilla list-panel textures (menu_list_background is private in AbstractSelectionList, so re-declared here).
     private static final Identifier MENU_LIST_BACKGROUND = Identifier.withDefaultNamespace(
@@ -68,16 +75,32 @@ public final class VisualSwapConfigScreen extends Screen
     /// Which preset is selected, and a working copy of the Custom preset's settings — preserved across preset toggles
     /// so switching away and back doesn't lose in-progress Custom edits. Only committed to ModConfig on "Done".
     private PresetType workingType;
-    private final Preset workingCustom;
-    private final List<FlashRule> ruleSeed;
+    private Preset workingCustom;
+
+    /// The saved config as captured on open — the baseline the working state is diffed against to detect unsaved edits,
+    /// and the values a "Discard" reverts to.
+    private final PresetType savedType;
+    private final Preset savedCustom;
+    private final List<FlashRule> savedRules;
+
+    /// When set, {@link #init} seeds the rules table from this list (instead of carrying the current rows over) — used
+    /// by Reset rules and Discard to replace the whole table. Consumed on the next init.
+    private @Nullable List<FlashRule> pendingSeed;
+
+    /// Case-insensitive item-id filter for the rules table, plus one-shot flags asking init to re-focus the search box
+    /// after a filter rebuild, or the freshly-added top row after an add.
+    private String filterText = "";
+    private boolean refocusSearch;
+    private boolean focusNewRow;
+
+    /// Recomputed each init; drives the header dot, the Discard button, and the confirm-before-leaving guard.
+    private boolean dirtyState;
 
     private HeaderAndFooterLayout layout;
+    private RuleColumnsHeader tableHeader;
     private ScrollableLayout scrollArea;
+    private @Nullable GuiEventListener scrollContainer;   // the ScrollableLayout's inner scroll widget (for row focus)
     private SizeSlider slider;
-    private EditBox fromColorBox;
-    private EditBox toColorBox;
-    private ColorSwatch fromSwatch;
-    private ColorSwatch toSwatch;
     private FlashRulesList list;
 
     /// The screen's floating layer: hover tooltips + the colour-picker popup.
@@ -96,7 +119,10 @@ public final class VisualSwapConfigScreen extends Screen
         ModConfig cfg = ModConfig.get();
         this.workingType = cfg.preset;
         this.workingCustom = new Preset(cfg.customPresetData);
-        this.ruleSeed = cfg.clickFlashRules;
+
+        this.savedType = cfg.preset;
+        this.savedCustom = new Preset(cfg.customPresetData);
+        this.savedRules = cfg.clickFlashRules.stream().map(FlashRule::new).toList();
     }
 
     @Override
@@ -104,10 +130,19 @@ public final class VisualSwapConfigScreen extends Screen
     {
         this.overlays.close();  // rebuild invalidates overlay anchors
 
-        // Preserve in-progress rule edits across a rebuild (window resize, or an add/remove that re-inits). The
-        // followed preview rule is carried over as its seed position — the new rows copy the seed in order.
-        List<FlashRule> seed = (this.list != null) ? this.list.toRules() : this.ruleSeed;
+        // Choose the rules seed: an explicit pending seed (reset/discard) wins; otherwise carry the current rows over
+        // (preserving in-progress edits across a resize / add / remove); otherwise the saved snapshot (first open).
+        List<FlashRule> seed;
+        if (this.pendingSeed != null) { seed = this.pendingSeed; this.pendingSeed = null; }
+        else if (this.list != null) { seed = this.list.toRules(); }
+        else { seed = this.savedRules; }
+
         int previewIdx = (this.previewRule != null) ? seed.indexOf(this.previewRule) : -1;
+
+        this.dirtyState = isDirty(seed);
+        boolean resetRulesEnabled = !FlashRule.listsSameValues(seed, FlashRule.defaultFlashRules());
+        boolean resetColorsEnabled = this.workingType.isCustom()
+                && !this.workingCustom.sameValuesAs(PresetType.CUSTOM.createDefault());
 
         this.layout = new HeaderAndFooterLayout(this);
         this.layout.addTitleHeader(getTitle(), this.font);
@@ -119,136 +154,157 @@ public final class VisualSwapConfigScreen extends Screen
         LinearLayout content = LinearLayout.vertical().spacing(CONTENT_SPACING);
 
         // top controls, a 2x3 grid:  preset | From colour | swap preview
-        //                            slider | To colour   | (empty)
+        //                            slider | To colour   | reset-colours button
         GridLayout top = new GridLayout().columnSpacing(COL_GAP).rowSpacing(COLOR_ROW_GAP);
-        top.defaultCellSetting().alignVerticallyMiddle();  // the preview cell is taller than the 20px controls
+        top.defaultCellSetting().alignVerticallyMiddle();
 
-        top.addChild(
-                CycleButton.<PresetType>builder(PresetType::getNameComponent, this.workingType)
-                        .withValues(PresetType.VANILLA, PresetType.PRACTICE, PresetType.CUSTOM)
-                        .create(0, 0, colW, CHIP_H, Component.literal("Preset"), (button, value) -> setPreset(value)),
-                0,
-                0
-        );
+        CycleButton<PresetType> presetButton = CycleButton.<PresetType>builder(PresetType::getNameComponent, this.workingType)
+                .withValues(PresetType.VANILLA, PresetType.PRACTICE, PresetType.CUSTOM)
+                .create(0, 0, colW, CHIP_H, Component.literal("Preset"), (button, value) -> setPreset(value));
+        presetButton.setTooltip(Tooltip.create(Component.literal(
+                "Highlight preset. Vanilla and Practice are fixed; Custom is fully editable.")));
+        top.addChild(presetButton, 0, 0);
 
-        // size slider (edits the Custom preset; disabled/greyed for the fixed presets)
-        this.slider = new SizeSlider(
-                0,
-                0,
-                colW,
-                CHIP_H,
-                this.workingType.getDisplayName(),
-                effectiveSize(),
-                this.workingCustom::setSizeMultiplier
-        );
+        this.slider = new SizeSlider(0, 0, colW, CHIP_H, this.workingType.getDisplayName(), effectiveSize(),
+                                     this.workingCustom::setSizeMultiplier);
         this.slider.active = this.workingType.isColorEditable();
+        this.slider.setTooltip(Tooltip.create(Component.literal("Scale of the swap highlight overlay.")));
         top.addChild(this.slider, 1, 0);
 
-        // From/To highlight colours (shown for every preset; the hex box is editable only under Custom)
-        top.addChild(
-                colorRow(
-                        "From",
-                        this::effectiveFrom,
-                        b -> this.fromColorBox = b,
-                        s -> this.fromSwatch = s,
-                        this.workingCustom::setFromColor,
-                        effectiveFrom(),
-                        colW
-                ), 0, 1
-        );
-        top.addChild(
-                colorRow(
-                        "To",
-                        this::effectiveTo,
-                        b -> this.toColorBox = b,
-                        s -> this.toSwatch = s,
-                        this.workingCustom::setToColor,
-                        effectiveTo(),
-                        colW
-                ), 1, 1
-        );
+        // From/To highlight colours — a caption + a swatch that opens the colour picker (Custom only)
+        top.addChild(colorRow("From", this::effectiveFrom, this.workingCustom::setFromColor), 0, 1);
+        top.addChild(colorRow("To", this::effectiveTo, this.workingCustom::setToColor), 1, 1);
 
-        // right column: the swap preview in the top cell; the bottom cell is intentionally left empty
-        top.addChild(
-                new HotbarSwapPreview(
-                        this::effectiveFrom,
-                        this::effectiveTo,
-                        () -> this.workingType,
-                        () -> this.previewRule,
-                        this.overlays
-                ), 0, 2
-        );
+        top.addChild(new HotbarSwapPreview(this::effectiveFrom, this::effectiveTo, () -> this.workingType,
+                                           () -> this.previewRule, this.overlays), 0, 2);
+
+        IconButton resetColorsButton = new IconButton(CHIP_H, Icons.RESET,
+                                                      Component.literal("Reset colours & size to defaults"),
+                                                      this::confirmResetColors);
+        resetColorsButton.active = resetColorsEnabled;
+        top.addChild(resetColorsButton, 1, 2, s -> s.alignHorizontallyLeft());
 
         content.addChild(top, LayoutSettings::alignHorizontallyCenter);
 
-        // rules table: column captions + stacked rows
-        content.addChild(new RuleColumnsHeader(rowWidth), LayoutSettings::alignHorizontallyCenter);
-        this.list = new FlashRulesList(
-                rowWidth,
-                this.workingType,
-                seed,
-                this::rebuildWidgets,
-                rule -> this.previewRule = rule,
-                this.overlays
-        );
+        // rules table — build first so the count + empty-state can read its filtered size
+        this.list = new FlashRulesList(rowWidth, this.workingType, seed, this::rebuildWidgets,
+                                       rule -> this.previewRule = rule, this.overlays);
+        this.list.setFilter(this.filterText);
         this.previewRule = this.list.ruleAt(previewIdx, "minecraft:mace");
+
+        StringWidget countWidget = new StringWidget(rowWidth, this.font.lineHeight,
+                                                    Component.literal(countText()).withColor(MUTED_RGB), this.font);
+        content.addChild(countWidget, s -> s.alignHorizontallyCenter().paddingTop(SECTION_GAP - CONTENT_SPACING));
         content.addChild(this.list, LayoutSettings::alignHorizontallyCenter);
 
+        if (this.list.visibleCount() == 0)
+        {
+            String msg = this.list.totalCount() == 0
+                    ? "No rules yet — use the + button above to add one"
+                    : "No rules match \"" + this.filterText + "\"";
+            content.addChild(new StringWidget(Component.literal(msg).withColor(MUTED_RGB), this.font),
+                             s -> s.alignHorizontallyCenter().paddingTop(SECTION_GAP));
+        }
+
         // --- wrap the content in a full-width scroll viewport so the panel + scrollbar reach the screen edges ---
-        // A full-width frame centres the (narrower) content column; ScrollableLayout adds its scrollbar reserve on
-        // both sides, so the container ends up exactly the screen width.
         FrameLayout viewport = new FrameLayout();
         viewport.setMinWidth(this.width - 2 * SCROLLBAR_RESERVE);
         viewport.addChild(content);
         this.scrollArea = new ScrollableLayout(this.minecraft, viewport, this.layout.getContentHeight());
         this.layout.addToContents(this.scrollArea);
 
-        // --- footer ---
+        // --- footer: revert / leave / save ---
         LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(8));
-        footer.addChild(Button.builder(Component.literal("+ Add rule"), b -> this.list.addRule()).width(96).build());
-        footer.addChild(Button.builder(Component.literal("Cancel"), b -> onClose()).width(90).build());
-        footer.addChild(Button.builder(Component.literal("Done"), b -> commitAndClose()).width(90).build());
+        Button discardButton = Button.builder(Component.literal("Discard"), b -> confirmDiscard()).width(80).build();
+        discardButton.active = this.dirtyState;
+        discardButton.setTooltip(Tooltip.create(Component.literal("Revert all unsaved changes to your saved config.")));
+        footer.addChild(discardButton);
+        footer.addChild(Button.builder(Component.literal("Cancel"), b -> onClose()).width(80).build());
+        footer.addChild(Button.builder(Component.literal("Done"), b -> onDone()).width(80).build());
 
         this.layout.visitWidgets(this::addRenderableWidget);
+        this.scrollContainer = null;
+        this.scrollArea.visitWidgets(w -> this.scrollContainer = w);   // capture the inner scroll widget for row focus
+
+        // --- fixed rules header (search + column captions + Add/Clear/Reset); positioned in arrangeContents ---
+        this.tableHeader = new RuleColumnsHeader(rowWidth, this.filterText, this::onSearchEdited,
+                                                 this::addRuleClearingFilter, this::confirmClear, this::confirmResetRules,
+                                                 this.list.totalCount() > 0, resetRulesEnabled);
+        addRenderableWidget(this.tableHeader);
+
         arrangeContents();
+        applyPendingFocus();
     }
 
-    /// Arrange the header/footer, then pin the scroll viewport just below the header — dropping HeaderAndFooterLayout's
-    /// ~30px content margin — and size it to fill down to the footer.
+    /// The fixed header, then the scroll viewport below it — dropping HeaderAndFooterLayout's ~30px content margin.
     private void arrangeContents()
     {
         this.scrollArea.setMaxHeight(SCROLL_MIN_HEIGHT);
         this.layout.arrangeElements();
 
         int top = this.layout.getHeaderHeight() + CONTENT_TOP_GAP;
-        int available = this.height - this.layout.getFooterHeight() - top;
+        this.tableHeader.setX((this.width - this.tableHeader.getWidth()) / 2);
+        this.tableHeader.setY(top);
+
+        int scrollTop = top + RuleColumnsHeader.HEIGHT + HEADER_TO_SCROLL_GAP;
+        int available = this.height - this.layout.getFooterHeight() - scrollTop;
         this.scrollArea.setMaxHeight(Math.max(SCROLL_MIN_HEIGHT, available));
-        this.scrollArea.setY(top);
+        this.scrollArea.setY(scrollTop);
     }
 
-    /// One From/To color row (total width {@code rowW}): a fixed-width caption, a live swatch that opens the colour
-    /// picker (Custom preset only), and the hex box. Box and swatch are assigned back via the two consumers. The
-    /// picker writes through the box, so its responder runs the normal edit pipeline.
-    private LinearLayout colorRow(String label, IntSupplier color, Consumer<EditBox> assign,
-                                  Consumer<ColorSwatch> assignSwatch, IntConsumer onEdit, int initial, int rowW)
+    /// Honour a pending focus request from the last action: the search box after a filter edit, or the new top row's
+    /// item box after an add. Kept to the end of init so the widgets exist and are positioned.
+    private void applyPendingFocus()
     {
-        LinearLayout row = LinearLayout.horizontal();
-        row.addChild(
-                new StringWidget(COLOR_LABEL_W, CHIP_H, Component.literal(label).withColor(LABEL_RGB), this.font),
-                LayoutSettings::alignVerticallyMiddle
-        );
+        if (this.refocusSearch)
+        {
+            setFocused(this.tableHeader);
+            this.tableHeader.focusSearch();
+            this.refocusSearch = false;
+        }
+        else if (this.focusNewRow)
+        {
+            FlashRuleRow row = this.list.firstRow();
+            if (row != null && this.scrollContainer instanceof ContainerEventHandler container)
+            {
+                setFocused(this.scrollContainer);
+                container.setFocused(row);
+                row.focusItemInput();
+                ensureRowVisible(row);
+            }
+            this.focusNewRow = false;
+        }
+    }
 
-        EditBox box = makeColorBox(rowW - COLOR_LABEL_W - COLOR_SWATCH - COLOR_GAP, initial, onEdit);
-        assign.accept(box);
+    /// Scroll the rules viewport just enough to bring {@code row} fully into view (a no-op when it already is).
+    private void ensureRowVisible(FlashRuleRow row)
+    {
+        if (!(this.scrollContainer instanceof AbstractScrollArea area)) return;
+
+        int viewTop = this.scrollArea.getY();
+        int viewBottom = viewTop + this.scrollArea.getHeight();
+        int rowTop = row.getY();
+        int rowBottom = rowTop + row.getHeight();
+
+        double scroll = area.scrollAmount();
+        double target = scroll;
+        if (rowTop < viewTop) target = scroll - (viewTop - rowTop);
+        else if (rowBottom > viewBottom) target = scroll + (rowBottom - viewBottom);
+        area.setScrollAmount(Math.clamp(target, 0.0, area.maxScrollAmount()));
+    }
+
+    /// One From/To colour row: a caption and a swatch that opens the picker (Custom preset only). The picker writes the
+    /// picked ARGB straight to {@code onEdit}, and the swatch reads {@code color} live, so no rebuild is needed.
+    private LinearLayout colorRow(String label, IntSupplier color, IntConsumer onEdit)
+    {
+        LinearLayout row = LinearLayout.horizontal().spacing(COLOR_GAP);
+        row.addChild(new StringWidget(COLOR_LABEL_W, CHIP_H, Component.literal(label).withColor(LABEL_RGB), this.font),
+                     LayoutSettings::alignVerticallyMiddle);
 
         ColorSwatch swatch = new ColorSwatch(COLOR_SWATCH, SWATCH_BORDER, color);
-        swatch.setOnPress(() -> openPicker(swatch, color.getAsInt(),
-                                           argb -> box.setValue(ColorHelpers.formatArgbHex(argb))));
+        swatch.setOnPress(() -> openPicker(swatch, color.getAsInt(), onEdit));
         swatch.setClickable(this.workingType.isColorEditable());
-        assignSwatch.accept(swatch);
-
         row.addChild(swatch, LayoutSettings::alignVerticallyMiddle);
-        row.addChild(box, s -> s.alignVerticallyMiddle().paddingLeft(COLOR_GAP));
         return row;
     }
 
@@ -260,22 +316,12 @@ public final class VisualSwapConfigScreen extends Screen
         this.overlays.open(picker);
     }
 
+    /// Switch the active preset. A full rebuild re-derives colour editability, the greyed controls, the rules table's
+    /// preset column, and the dirty/reset button states — the Custom edits survive in {@link #workingCustom}.
     private void setPreset(PresetType type)
     {
         this.workingType = type;
-        boolean editable = type.isColorEditable();
-
-        this.slider.active = editable;
-        this.slider.update(type.getDisplayName(), effectiveSize());
-
-        this.fromColorBox.setEditable(editable);
-        this.toColorBox.setEditable(editable);
-        this.fromColorBox.setValue(ColorHelpers.formatArgbHex(effectiveFrom()));
-        this.toColorBox.setValue(ColorHelpers.formatArgbHex(effectiveTo()));
-        this.fromSwatch.setClickable(editable);
-        this.toSwatch.setClickable(editable);
-
-        if (this.list != null) this.list.setPreset(type);
+        rebuildWidgets();
     }
 
     /* EFFECTIVE VALUES — the Custom working copy under Custom, else the preset's fixed default. */
@@ -295,28 +341,115 @@ public final class VisualSwapConfigScreen extends Screen
         return this.workingType.isCustom() ? this.workingCustom.getToColor() : this.workingType.getToColor();
     }
 
-    /* WIDGET FACTORIES */
+    /* RULES HEADER / ACTIONS */
 
-    /// A hex-color edit box (AARRGGBB, "#"/"0x" and 6-digit RRGGBB accepted). Editable only under the Custom preset;
-    /// greyed (uneditable) otherwise. Pushes each valid value to {@code onEdit} and reddens its text while
-    /// unparseable.
-    private EditBox makeColorBox(int width, int initial, IntConsumer onEdit)
+    private void onSearchEdited(String text)
     {
-        EditBox box = new EditBox(this.font, 0, 0, width, CHIP_H, Component.literal("Color"));
-        box.setMaxLength(10);
-        box.setHint(Component.literal("AARRGGBB"));
-        box.setTextColorUneditable(TEXT_MUTED);
-        box.setValue(ColorHelpers.formatArgbHex(initial));
-        box.setEditable(this.workingType.isColorEditable());
-        box.setResponder(text -> {
-            Integer color = ColorHelpers.parseHexColor(text);
-            box.setTextColor(color != null ? TEXT_VALID : TEXT_INVALID);
-            if (color != null && this.workingType.isColorEditable()) onEdit.accept(color);
-        });
-        return box;
+        if (text.equals(this.filterText)) return;
+        this.filterText = text;
+        this.refocusSearch = true;
+        rebuildWidgets();
     }
 
-    private void commitAndClose()
+    /// Add a fresh rule at the top — clearing any active filter first so the new (blank) row isn't hidden by it — and
+    /// focus its item box on the rebuild.
+    private void addRuleClearingFilter()
+    {
+        this.filterText = "";
+        this.focusNewRow = true;
+        this.list.addRule();   // inserts at top and triggers a rebuild
+    }
+
+    private void confirmResetRules()
+    {
+        openConfirm("Reset rules?", List.of("Replace the whole table with the default rule set?"),
+                    "Reset", this::doResetRules);
+    }
+
+    private void confirmResetColors()
+    {
+        openConfirm("Reset colours?", List.of("Reset the highlight colours and size to their defaults?"),
+                    "Reset", this::doResetColors);
+    }
+
+    private void confirmClear()
+    {
+        openConfirm("Clear all rules?", List.of("Remove every rule from the table?"),
+                    "Clear all", () -> this.list.clear());
+    }
+
+    private void confirmDiscard()
+    {
+        openConfirm("Discard changes?", List.of("Revert every unsaved change to your saved config?"),
+                    "Discard", this::doDiscard);
+    }
+
+    private void doResetRules()
+    {
+        this.pendingSeed = FlashRule.defaultFlashRules();
+        rebuildWidgets();
+    }
+
+    private void doResetColors()
+    {
+        this.workingCustom = PresetType.CUSTOM.createDefault();
+        rebuildWidgets();
+    }
+
+    private void doDiscard()
+    {
+        this.workingType = this.savedType;
+        this.workingCustom = new Preset(this.savedCustom);
+        this.filterText = "";
+        this.pendingSeed = this.savedRules;
+        this.list = null;
+        rebuildWidgets();
+    }
+
+    /// Open a modal confirmation (its own screen) for a destructive action; only Confirm runs {@code action}.
+    private void openConfirm(String title, List<String> lines, String confirmLabel, Runnable action)
+    {
+        ConfirmModal.open(Component.literal(title),
+                          lines.stream().<Component>map(Component::literal).toList(),
+                          Component.literal(confirmLabel), action);
+    }
+
+    /// The rule-count line above the table: a plain total, or "N of M shown" while a filter is active.
+    private String countText()
+    {
+        int total = this.list.totalCount();
+        if (this.filterText.isEmpty()) return total + (total == 1 ? " rule" : " rules");
+        return this.list.visibleCount() + " of " + total + " shown";
+    }
+
+    /* DIRTY STATE / SAVE / CLOSE */
+
+    /// True when the working state differs from the saved snapshot.
+    private boolean isDirty(List<FlashRule> currentRules)
+    {
+        return this.workingType != this.savedType
+                || !this.workingCustom.sameValuesAs(this.savedCustom)
+                || !FlashRule.listsSameValues(currentRules, this.savedRules);
+    }
+
+    private void onDone()
+    {
+        int invalid = this.list.invalidCount();
+        if (invalid > 0)
+        {
+            openConfirm(
+                    "Save with invalid rules?",
+                    List.of(invalid + (invalid == 1 ? " rule has" : " rules have") + " an unknown or blank item id.",
+                            "They won't flash until fixed. Save anyway?"),
+                    "Save anyway", this::commit);
+        }
+        else
+        {
+            commit();
+        }
+    }
+
+    private void commit()
     {
         ModConfig cfg = ModConfig.get();
         cfg.preset = this.workingType;
@@ -326,19 +459,44 @@ public final class VisualSwapConfigScreen extends Screen
         this.minecraft.setScreenAndShow(this.parent);
     }
 
+    @Override
+    public void onClose()
+    {
+        List<FlashRule> current = (this.list != null) ? this.list.toRules() : this.savedRules;
+        if (isDirty(current))
+        {
+            openConfirm("Discard unsaved changes?", List.of("You have unsaved changes. Leave without saving?"),
+                        "Discard", () -> this.minecraft.setScreenAndShow(this.parent));
+        }
+        else
+        {
+            this.minecraft.setScreenAndShow(this.parent);
+        }
+    }
+
     /* OVERRIDES — the overlay layer sees every input first and renders last (topmost) */
 
     @Override
     public void extractRenderState(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a)
     {
         extractScrollPanel(graphics);
-        // Hover state and the requested cursor are computed at extract time from the mouse position. A modal overlay
-        // captures input, so the page beneath it must render with an off-screen mouse — otherwise covered widgets light
-        // up their hover outlines and steal the cursor (e.g. the I-beam) through the overlay. The overlay itself, drawn
-        // next, still gets the real coordinates. (A passive tooltip is not modal and leaves base hover untouched.)
+        // A modal overlay captures input, so the page beneath it must render with an off-screen mouse — otherwise
+        // covered widgets light up their hover outlines and steal the cursor through the overlay. The overlay itself,
+        // drawn next, still gets the real coordinates.
         boolean modal = this.overlays.isModalOpen();
         super.extractRenderState(graphics, modal ? -1 : mouseX, modal ? -1 : mouseY, a);
+        extractDirtyMarker(graphics);
         this.overlays.extract(graphics, mouseX, mouseY, a);
+    }
+
+    /// A small amber dot just right of the title while there are unsaved changes.
+    private void extractDirtyMarker(GuiGraphicsExtractor graphics)
+    {
+        if (!this.dirtyState || this.layout == null) return;
+        int size = 8;
+        int iconX = this.width / 2 + this.font.width(getTitle()) / 2 + 4;
+        int iconY = (this.layout.getHeaderHeight() - size) / 2;
+        Icons.blit(graphics, Icons.DIRTY, iconX, iconY, size, DIRTY_ARGB);
     }
 
     @Override
@@ -404,9 +562,6 @@ public final class VisualSwapConfigScreen extends Screen
         graphics.blit(RenderPipelines.GUI_TEXTURED, headerSeparator, x, y - 2, 0.0f, 0.0f, w, 2, 32, 2);
         graphics.blit(RenderPipelines.GUI_TEXTURED, footerSeparator, x, y + h, 0.0f, 0.0f, w, 2, 32, 2);
     }
-
-    @Override
-    public void onClose() { this.minecraft.setScreenAndShow(this.parent); }
 
     /// Drop the preview's flash registrations so a later screen's item at the same coords can't get silhouetted.
     @Override

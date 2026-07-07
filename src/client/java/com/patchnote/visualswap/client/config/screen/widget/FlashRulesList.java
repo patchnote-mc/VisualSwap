@@ -14,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 /// A vertical stack of {@link FlashRule} rows — one {@link FlashRuleRow} each. It is a plain, non-scrolling
@@ -32,10 +33,10 @@ public final class FlashRulesList implements Layout
 
     static final int ON_WIDTH = 58;
     static final int INTENSITY_WIDTH = 46;
-    static final int COLOR_WIDTH = 70;  // swatch + gap + hex box
-    static final int COLOR_SWATCH = 12;
-    static final int COLOR_BOX_WIDTH = COLOR_WIDTH - COLOR_SWATCH - 4;
+    static final int COLOR_SWATCH = 14;  // the colour column is now just this swatch (click opens the picker)
+    static final int DUPLICATE_WIDTH = 18;
     static final int DELETE_WIDTH = 18;
+    static final int ACTION_GAP = 3;     // tighter gap between the duplicate/delete action buttons
 
     static final int TEXT_VALID = 0xFFE0E0E0;
     static final int TEXT_INVALID = 0xFFFF5555;
@@ -53,6 +54,10 @@ public final class FlashRulesList implements Layout
 
     /// The preset whose colour each row currently shows/edits — mirrors the screen's working preset.
     private PresetType preset;
+
+    /// Case-insensitive item-id substring the table is filtered by; empty shows every row. Filtering is view-only —
+    /// hidden rows stay in {@link #rows} (and in {@link #toRules()}), they are just excluded from the layout.
+    private String filter = "";
 
     public FlashRulesList(int rowWidth, PresetType preset, List<FlashRule> rules, Runnable onChanged,
                           Consumer<FlashRule> onColorEdited, OverlayManager overlays)
@@ -72,7 +77,14 @@ public final class FlashRulesList implements Layout
     private void rebuildLayout()
     {
         this.layout.removeChildren();
-        for (FlashRuleRow row : this.rows) this.layout.addChild(row);
+        for (FlashRuleRow row : this.rows) if (matches(row)) this.layout.addChild(row);
+    }
+
+    private boolean matches(FlashRuleRow row)
+    {
+        if (this.filter.isEmpty()) return true;
+        String item = row.getRule().item();
+        return item != null && item.toLowerCase(Locale.ROOT).contains(this.filter);
     }
 
     /* API */
@@ -92,10 +104,58 @@ public final class FlashRulesList implements Layout
         for (FlashRuleRow row : this.rows) row.refreshColor(preset);
     }
 
-    /// Append a fresh, blank rule and ask the screen to re-lay-out the page.
+    /// Filter the visible rows to those whose item id contains {@code text} (case-insensitive). View-only — the
+    /// underlying rules and {@link #toRules()} are unaffected. Rebuilds the layout; the page re-arranges after.
+    public void setFilter(@Nullable String text)
+    {
+        this.filter = (text == null) ? "" : text.trim().toLowerCase(Locale.ROOT);
+        rebuildLayout();
+    }
+
+    /// Rows currently shown (after the active filter).
+    public int visibleCount()
+    {
+        int n = 0;
+        for (FlashRuleRow row : this.rows) if (matches(row)) n++;
+        return n;
+    }
+
+    /// Total rules, ignoring the filter.
+    public int totalCount() { return this.rows.size(); }
+
+    /// The topmost row (where {@link #addRule} inserts), or null when the table is empty — used to focus a just-added
+    /// rule's item box.
+    public @Nullable FlashRuleRow firstRow() { return this.rows.isEmpty() ? null : this.rows.get(0); }
+
+    /// How many rows resolve to no real item (blank or unknown id) — surfaced as a warning before saving.
+    public int invalidCount()
+    {
+        int n = 0;
+        for (FlashRuleRow row : this.rows) if (!row.isItemValid()) n++;
+        return n;
+    }
+
+    /// Insert a fresh, blank rule at the TOP and ask the screen to re-lay-out the page. Top insertion keeps the new
+    /// row visible: a rebuild recreates the scroll viewport reset to the top, so the newest rule is always on screen.
     public void addRule()
     {
-        this.rows.add(new FlashRuleRow(this, new FlashRule("minecraft:", FlashTrigger.ATTACK, FlashIntensity.HIGH)));
+        this.rows.add(0, new FlashRuleRow(this, new FlashRule("minecraft:", FlashTrigger.ATTACK, FlashIntensity.HIGH)));
+        if (this.onChanged != null) this.onChanged.run();
+    }
+
+    /// Insert a copy of {@code row} directly below it — invoked by the row's own duplicate button.
+    void duplicate(FlashRuleRow row)
+    {
+        int i = this.rows.indexOf(row);
+        if (i < 0) return;
+        this.rows.add(i + 1, new FlashRuleRow(this, new FlashRule(row.getRule())));
+        if (this.onChanged != null) this.onChanged.run();
+    }
+
+    /// Remove every rule (used by the toolbar's "Clear all", behind a confirmation).
+    public void clear()
+    {
+        this.rows.clear();
         if (this.onChanged != null) this.onChanged.run();
     }
 

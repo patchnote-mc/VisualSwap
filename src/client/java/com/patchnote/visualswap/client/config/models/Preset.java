@@ -45,4 +45,16 @@ public final class Preset
         this.toColor = toColor;
         return this;
     }
+
+    /* COMPARISON */
+
+    /// Value equality of the editable settings — used to detect unsaved edits without overriding {@code equals}
+    /// (which some callers rely on being identity-based).
+    public boolean sameValuesAs(Preset other)
+    {
+        return other != null
+                && Double.compare(this.sizeMultiplier, other.sizeMultiplier) == 0
+                && this.fromColor == other.fromColor
+                && this.toColor == other.toColor;
+    }
 }
