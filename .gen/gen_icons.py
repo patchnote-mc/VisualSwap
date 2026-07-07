@@ -16,7 +16,7 @@ from pathlib import Path
 import cairosvg
 from PIL import Image
 
-SIZE = 16
+SIZE = 128
 GEN = Path(__file__).parent
 OUT = GEN / "out"
 
