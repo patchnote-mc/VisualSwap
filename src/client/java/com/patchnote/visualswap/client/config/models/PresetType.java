@@ -2,14 +2,14 @@ package com.patchnote.visualswap.client.config.models;
 
 import net.minecraft.network.chat.Component;
 
-/// Identity of a configurable preset plus its fixed defaults. The *mutable* per-preset values (size, From/To colours)
-/// live on the {@link Preset} data class so they actually serialise — an enum would persist only its name. Only the
+/// Identity of a configurable preset plus its fixed defaults. The *mutable* per-preset values (size, From/To colors)
+/// live on the {@link Preset} data class so they actually serialize — an enum would persist only its name. Only the
 /// Custom preset is user-editable; Vanilla/Practice always show these defaults.
 public enum PresetType
 {
     VANILLA("Vanilla", 0.8, 0x40FFFFFF, 0x95FFFFFF, 0xFFFFFFFF),
-    PRACTICE("Practice", 1.0, 0xFFFF0000, 0xFF00FF00, 0xFF55FFFF),
-    CUSTOM("Custom", 1.0, 0xFFFF5555, 0xFF55FF55, 0xFFFFFFFF);
+    PRACTICE("Practice", 1.0, 0xFFFF2C2C, 0xFFC30010, 0xFF00FF00),
+    CUSTOM("Custom", 1.0, 0xFF2CFF2C, 0xFF00C310, 0xFFFF0000);
 
     private final String displayName;
     private final double size;

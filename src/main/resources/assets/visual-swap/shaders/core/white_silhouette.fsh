@@ -14,18 +14,18 @@ in vec4 vertexColor;
 
 out vec4 fragColor;
 
-// Recolour the sampled item into a gamma-shaded tint (cf. alpha_to_bw.py's "shade" mode). vertexColor.rgb is the
-// per-item tint colour; vertexColor.a carries the gamma, encoded as gamma / 8.0 (see ItemFlash.GAMMA_ENCODE_MAX). We
-// take the item's own luminance, reshape it with pow(lum, 1/gamma) — a higher gamma lifts darks toward a flat bright
-// tint, a lower gamma keeps the item's shading — then paint the tint colour at that brightness. The texture's alpha
-// stays the silhouette mask.
+// Recolour the sampled item into a shade-tinted silhouette (cf. alpha_to_bw.py's "shade" mode). vertexColor.rgb is the
+// per-item tint colour; vertexColor.a carries the shade exponent (1/gamma) directly, 0..1 (see ItemFlash.packTint). We
+// take the item's own luminance and paint the tint colour at pow(lum, exponent): a smaller exponent lifts darks toward
+// a flat bright tint, a larger one keeps the item's shading. Exponent 0 is a flat fill — every opaque pixel becomes the
+// full tint colour (fully white / whatever the tint is). The texture's alpha stays the silhouette mask.
 void main() {
     vec4 tex = texture(Sampler0, texCoord0);
     if (tex.a == 0.0) {
         discard;
     }
-    float gamma = max(vertexColor.a * 8.0, 0.01);
+    float exponent = vertexColor.a;
     float lum = dot(tex.rgb, vec3(0.299, 0.587, 0.114));
-    float shade = pow(clamp(lum, 0.0, 1.0), 1.0 / gamma);
+    float shade = exponent <= 0.0 ? 1.0 : pow(clamp(lum, 0.0, 1.0), exponent);
     fragColor = vec4(vertexColor.rgb * shade, tex.a) * ColorModulator;
 }

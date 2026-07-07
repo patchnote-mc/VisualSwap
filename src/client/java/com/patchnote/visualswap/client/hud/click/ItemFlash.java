@@ -20,12 +20,11 @@ public final class ItemFlash
     public static final int TINT_RGB = 0xFFFFFF;
     private static final int FLASH_VISIBLE_TICKS = 5;
 
-    /// The tint gamma (see {@link FlashIntensity}) rides in the tint int's alpha byte as
-    /// {@code gamma / GAMMA_ENCODE_MAX} — the silhouette shader derives its output alpha from the texture mask, so that
-    /// channel is free. Must match the {@code * 8.0} decode in {@code white_silhouette.fsh}.
-    public static final double GAMMA_ENCODE_MAX = 8.0;
-
-    private static final int DEFAULT_ARGB = packTint(TINT_RGB, FlashIntensity.HIGH.getGamma());
+    /// The shade exponent (1/gamma; see {@link FlashIntensity}) rides in the tint int's alpha byte, {@code 0..1}
+    /// mapped onto {@code 0..255} — the silhouette shader reads it straight back as the exponent (the output alpha
+    /// comes from the texture mask, so that channel is free). Exponent {@code 0} is a flat fill: every opaque pixel
+    /// becomes the full tint colour.
+    private static final int DEFAULT_ARGB = packTint(TINT_RGB, FlashIntensity.HIGH.getShadeExponent());
 
     private final int[] slotsExpirationTick = new int[HOTBAR_SLOTS];
     private final int[] slotsTint = new int[HOTBAR_SLOTS];
@@ -91,15 +90,15 @@ public final class ItemFlash
     {
         FlashIntensity intensity = (rule.intensity() != null) ? rule.intensity() : FlashIntensity.HIGH;
         int color = rule.colorFor(ModConfig.get().preset);
-        return packTint(color, intensity.getGamma());
+        return packTint(color, intensity.getShadeExponent());
     }
 
-    /// Packs a per-item tint: RGB in the low 24 bits, the gamma encoded into the alpha byte (see
-    /// {@link #GAMMA_ENCODE_MAX}).
-    public static int packTint(int color, double gamma)
+    /// Packs a per-item tint: RGB in the low 24 bits, the shade exponent (see {@link FlashIntensity}) encoded into the
+    /// alpha byte as {@code exponent * 255}.
+    public static int packTint(int color, double shadeExponent)
     {
-        int gammaByte = Math.clamp((int) Math.round(gamma / GAMMA_ENCODE_MAX * 255.0), 0, 255);
-        return (gammaByte << 24) | (color & 0xFFFFFF);
+        int exponentByte = Math.clamp((int) Math.round(shadeExponent * 255.0), 0, 255);
+        return (exponentByte << 24) | (color & 0xFFFFFF);
     }
 
     /// The first rule for {@code stack}'s item that flashes on the given input — attack when {@code forAttack}, else use

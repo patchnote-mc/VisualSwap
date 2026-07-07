@@ -159,16 +159,16 @@ public final class HotbarSwapPreview extends AbstractWidget
                 DEFAULT_FLASH_ITEM));
     }
 
-    /// The packed tint the in-game flash would use: the rule's colour for the current preset + its intensity's gamma
-    /// (mirrors {@code ItemFlash.calculateTintFor}).
+    /// The packed tint the in-game flash would use: the rule's colour for the current preset + its intensity's shade
+    /// exponent (mirrors {@code ItemFlash.calculateTintFor}).
     private int flashTint()
     {
         PresetType type = this.preset.get();
         FlashRule rule = this.flashRule.get();
-        if (rule == null) return ItemFlash.packTint(type.getFlashTint(), FlashIntensity.HIGH.getGamma());
+        if (rule == null) return ItemFlash.packTint(type.getFlashTint(), FlashIntensity.HIGH.getShadeExponent());
 
         FlashIntensity intensity = (rule.intensity() != null) ? rule.intensity() : FlashIntensity.HIGH;
-        return ItemFlash.packTint(rule.colorFor(type), intensity.getGamma());
+        return ItemFlash.packTint(rule.colorFor(type), intensity.getShadeExponent());
     }
 
     @Override

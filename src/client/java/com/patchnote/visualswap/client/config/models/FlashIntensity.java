@@ -4,22 +4,22 @@ import net.minecraft.network.chat.Component;
 
 /// How strongly a {@link FlashRule}'s item is tinted when it flashes.
 ///
-/// The value is a *gamma* applied to the item's own luminance (see `alpha_to_bw.py`): the shader reshapes each pixel's
-/// brightness with `pow(luminance, 1 / gamma)` before painting it the tint colour. A higher gamma lifts the darks
-/// toward the flat tint colour (a bright, punchy flash); a lower gamma preserves more of the item's own shading
-/// (subtler).
+/// The value is the *shade exponent* the silhouette shader applies to each pixel's own luminance: it paints the tint
+/// colour at `pow(luminance, exponent)` (the exponent is `1 / gamma`). {@link #HIGH} uses `0` — a flat fill where
+/// every opaque pixel becomes the full tint colour (e.g. fully white), with no leftover grey. {@link #LOW} uses
+/// `1/4`, keeping the item's own shading so its individual pixels still read (a subtler flash).
 public enum FlashIntensity
 {
-    LOW(4.0),
-    HIGH(8.0);
+    LOW(0.25),
+    HIGH(0.0);
 
-    private final double gamma;
+    private final double shadeExponent;
 
-    FlashIntensity(double gamma) { this.gamma = gamma; }
+    FlashIntensity(double shadeExponent) { this.shadeExponent = shadeExponent; }
 
     /* GETTERS */
 
-    public double getGamma() { return this.gamma; }
+    public double getShadeExponent() { return this.shadeExponent; }
 
     /* HELPERS */
 
