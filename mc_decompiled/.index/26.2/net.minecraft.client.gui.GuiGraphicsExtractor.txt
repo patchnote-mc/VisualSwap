@@ -13,6 +13,14 @@ Verified members (client_src):
 - void textWithBackdrop / textWithWordWrap(...)
 - void blit / blitSprite / item / fakeItem(...)
 
+blit overloads for plain (non-atlas) textures (verified, lines 331-353):
+- blit(RenderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int textureWidth, int textureHeight[, int color])
+- blit(RenderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int srcWidth, int srcHeight, int textureWidth, int textureHeight[, int color])
+- blit(Identifier location, int x0, int y0, int x1, int y1, float u0, float u1, float v0, float v1)   // GUI_TEXTURED, raw UVs, color -1
+- blit(GpuTextureView, GpuSampler, int x0, int y0, int x1, int y1, float u0, float u1, float v0, float v1)
+  Identifier -> minecraft.getTextureManager().getTexture(location) (line 480). Use RenderPipelines.GUI_TEXTURED.
+  color = ARGB vertex tint, multiplied with texel in position_tex_color shader. See .knowledge/dynamic-textures.txt.
+
 blitSprite overloads (verified, lines 355-421):
 - blitSprite(RenderPipeline, Identifier location, int x, int y, int width, int height)            // full sprite, color -1
 - blitSprite(RenderPipeline, Identifier location, int x, int y, int width, int height, float alpha)

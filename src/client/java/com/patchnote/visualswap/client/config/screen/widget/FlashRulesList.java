@@ -4,6 +4,7 @@ import com.patchnote.visualswap.client.config.models.FlashIntensity;
 import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.FlashTrigger;
 import com.patchnote.visualswap.client.config.models.PresetType;
+import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
@@ -46,6 +47,7 @@ public final class FlashRulesList implements Layout
     private final int rowWidth;
     private final Runnable onChanged;
     private final Consumer<FlashRule> onColorEdited;
+    private final OverlayManager overlays;
     private final List<FlashRuleRow> rows = new ArrayList<>();
     private final LinearLayout layout = LinearLayout.vertical().spacing(ROW_SPACING);
 
@@ -53,12 +55,13 @@ public final class FlashRulesList implements Layout
     private PresetType preset;
 
     public FlashRulesList(int rowWidth, PresetType preset, List<FlashRule> rules, Runnable onChanged,
-                          Consumer<FlashRule> onColorEdited)
+                          Consumer<FlashRule> onColorEdited, OverlayManager overlays)
     {
         this.rowWidth = rowWidth;
         this.preset = preset;
         this.onChanged = onChanged;
         this.onColorEdited = onColorEdited;
+        this.overlays = overlays;
         for (FlashRule rule : rules)
         {
             this.rows.add(new FlashRuleRow(this, new FlashRule(rule)));
@@ -75,6 +78,9 @@ public final class FlashRulesList implements Layout
     /* API */
 
     public int getRowWidth() { return this.rowWidth; }
+
+    /// The screen's overlay layer — rows use it for hover tooltips and colour pickers.
+    OverlayManager overlays() { return this.overlays; }
 
     /// The preset each row's colour column currently reflects.
     public PresetType preset() { return this.preset; }

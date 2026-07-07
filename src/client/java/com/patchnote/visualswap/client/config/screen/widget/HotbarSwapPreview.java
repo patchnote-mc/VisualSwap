@@ -5,6 +5,9 @@ import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.PresetType;
 import com.patchnote.visualswap.client.hud.click.ItemFlash;
 import com.patchnote.visualswap.client.hud.click.ItemFlashPreview;
+import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
+import com.patchnote.visualswap.client.screen.overlay.TooltipOverlay;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -17,6 +20,7 @@ import net.minecraft.world.item.Items;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
@@ -55,17 +59,32 @@ public final class HotbarSwapPreview extends AbstractWidget
 
     private static final String DEFAULT_FLASH_ITEM = "minecraft:mace";
 
+    private static final int TITLE = 0xFFFFFFFF;
+    private static final int BODY = 0xFFA8A8B2;
+    private static final List<Component> ORIGIN_TOOLTIP = List.of(
+            Component.literal("Swap origin").withColor(TITLE),
+            Component.literal("A swapped-away hotbar slot,").withColor(BODY),
+            Component.literal("tinted with your From colour.").withColor(BODY)
+    );
+    private static final List<Component> DESTINATION_TOOLTIP = List.of(
+            Component.literal("Swap destination").withColor(TITLE),
+            Component.literal("The swapped-to slot (selected). Its").withColor(BODY),
+            Component.literal("item flashes in the active rule's").withColor(BODY),
+            Component.literal("colour and intensity.").withColor(BODY)
+    );
+
     private final IntSupplier fromColor;
     private final IntSupplier toColor;
     private final Supplier<PresetType> preset;
     private final Supplier<@Nullable FlashRule> flashRule;
+    private final OverlayManager overlays;
 
     private final ItemStack fromItem;
     private @Nullable String flashItemId;
     private ItemStack flashItem = ItemStack.EMPTY;
 
     public HotbarSwapPreview(IntSupplier fromColor, IntSupplier toColor, Supplier<PresetType> preset,
-                             Supplier<@Nullable FlashRule> flashRule)
+                             Supplier<@Nullable FlashRule> flashRule, OverlayManager overlays)
     {
         super(0, 0, WIDTH, HEIGHT, Component.empty());
         this.active = false;  // decorative
@@ -73,6 +92,7 @@ public final class HotbarSwapPreview extends AbstractWidget
         this.toColor = toColor;
         this.preset = preset;
         this.flashRule = flashRule;
+        this.overlays = overlays;
         this.fromItem = FlashRuleRow.getItemStack(Items.NETHERITE_SWORD);
     }
 
@@ -111,6 +131,17 @@ public final class HotbarSwapPreview extends AbstractWidget
             g.item(this.flashItem, toX, itemY);
             ItemFlashPreview.register(toX, itemY, flashTint());
         }
+
+        slotTooltip(ORIGIN_TOOLTIP, fromX, itemY, mouseX, mouseY);
+        slotTooltip(DESTINATION_TOOLTIP, toX, itemY, mouseX, mouseY);
+    }
+
+    /// Explain what the hovered slot represents (the preview is illustrative, so the tooltip is guidance, not an item).
+    private void slotTooltip(List<Component> lines, int x, int y, int mouseX, int mouseY)
+    {
+        if (mouseX < x || mouseX >= x + ITEM_SIZE || mouseY < y || mouseY >= y + ITEM_SIZE) return;
+        this.overlays.showTooltip(
+                new TooltipOverlay(Minecraft.getInstance().font, lines).positionNear(mouseX, mouseY));
     }
 
     /// Re-resolve the flashing item when the followed rule (or its item id) changes; while the id is mid-edit and

@@ -119,6 +119,25 @@ there are two source sets, both registered as the `visual-swap` mod:
     `save()` only on "Done". Uses the 26.2 extract-render model — see
     `mc_decompiled/.knowledge/screen-and-widget-api.txt` and
     `mc_decompiled/.knowledge/gui-layouts.txt`.
+  - `com.patchnote.visualswap.client.screen.overlay.*` — a reusable floating-layer
+    framework for any screen (built for the config screen; intended for onboarding
+    callouts later). `Overlay` (abstract, vanilla tooltip nine-slice panel, child
+    widgets move with it, modal vs passive) + `OverlayManager` (one per screen: the
+    screen routes every input event to it FIRST and calls `extract` LAST on its own
+    strata; modal overlays capture input, click-outside/Esc dismisses; hover tooltips
+    are immediate-mode — re-request each frame via `showTooltip`). Subclasses:
+    `TooltipOverlay` (vanilla-look tooltip at any position from arbitrary `Component`
+    lines; `forItem` builds real `Screen.getTooltipFromItem` lines — currently used
+    only by the two `HotbarSwapPreview` slots, which show short *explanatory* text on
+    hover) and `ColorPickerOverlay` (opened by clicking any `ColorSwatch` while the
+    preset is Custom; opaque panel + custom flat `TabButton` tabs: HSV pinwheel +
+    value/alpha sliders (default, `HueSatWheel` — a `NativeImage`-baked
+    `DynamicTexture`, value applied as a grey tint at blit), HSVA `GradientSlider`s,
+    and hex entry; alpha controls only for the From/To colours — rule tints are
+    RGB-only. Live-applies by writing through the opener's hex box, so the normal
+    responder pipeline runs; HSV state is the source of truth so hue survives
+    zero-saturation edits). See
+    `mc_decompiled/.knowledge/tooltips.txt` + `.knowledge/dynamic-textures.txt`.
 
 Mixins:
 

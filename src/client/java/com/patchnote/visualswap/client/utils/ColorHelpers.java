@@ -79,7 +79,19 @@ public final class ColorHelpers
         return h;
     }
 
-    private static float[] rgbToHsv(int r, int g, int b)
+    /// Splits a packed ARGB colour into {@code [hue 0-360, saturation 0-1, value 0-1]} (alpha dropped).
+    public static float[] argbToHsv(int argb)
+    {
+        return rgbToHsv((argb >>> 16) & 0xFF, (argb >>> 8) & 0xFF, argb & 0xFF);
+    }
+
+    /// Packs HSV + an alpha byte into ARGB.
+    public static int hsvToArgb(float h, float s, float v, int alpha)
+    {
+        return (Math.clamp(alpha, 0, 255) << 24) | hsvToRgb(h, s, v);
+    }
+
+    public static float[] rgbToHsv(int r, int g, int b)
     {
         float rf = r / 255f, gf = g / 255f, bf = b / 255f;
         float max = Math.max(rf, Math.max(gf, bf));

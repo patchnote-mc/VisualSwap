@@ -1,0 +1,60 @@
+Dynamic (runtime-generated) textures -> GUI blit, 26.2. Verified 2026-07-07 against client_src.
+
+NativeImage — com.mojang.blaze3d.platform.NativeImage (unchanged location), final class, AutoCloseable.
+  ctor: NativeImage(int width, int height, boolean zero)   // NativeImage.java:77, delegates to Format.RGBA
+        NativeImage(Format format, int width, int height, boolean zero)  // :81; zero=true -> calloc
+  pixels: void setPixel(int x, int y, int pixel)           // :256, takes ARGB, converts via ARGB.toABGR
+          void setPixelABGR(int x, int y, int pixel)       // :244, raw little-endian RGBA memory = ABGR int
+          int getPixel(x,y) -> ARGB (:240); getPixelABGR (:228, private)
+          ARGB.toABGR/fromABGR live in common_src net.minecraft.util.ARGB (:245/:249).
+  close(): frees native memory, idempotent (pixels=0 guard, :200). isClosed() :212.
+  Pixel methods throw unless format==RGBA and coords in bounds.
+
+DynamicTexture — net.minecraft.client.renderer.texture.DynamicTexture (extends AbstractTexture).
+  ctor: DynamicTexture(Supplier<String> label, NativeImage image)   // :31 — takes OWNERSHIP of image,
+        creates GPU texture (GpuFormat.RGBA8_UNORM, NEAREST repeat sampler) AND calls upload() itself.
+        No (String, NativeImage) overload exists.
+  ctor: DynamicTexture(String|Supplier<String> label, int w, int h, boolean zero)  // :37/:42 —
+        allocates blank NativeImage, creates GPU texture, does NOT upload; write via getPixels() then upload().
+  upload() :61 = writeToTexture(texture, pixels). getPixels() :69. setPixels(NativeImage) :73 closes old image.
+  close() :79 closes the NativeImage then GPU resources — do NOT close the NativeImage yourself after handoff.
+  ctor calls RenderSystem.getDevice() -> must run on render thread (vanilla SkinTextureDownloader
+  wraps construction+register in mainThreadExecutor, SkinTextureDownloader.java:109-115).
+
+TextureManager — net.minecraft.client.renderer.texture.TextureManager.
+  void register(Identifier location, AbstractTexture texture)   // TextureManager.java:93
+    Re-registering same id: put() replaces, previous texture is safeClose()d automatically (:94-98).
+    Registering the SAME instance twice is a no-op (prev != texture guard). Safe for screen re-open
+    as long as you construct a fresh DynamicTexture (old one gets closed for you).
+  void release(Identifier location)   // :132 — remove + close. Use when the texture is permanently done.
+  AbstractTexture getTexture(Identifier) :116 — falls back to SimpleTexture resource load if unregistered
+  (so a typo'd/unregistered id tries to load from resource packs -> missing texture, no crash).
+
+GUI draw — net.minecraft.client.gui.GuiGraphicsExtractor, plain (non-sprite) texture blits:
+  public void blit(RenderPipeline renderPipeline, Identifier texture, int x, int y, float u, float v,
+                   int width, int height, int textureWidth, int textureHeight, int color)   // :331
+  public void blit(RenderPipeline, Identifier, int x, int y, float u, float v, int w, int h, int texW, int texH)  // :335, color=-1
+  public void blit(RenderPipeline, Identifier, x, y, u, v, w, h, int srcWidth, int srcHeight, texW, texH[, color]) // :339/:343
+  public void blit(Identifier location, int x0, int y0, int x1, int y1, float u0, float u1, float v0, float v1) // :347, GUI_TEXTURED, raw UVs
+  public void blit(GpuTextureView, GpuSampler, x0, y0, x1, y1, u0, u1, v0, v1)  // :351
+  Identifier resolves via minecraft.getTextureManager().getTexture(location) (:480) -> BlitRenderState.
+  Pipeline for plain textures: RenderPipelines.GUI_TEXTURED (net.minecraft.client.renderer.RenderPipelines:123,
+  shader core/position_tex_color).
+  color param IS a tint-multiply: vertex color (BlitRenderState.buildVertices setColor(color), :27-31) and
+  position_tex_color.fsh computes texture(Sampler0, uv) * vertexColor; alpha==0 discarded. So drawing an HSV
+  wheel at value<1 by tinting with grey (ARGB 0xFFvvvvvv) works.
+
+Vanilla end-to-end example (resource-pack icons):
+  PackSelectionScreen.loadPackIcon (PackSelectionScreen.java:313-327):
+    NativeImage iconImage = NativeImage.read(stream);
+    textureManager.register(location, new DynamicTexture(() -> location.toString(), iconImage));
+  Drawn in TransferableSelectionList.java:185:
+    graphics.blit(RenderPipelines.GUI_TEXTURED, this.pack.getIconTexture(), x, y, 0.0f, 0.0f, 32, 32, 32, 32);
+
+Gotchas summary:
+  - (Supplier,NativeImage) ctor uploads in the ctor; no manual upload() needed unless pixels change later.
+  - Construct/register on render thread (ctor touches RenderSystem.getDevice()).
+  - register() closes any previous texture under the same id — re-registering on screen re-open is safe;
+    never reuse the old DynamicTexture/NativeImage after that.
+  - DynamicTexture owns its NativeImage; closing the texture (or TextureManager.release) frees the image.
+  - Sampler is NEAREST + repeat (DynamicTexture.createTexture :50) — no linear filtering on scaled draws.

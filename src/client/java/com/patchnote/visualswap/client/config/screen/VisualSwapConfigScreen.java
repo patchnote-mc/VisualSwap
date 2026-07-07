@@ -6,12 +6,17 @@ import com.patchnote.visualswap.client.config.models.Preset;
 import com.patchnote.visualswap.client.config.models.PresetType;
 import com.patchnote.visualswap.client.config.screen.widget.*;
 import com.patchnote.visualswap.client.hud.click.ItemFlashPreview;
+import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
+import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
 import com.patchnote.visualswap.client.utils.ColorHelpers;
 import me.shedaniel.autoconfig.AutoConfig;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.*;
 import net.minecraft.client.gui.layouts.*;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -71,7 +76,12 @@ public final class VisualSwapConfigScreen extends Screen
     private SizeSlider slider;
     private EditBox fromColorBox;
     private EditBox toColorBox;
+    private ColorSwatch fromSwatch;
+    private ColorSwatch toSwatch;
     private FlashRulesList list;
+
+    /// The screen's floating layer: hover tooltips + the colour-picker popup.
+    private final OverlayManager overlays = new OverlayManager();
 
     /// The rule the swap preview's flashing slot follows — the last rule whose colour the user edited. Across screen
     /// rebuilds (where every rule instance is recreated) the target is re-resolved by its position in the rebuild seed,
@@ -92,6 +102,8 @@ public final class VisualSwapConfigScreen extends Screen
     @Override
     protected void init()
     {
+        this.overlays.close();  // rebuild invalidates overlay anchors
+
         // Preserve in-progress rule edits across a rebuild (window resize, or an add/remove that re-inits). The
         // followed preview rule is carried over as its seed position — the new rows copy the seed in order.
         List<FlashRule> seed = (this.list != null) ? this.list.toRules() : this.ruleSeed;
@@ -138,6 +150,7 @@ public final class VisualSwapConfigScreen extends Screen
                         "From",
                         this::effectiveFrom,
                         b -> this.fromColorBox = b,
+                        s -> this.fromSwatch = s,
                         this.workingCustom::setFromColor,
                         effectiveFrom(),
                         colW
@@ -148,6 +161,7 @@ public final class VisualSwapConfigScreen extends Screen
                         "To",
                         this::effectiveTo,
                         b -> this.toColorBox = b,
+                        s -> this.toSwatch = s,
                         this.workingCustom::setToColor,
                         effectiveTo(),
                         colW
@@ -160,7 +174,8 @@ public final class VisualSwapConfigScreen extends Screen
                         this::effectiveFrom,
                         this::effectiveTo,
                         () -> this.workingType,
-                        () -> this.previewRule
+                        () -> this.previewRule,
+                        this.overlays
                 ), 0, 2
         );
 
@@ -173,7 +188,8 @@ public final class VisualSwapConfigScreen extends Screen
                 this.workingType,
                 seed,
                 this::rebuildWidgets,
-                rule -> this.previewRule = rule
+                rule -> this.previewRule = rule,
+                this.overlays
         );
         this.previewRule = this.list.ruleAt(previewIdx, "minecraft:mace");
         content.addChild(this.list, LayoutSettings::alignHorizontallyCenter);
@@ -210,21 +226,38 @@ public final class VisualSwapConfigScreen extends Screen
         this.scrollArea.setY(top);
     }
 
-    /// One From/To color row (total width {@code rowW}): a fixed-width caption, a live swatch, and the hex box
-    /// (assigned back via {@code assign}).
-    private LinearLayout colorRow(String label, IntSupplier color, Consumer<EditBox> assign, IntConsumer onEdit,
-                                  int initial, int rowW)
+    /// One From/To color row (total width {@code rowW}): a fixed-width caption, a live swatch that opens the colour
+    /// picker (Custom preset only), and the hex box. Box and swatch are assigned back via the two consumers. The
+    /// picker writes through the box, so its responder runs the normal edit pipeline.
+    private LinearLayout colorRow(String label, IntSupplier color, Consumer<EditBox> assign,
+                                  Consumer<ColorSwatch> assignSwatch, IntConsumer onEdit, int initial, int rowW)
     {
         LinearLayout row = LinearLayout.horizontal();
         row.addChild(
                 new StringWidget(COLOR_LABEL_W, CHIP_H, Component.literal(label).withColor(LABEL_RGB), this.font),
                 LayoutSettings::alignVerticallyMiddle
         );
-        row.addChild(swatch(color), LayoutSettings::alignVerticallyMiddle);
+
         EditBox box = makeColorBox(rowW - COLOR_LABEL_W - COLOR_SWATCH - COLOR_GAP, initial, onEdit);
         assign.accept(box);
+
+        ColorSwatch swatch = new ColorSwatch(COLOR_SWATCH, SWATCH_BORDER, color);
+        swatch.setOnPress(() -> openPicker(swatch, color.getAsInt(),
+                                           argb -> box.setValue(ColorHelpers.formatArgbHex(argb))));
+        swatch.setClickable(this.workingType.isColorEditable());
+        assignSwatch.accept(swatch);
+
+        row.addChild(swatch, LayoutSettings::alignVerticallyMiddle);
         row.addChild(box, s -> s.alignVerticallyMiddle().paddingLeft(COLOR_GAP));
         return row;
+    }
+
+    /// Open the colour picker (with alpha — From/To colours are AARRGGBB) anchored under {@code anchor}.
+    private void openPicker(ColorSwatch anchor, int current, IntConsumer apply)
+    {
+        ColorPickerOverlay picker = new ColorPickerOverlay(current, true, apply);
+        picker.position(anchor.getX() - 8, anchor.getY() + anchor.getHeight() + 4);
+        this.overlays.open(picker);
     }
 
     private void setPreset(PresetType type)
@@ -239,6 +272,8 @@ public final class VisualSwapConfigScreen extends Screen
         this.toColorBox.setEditable(editable);
         this.fromColorBox.setValue(ColorHelpers.formatArgbHex(effectiveFrom()));
         this.toColorBox.setValue(ColorHelpers.formatArgbHex(effectiveTo()));
+        this.fromSwatch.setClickable(editable);
+        this.toSwatch.setClickable(editable);
 
         if (this.list != null) this.list.setPreset(type);
     }
@@ -261,11 +296,6 @@ public final class VisualSwapConfigScreen extends Screen
     }
 
     /* WIDGET FACTORIES */
-
-    private ColorSwatch swatch(IntSupplier color)
-    {
-        return new ColorSwatch(COLOR_SWATCH, SWATCH_BORDER, color);
-    }
 
     /// A hex-color edit box (AARRGGBB, "#"/"0x" and 6-digit RRGGBB accepted). Editable only under the Custom preset;
     /// greyed (uneditable) otherwise. Pushes each valid value to {@code onEdit} and reddens its text while
@@ -296,13 +326,62 @@ public final class VisualSwapConfigScreen extends Screen
         this.minecraft.setScreenAndShow(this.parent);
     }
 
-    /* OVERRIDES */
+    /* OVERRIDES — the overlay layer sees every input first and renders last (topmost) */
 
     @Override
     public void extractRenderState(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a)
     {
         extractScrollPanel(graphics);
-        super.extractRenderState(graphics, mouseX, mouseY, a);
+        // Hover state and the requested cursor are computed at extract time from the mouse position. A modal overlay
+        // captures input, so the page beneath it must render with an off-screen mouse — otherwise covered widgets light
+        // up their hover outlines and steal the cursor (e.g. the I-beam) through the overlay. The overlay itself, drawn
+        // next, still gets the real coordinates. (A passive tooltip is not modal and leaves base hover untouched.)
+        boolean modal = this.overlays.isModalOpen();
+        super.extractRenderState(graphics, modal ? -1 : mouseX, modal ? -1 : mouseY, a);
+        this.overlays.extract(graphics, mouseX, mouseY, a);
+    }
+
+    @Override
+    public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick)
+    {
+        return this.overlays.mouseClicked(event, doubleClick) || super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseReleased(@NonNull MouseButtonEvent event)
+    {
+        return this.overlays.mouseReleased(event) || super.mouseReleased(event);
+    }
+
+    @Override
+    public boolean mouseDragged(@NonNull MouseButtonEvent event, double dx, double dy)
+    {
+        return this.overlays.mouseDragged(event, dx, dy) || super.mouseDragged(event, dx, dy);
+    }
+
+    @Override
+    public boolean mouseScrolled(double x, double y, double scrollX, double scrollY)
+    {
+        return this.overlays.mouseScrolled(x, y, scrollX, scrollY) || super.mouseScrolled(x, y, scrollX, scrollY);
+    }
+
+    @Override
+    public void mouseMoved(double x, double y)
+    {
+        this.overlays.mouseMoved(x, y);
+        super.mouseMoved(x, y);
+    }
+
+    @Override
+    public boolean keyPressed(@NonNull KeyEvent event)
+    {
+        return this.overlays.keyPressed(event) || super.keyPressed(event);
+    }
+
+    @Override
+    public boolean charTyped(@NonNull CharacterEvent event)
+    {
+        return this.overlays.charTyped(event) || super.charTyped(event);
     }
 
     /// The vanilla scrollable-list look for the content viewport: a tiled dark panel behind it, capped by the

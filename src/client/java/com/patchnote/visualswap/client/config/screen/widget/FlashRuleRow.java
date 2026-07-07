@@ -4,6 +4,7 @@ import com.patchnote.visualswap.client.config.models.FlashIntensity;
 import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.FlashTrigger;
 import com.patchnote.visualswap.client.config.models.PresetType;
+import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
 import com.patchnote.visualswap.client.utils.ColorHelpers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -76,9 +77,25 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.colorBox = createColorInput(rule);
         this.deleteButton = createDeleteButton();
 
+        this.colorSwatch.setOnPress(this::openColorPicker);
+        this.colorSwatch.setClickable(list.preset().isColorEditable());
+
         refreshItemColor();
 
-        this.children = List.of(this.itemBox, this.onButton, this.intensityButton, this.colorBox, this.deleteButton);
+        this.children = List.of(this.itemBox, this.onButton, this.intensityButton, this.colorSwatch, this.colorBox,
+                                this.deleteButton);
+    }
+
+    /// A rule tint is RGB-only (its alpha byte carries the flash gamma), so the picker hides alpha. The picked colour
+    /// funnels through the hex box's responder — the same pipeline as typing (validation, preview retarget, live swatch).
+    private void openColorPicker()
+    {
+        ColorPickerOverlay picker = new ColorPickerOverlay(
+                this.rule.colorFor(this.list.preset()), false,
+                argb -> this.colorBox.setValue(ColorHelpers.formatRgbHex(argb))
+        );
+        picker.position(this.colorSwatch.getX() - 8, this.colorSwatch.getY() + this.colorSwatch.getHeight() + 4);
+        this.list.overlays().open(picker);
     }
 
     /* WIDGETS */
@@ -249,6 +266,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.refreshingColor = true;
         this.colorBox.setEditable(preset.isColorEditable());
         this.colorBox.setValue(ColorHelpers.formatRgbHex(this.rule.colorFor(preset)));
+        this.colorSwatch.setClickable(preset.isColorEditable());
         this.refreshingColor = false;
     }
 

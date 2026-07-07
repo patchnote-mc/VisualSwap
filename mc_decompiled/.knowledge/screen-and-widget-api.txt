@@ -74,3 +74,23 @@ VisualSwapConfigScreen::new. Edits go to working copies; committed to ModConfig 
 CycleButton.builder(Function<T,Component> stringifier, T default).withValues(T...).displayOnlyValue()
   .create(x,y,w,h, Component name, (CycleButton<T> btn, T val)->...). displayOnlyValue() shows just the value
   (no "name: value"). Left/scroll-up cycle back, shift-click/scroll-down cycle forward.
+
+OVERLAY LAYER (mod-side, 2026-07-07): client/screen/overlay/* — Overlay (AbstractContainerWidget + NO_SCROLL;
+TooltipRenderUtil.extractTooltipBackground panel; setX/setY shift children), OverlayManager (screen routes ALL
+input to it first, extracts last with g.nextStratum(); modal = capture + click-outside/Esc dismiss; hover
+tooltips immediate-mode via showTooltip re-requested per frame), TooltipOverlay (Screen.getTooltipFromItem
+lines), ColorPickerOverlay (wheel/sliders/hex tabs; HueSatWheel bakes a NativeImage->DynamicTexture once,
+value = grey tint on blit; GradientSlider paints per-column). Widget visibility: AbstractWidget.extractRenderState
+is final and gates on .visible; isActive() = visible && active — toggling .visible per tab handles render+input.
+ContainerEventHandler drag: child mouseClicked true -> setFocused + setDragging -> onDrag routing works for
+custom widgets with no extra code. KeyEvent.isEscape() via InputWithModifiers. charTyped(CharacterEvent(codepoint)).
+
+HOVER + CURSOR are extract-time, not event-time (2026-07-07): AbstractWidget.extractRenderState (final) sets
+isHovered = g.containsPointInScissor(mx,my) && areCoordinatesInRectangle(mx,my); the hover outline AND the
+requested cursor are gated on isHovered() — handleCursor -> g.requestCursor(POINTING_HAND/NOT_ALLOWED),
+EditBox render -> g.requestCursor(IBEAM/NOT_ALLOWED). g.requestCursor sets pendingCursor, applied once per frame
+via applyCursor(window)->window.selectCursor (com.mojang.blaze3d.platform.cursor.CursorTypes). So an OverlayManager
+that only intercepts input does NOT stop covered widgets from hovering/grabbing the cursor. Fix: while
+overlays.isModalOpen(), render the page beneath with an off-screen mouse — super.extractRenderState(g, -1, -1, a) —
+then overlays.extract(g, mouseX, mouseY, a) with real coords (last requestCursor wins). Gate on modal only; a
+passive tooltip must leave base hover intact (it is what triggered the tooltip).
