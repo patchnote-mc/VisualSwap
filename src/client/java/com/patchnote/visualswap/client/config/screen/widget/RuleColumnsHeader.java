@@ -80,10 +80,12 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         int midY = getY() + getHeight() / 2;
         int widgetY = midY - WIDGET_HEIGHT / 2;
 
-        // right-anchored columns (mirror FlashRuleRow): trigger | intensity | colour | duplicate | delete
+        // right-anchored columns (mirror FlashRuleRow): trigger | intensity | colour | up | down | duplicate | delete
         int deleteX = right - DELETE_WIDTH;
         int duplicateX = deleteX - ACTION_GAP - DUPLICATE_WIDTH;
-        int colorX = duplicateX - GAP - COLOR_SWATCH;
+        int downX = duplicateX - ACTION_GAP - MOVE_WIDTH;
+        int upX = downX - ACTION_GAP - MOVE_WIDTH;
+        int colorX = upX - GAP - COLOR_SWATCH;
         int intensityX = colorX - GAP - INTENSITY_WIDTH;
         int onX = intensityX - GAP - ON_WIDTH;
 

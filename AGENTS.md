@@ -1,4 +1,4 @@
-<!-- last updated: 2026-07-07 -->
+<!-- last updated: 2026-07-08 -->
 
 # AGENTS.md — Visual Swap architecture & flows
 
@@ -92,10 +92,11 @@ there are two source sets, both registered as the `visual-swap` mod:
     then a rule-count line over
     `FlashRulesList`, a plain vertical `Layout` of `FlashRuleRow`s (each an
     `AbstractContainerWidget` with `NO_SCROLL`; the page owns all scrolling),
-    one editable row per `ModConfig.FlashRule` (item id + live icon, flash-on /
+    one editable row per `ModConfig.FlashRule` (a **regex item selector** + a clickable
+    live-icon **preview** (`ItemPreviewButton`, `×N` badge; opens the `RegexPreviewModal`), flash-on /
     intensity cycle chips, a tint-colour **swatch only** — click opens the picker, no
-    inline hex box — and **duplicate + delete** `IconButton`s). Row
-    add/remove/duplicate/clear/reset and every filter keystroke re-init via
+    inline hex box — **up/down reorder** + **duplicate + delete** `IconButton`s). Row
+    add/remove/duplicate/reorder/clear/reset and every filter keystroke re-init via
     `rebuildWidgets()`. Each rebuild **preserves the scroll position** (captured/restored
     via the scroll container's `AbstractScrollArea` — `currentScroll`/`restoreScroll`) instead
     of snapping to the top; content-replacing actions (filter/reset/discard) opt back into
@@ -144,14 +145,18 @@ there are two source sets, both registered as the `visual-swap` mod:
     from (stamped self on the snapshot, carried by the copy ctor); rows draw a left-gutter dot
     — **green** when `isNew()` (no origin: added or duplicated) or **orange** when `isModified()`
     (origin present but values differ). A bulk **Reset rules** value-matches defaults back to
-    unclaimed saved rules (`linkToSavedByValue`) so only genuine deltas light up. **Rule conflicts:** two
-    rules for the **same item** whose triggers **overlap** (both Attack, or both Use — `Both` covers each;
-    `FlashRule.conflictFlags`) are ambiguous, so they're flagged — a **red ✕** in each conflicting row's gutter
-    (reusing the `delete` X glyph) and, replacing the amber dot, beside the title; while any exists the **Done** button
-    is disabled (recomputed live each frame via `FlashRulesList.recomputeConflicts`, since trigger/item edits don't
-    rebuild). Non-overlapping rules for one item are fine and **all apply** — the runtime resolves the first matching
-    rule *per input* (`ItemFlash.getRuleFor(stack, forAttack)`), and `ModConfig.validatePostLoad` drops conflicting
-    extras from a hand-edited file (`FlashRule.withoutConflicts`, keeping the first per input). **Split resets:** **Reset rules** (rules
+    unclaimed saved rules (`linkToSavedByValue`) so only genuine deltas light up. **Regex selectors + ordering
+    (2026-07-08):** a rule's `item` is a **regex** matched against item ids with `Matcher.find()` (`utils/ItemRegex`; a
+    full literal id matches only itself, `_sword` bulk-selects). The row's icon / `isItemValid` / `×N` count come from
+    `ItemRegex.summarize`; clicking the icon opens the interactive `RegexPreviewModal` (below). Precedence is an explicit
+    per-rule **`order`** (lower wins), reordered by the row's **up/down** buttons (`FlashRulesList.moveUp/moveDown`),
+    stamped from row position in `toRules()`; `validatePostLoad` sorts by `order` then re-stamps a dense sequence. The
+    old same-item **conflict subsystem is gone** — overlaps are resolved by order (first match wins), so only *invalid*
+    rules (blank / uncompilable / zero-match pattern) block **Done** (`FlashRulesList.invalidCount`). Runtime resolution
+    is `ItemFlash.getRuleFor(stack, forAttack)` → `hud/click/FlashRuleIndex.forCurrentConfig()`, a per-`Item` memoised
+    winner cache (rules pre-sorted by `order`, patterns compiled once, rebuilt when the config's rule list is replaced),
+    so the tick path is O(1) amortised. **Flash duration:** the global `ModConfig.flashVisibleTicks` (1–40, read live by
+    `ItemFlash`) is edited by a `TicksSlider` under the top grid. **Split resets:** **Reset rules** (rules
     table → `FlashRule.defaultFlashRules()`) and **Reset colours** (Custom From/To + size
     → factory), each gated to when it would actually change something. **Search filter**
     (`FlashRulesList.setFilter`, view-only — `toRules()` still returns all), **duplicate**
@@ -188,7 +193,11 @@ there are two source sets, both registered as the `visual-swap` mod:
     `open()`. `ConfirmModal` is the yes/no dialog (title + body + Cancel/Confirm) that
     gates the reset/clear/discard/leave-unsaved actions; after Confirm runs the action it
     returns to the backdrop **only if the action didn't itself navigate away** (checked
-    via `Minecraft.gui.screen()`).
+    via `Minecraft.gui.screen()`). `RegexPreviewModal` (+ `MatchedItemsList`, an `AbstractScrollArea`) previews a rule's
+    regex: a scrollable table of every matched item (icon + id, the matched substring highlighted via `ItemRegex.spans`),
+    each row a **checkbox** toggling the id in the rule's `excludedItems` set — so `minecraft:cod` can keep the fish but
+    drop `cod_bucket` without touching the pattern. Edits land on the shared working rule; returning re-inits the config
+    screen (which always re-`init`s on show), which picks them up. `utils/ItemIcons` builds the bind-safe item stacks.
 
 Mixins:
 

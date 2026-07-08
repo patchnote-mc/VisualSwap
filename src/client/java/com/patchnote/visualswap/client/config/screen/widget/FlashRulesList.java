@@ -35,9 +35,10 @@ public final class FlashRulesList implements Layout
     static final int ON_WIDTH = 58;
     static final int INTENSITY_WIDTH = 46;
     static final int COLOR_SWATCH = 14;  // the colour column is now just this swatch (click opens the picker)
+    static final int MOVE_WIDTH = 18;    // up/down reorder buttons
     static final int DUPLICATE_WIDTH = 18;
     static final int DELETE_WIDTH = 18;
-    static final int ACTION_GAP = 3;     // tighter gap between the duplicate/delete action buttons
+    static final int ACTION_GAP = 3;     // tighter gap between the reorder/duplicate/delete action buttons
 
     static final int TEXT_VALID = 0xFFE0E0E0;
     static final int TEXT_INVALID = 0xFFFF5555;
@@ -46,7 +47,6 @@ public final class FlashRulesList implements Layout
     // Per-row marker in the left gutter.
     static final int NEW_ARGB = 0xFF4FC463;       // green — a rule added this session
     static final int MODIFIED_ARGB = 0xFFF09A3C;  // orange — a saved rule that's been edited
-    static final int CONFLICT_ARGB = 0xFFE0453A;  // red cross — a rule conflicting with another (same item + trigger)
 
     static final int SLOT_BG = 0xFF26262B;
     static final int SLOT_BORDER = 0xFF4A4A52;
@@ -88,7 +88,22 @@ public final class FlashRulesList implements Layout
     private void rebuildLayout()
     {
         this.layout.removeChildren();
-        for (FlashRuleRow row : this.rows) if (matches(row)) this.layout.addChild(row);
+        List<FlashRuleRow> visible = visibleRows();
+        for (int i = 0; i < visible.size(); i++)
+        {
+            FlashRuleRow row = visible.get(i);
+            row.setCanMoveUp(i > 0);
+            row.setCanMoveDown(i < visible.size() - 1);
+            this.layout.addChild(row);
+        }
+    }
+
+    /// The rows currently shown, in order (after the active filter).
+    private List<FlashRuleRow> visibleRows()
+    {
+        List<FlashRuleRow> out = new ArrayList<>();
+        for (FlashRuleRow row : this.rows) if (matches(row)) out.add(row);
+        return out;
     }
 
     private boolean matches(FlashRuleRow row)
@@ -160,32 +175,44 @@ public final class FlashRulesList implements Layout
         return n;
     }
 
-    /// Recompute which rows conflict (same item + overlapping trigger) from the rows' current values and tag each so
-    /// its gutter marker turns into a red cross. Considers every row, including filtered-out ones. Cheap for these
-    /// small lists; the screen calls it each frame because trigger/item edits don't rebuild the page. Returns the
-    /// conflict count, which blocks saving while it is > 0.
-    public int recomputeConflicts()
-    {
-        boolean[] flags = FlashRule.conflictFlags(toRules());
-        int count = 0;
-        for (int i = 0; i < this.rows.size(); i++)
-        {
-            boolean conflicting = flags[i];
-            this.rows.get(i).setConflicting(conflicting);
-            if (conflicting) count++;
-        }
-        return count;
-    }
-
     /// Insert a fresh, blank rule at the TOP and ask the screen to re-lay-out the page. The screen focuses and scrolls
     /// the new top row into view after the rebuild (see its {@code focusNewRow} handling).
     public void addRule()
     {
         this.rows.addFirst(new FlashRuleRow(
                 this, //
-                new FlashRule("minecraft:", FlashTrigger.ATTACK, FlashIntensity.HIGH)
+                new FlashRule("", FlashTrigger.ATTACK, FlashIntensity.HIGH)
         ));
         if (this.onChanged != null) this.onChanged.run();
+    }
+
+    /// Move {@code row} one step up in precedence — swapping it with the previous visible row — then re-lay-out the page.
+    void moveUp(FlashRuleRow row)
+    {
+        List<FlashRuleRow> visible = visibleRows();
+        int vi = visible.indexOf(row);
+        if (vi <= 0) return;
+        swapInRows(row, visible.get(vi - 1));
+        if (this.onChanged != null) this.onChanged.run();
+    }
+
+    /// Move {@code row} one step down in precedence — swapping it with the next visible row — then re-lay-out the page.
+    void moveDown(FlashRuleRow row)
+    {
+        List<FlashRuleRow> visible = visibleRows();
+        int vi = visible.indexOf(row);
+        if (vi < 0 || vi >= visible.size() - 1) return;
+        swapInRows(row, visible.get(vi + 1));
+        if (this.onChanged != null) this.onChanged.run();
+    }
+
+    private void swapInRows(FlashRuleRow a, FlashRuleRow b)
+    {
+        int ia = this.rows.indexOf(a);
+        int ib = this.rows.indexOf(b);
+        if (ia < 0 || ib < 0) return;
+        this.rows.set(ia, b);
+        this.rows.set(ib, a);
     }
 
     /// Insert a copy of {@code row} directly below it — invoked by the row's own duplicate button. The copy is a brand
@@ -214,11 +241,17 @@ public final class FlashRulesList implements Layout
         if (this.onChanged != null) this.onChanged.run();
     }
 
-    /// The current rules, in row order — the value the screen commits on save.
+    /// The current rules, in row order — the value the screen commits on save. Stamps each rule's precedence
+    /// {@code order} from its row position, so the committed/saved list carries the order explicitly.
     public ArrayList<FlashRule> toRules()
     {
         ArrayList<FlashRule> out = new ArrayList<>();
-        for (FlashRuleRow row : this.rows) out.add(row.getRule());
+        for (int i = 0; i < this.rows.size(); i++)
+        {
+            FlashRule rule = this.rows.get(i).getRule();
+            rule.setOrder(i);
+            out.add(rule);
+        }
         return out;
     }
 

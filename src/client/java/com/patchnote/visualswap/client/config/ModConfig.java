@@ -8,6 +8,7 @@ import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.Config;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -52,15 +53,12 @@ public final class ModConfig implements ConfigData
         this.customPresetData.setSizeMultiplier(Math.clamp(this.customPresetData.getSizeMultiplier(), 0.10, 2.00));
         this.flashVisibleTicks = Math.clamp(this.flashVisibleTicks, MIN_VISIBLE_TICKS, MAX_VISIBLE_TICKS);
 
-        if (this.clickFlashRules == null)
-        {
-            this.clickFlashRules = FlashRule.defaultFlashRules();
-            return;
-        }
+        if (this.clickFlashRules == null) this.clickFlashRules = FlashRule.defaultFlashRules();
         this.clickFlashRules.removeIf(Objects::isNull);
         for (FlashRule rule : this.clickFlashRules) rule.normalize();
-        // Drop conflicting rules (same item + overlapping trigger) a hand-edited file may hold — keep the first per
-        // input, matching how the runtime resolves a click. The config screen blocks saving these in the first place.
-        this.clickFlashRules = FlashRule.withoutConflicts(this.clickFlashRules);
+        // Precedence is an explicit per-rule order (first match wins). Sort by it (stable) then re-stamp a dense
+        // 0..n-1 sequence so a legacy or hand-edited file with absent/duplicate orders resolves deterministically.
+        this.clickFlashRules.sort(Comparator.comparingInt(FlashRule::order));
+        for (int i = 0; i < this.clickFlashRules.size(); i++) this.clickFlashRules.get(i).setOrder(i);
     }
 }

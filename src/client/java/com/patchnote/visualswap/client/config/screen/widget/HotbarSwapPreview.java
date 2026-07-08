@@ -7,6 +7,7 @@ import com.patchnote.visualswap.client.hud.click.ItemFlash;
 import com.patchnote.visualswap.client.hud.click.ItemFlashPreview;
 import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
 import com.patchnote.visualswap.client.screen.overlay.TooltipOverlay;
+import com.patchnote.visualswap.client.utils.ItemIcons;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -93,7 +94,7 @@ public final class HotbarSwapPreview extends AbstractWidget
         this.preset = preset;
         this.flashRule = flashRule;
         this.overlays = overlays;
-        this.fromItem = FlashRuleRow.getItemStack(Items.NETHERITE_SWORD);
+        this.fromItem = ItemIcons.stackFor(Items.NETHERITE_SWORD);
     }
 
     @Override
@@ -153,10 +154,9 @@ public final class HotbarSwapPreview extends AbstractWidget
         if (Objects.equals(id, this.flashItemId)) return;
 
         this.flashItemId = id;
-        Item item = FlashRuleRow.resolveItem(id);
-        if (item != Items.AIR) this.flashItem = FlashRuleRow.getItemStack(item);
-        else if (this.flashItem.isEmpty()) this.flashItem = FlashRuleRow.getItemStack(FlashRuleRow.resolveItem(
-                DEFAULT_FLASH_ITEM));
+        Item item = ItemIcons.resolveItem(id);
+        if (item != Items.AIR) this.flashItem = ItemIcons.stackFor(item);
+        else if (this.flashItem.isEmpty()) this.flashItem = ItemIcons.stackFor(ItemIcons.resolveItem(DEFAULT_FLASH_ITEM));
     }
 
     /// The packed tint the in-game flash would use: the rule's colour for the current preset + its intensity's shade

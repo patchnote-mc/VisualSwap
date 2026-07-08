@@ -60,7 +60,6 @@ public final class VisualSwapConfigScreen extends Screen
     private static final int LABEL_RGB = 0xB9B9C0;
     private static final int MUTED_RGB = 0x8A8A90;      // count label + empty-state message
     private static final int DIRTY_ARGB = 0xFFF0B84C;   // amber unsaved-changes dot beside the title
-    private static final int CONFLICT_ARGB = 0xFFE0453A; // red cross beside the title while a conflict blocks saving
 
     // Vanilla list-panel textures (menu_list_background is private in AbstractSelectionList, so re-declared here).
     private static final Identifier MENU_LIST_BACKGROUND = Identifier.withDefaultNamespace(
@@ -98,11 +97,7 @@ public final class VisualSwapConfigScreen extends Screen
     /// Recomputed each init; drives the header dot, the Discard button, and the confirm-before-leaving guard.
     private boolean isModified;
 
-    /// Number of rules that conflict with another (same item + overlapping trigger). Recomputed live every frame — a
-    /// trigger/item edit can create or clear a conflict without a rebuild — and while it is > 0 the title shows a red
-    /// cross and {@link #doneButton} is disabled, so a conflicting config can never be saved.
-    private int conflictCount;
-    private @Nullable Button doneButton;   // held so the live conflict check can toggle whether saving is allowed
+    private @Nullable Button doneButton;   // held so the live invalid-rule check can toggle whether saving is allowed
 
     /// One-shot: when set, the next rebuild snaps the rules viewport to the top (a filter/reset/discard replaces the
     /// visible set) instead of preserving the prior scroll position.
@@ -242,7 +237,6 @@ public final class VisualSwapConfigScreen extends Screen
         );
         this.list.setFilter(this.filterText);
         this.previewRule = this.list.ruleAt(previewIdx, "minecraft:mace");
-        this.conflictCount = this.list.recomputeConflicts();
         // --- fixed rules header (search + column captions + Add/Clear/Reset); positioned in arrangeContents ---
         this.tableHeader = new RuleColumnsHeader(
                 rowWidth,
@@ -292,7 +286,7 @@ public final class VisualSwapConfigScreen extends Screen
         footer.addChild(discardButton);
         footer.addChild(Button.builder(Component.literal("Cancel"), b -> onClose()).width(80).build());
         this.doneButton = Button.builder(Component.literal("Done"), b -> onDone()).width(80).build();
-        applyDoneState(this.conflictCount == 0 ? DoneButtonState.ENABLED : DoneButtonState.CONFLICTS);
+        applyDoneState(this.list.invalidCount() == 0 ? DoneButtonState.ENABLED : DoneButtonState.INVALID_RULE);
         footer.addChild(this.doneButton);
 
         this.layout.visitWidgets(this::addRenderableWidget);
@@ -557,20 +551,7 @@ public final class VisualSwapConfigScreen extends Screen
                 !FlashRule.listsSameValues(currentRules, this.savedRules);
     }
 
-    /// Recompute the live conflict count (trigger/item edits don't rebuild the page) and toggle whether saving is
-    /// allowed. Called each frame before rendering, so the red cross and the disabled Done button stay in step with
-    /// edits the user just made.
-    private void updateConflictState()
-    {
-        boolean wasBlocked = this.conflictCount > 0;
-        this.conflictCount = (this.list != null) ? this.list.recomputeConflicts() : 0;
-        if ((this.conflictCount > 0) != wasBlocked)
-        {
-            applyDoneState(this.conflictCount == 0 ? DoneButtonState.ENABLED : DoneButtonState.CONFLICTS);
-        }
-    }
-
-    /// Enable/disable the Done button and set the matching tooltip — a conflicting config can never be saved.
+    /// Enable/disable the Done button and set the matching tooltip — an invalid config can never be saved.
     private void applyDoneState(DoneButtonState newState)
     {
         if (this.doneButton == null) return;
@@ -580,8 +561,7 @@ public final class VisualSwapConfigScreen extends Screen
 
     private void onDone()
     {
-        int invalid = this.list.invalidCount();
-        if (this.conflictCount > 0 || invalid > 0) return;
+        if (this.list.invalidCount() > 0) return;
         saveConfig();
     }
 
@@ -624,7 +604,6 @@ public final class VisualSwapConfigScreen extends Screen
     @Override
     public void extractRenderState(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a)
     {
-        updateConflictState();
         styleScrollPanel(graphics);
         // move mouse offscreen for screen's widget when modal is opened
         boolean modal = this.overlays.isModalOpen();
@@ -658,11 +637,7 @@ public final class VisualSwapConfigScreen extends Screen
         int size = 8;
         int iconX = this.width / 2 + this.font.width(getTitle()) / 2 + 4;
         int iconY = (this.layout.getHeaderHeight() - size) / 2;
-        if (this.conflictCount > 0)
-        {
-            Icons.blit(graphics, Icons.DELETE, iconX, iconY, size, CONFLICT_ARGB);   // DELETE is a ✕ glyph
-        }
-        else if (this.isModified)
+        if (this.isModified)
         {
             Icons.blit(graphics, Icons.DIRTY, iconX, iconY, size, DIRTY_ARGB);
         }
@@ -718,8 +693,7 @@ public final class VisualSwapConfigScreen extends Screen
     public enum DoneButtonState
     {
         ENABLED("Save your changes and close."),
-        CONFLICTS("Resolve the conflicting rules before saving."),
-        INVALID_RULE("Make sure all item identifiers are valid");
+        INVALID_RULE("Every rule must be a valid pattern matching at least one item");
 
         private final String message;
 

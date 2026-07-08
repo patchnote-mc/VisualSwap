@@ -4,7 +4,10 @@ import com.patchnote.visualswap.client.config.models.FlashIntensity;
 import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.FlashTrigger;
 import com.patchnote.visualswap.client.config.models.PresetType;
+import com.patchnote.visualswap.client.screen.modal.RegexPreviewModal;
 import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
+import com.patchnote.visualswap.client.utils.ItemIcons;
+import com.patchnote.visualswap.client.utils.ItemRegex;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
@@ -13,26 +16,20 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.core.Holder;
-import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 
 import static com.patchnote.visualswap.client.config.screen.widget.FlashRulesList.*;
 
-/// One rule's row: item id (with a live icon), flash-input and intensity cyclers, a tint-colour swatch (click to open
-/// the picker), and duplicate + delete icon buttons. It is a self-contained container widget — it positions and renders
-/// its own child widgets and routes events to them — so it can be stacked by a plain
-/// {@link net.minecraft.client.gui.layouts.Layout} (and scrolled by the page) instead of being an entry in a
-/// self-scrolling list.
+/// One rule's row: a clickable item-preview icon (opens the regex preview modal), the regex selector box, flash-input
+/// and intensity cyclers, a tint-colour swatch (click to open the picker), reorder up/down buttons, and duplicate +
+/// delete buttons. It is a self-contained container widget — it positions and renders its own child widgets and routes
+/// events to them — so it can be stacked by a plain {@link net.minecraft.client.gui.layouts.Layout} (and scrolled by the
+/// page) instead of being an entry in a self-scrolling list.
 public final class FlashRuleRow extends AbstractContainerWidget
 {
     /// Horizontal inset of the row content from its own edges — kept in step with the screen's column headers.
@@ -43,17 +40,20 @@ public final class FlashRuleRow extends AbstractContainerWidget
     private final List<GuiEventListener> children;
 
     // widgets
+    private final ItemPreviewButton previewButton;
     private final EditBox itemBox;
     private final CycleButton<FlashTrigger> onButton;
     private final CycleButton<FlashIntensity> intensityButton;
     private final ColorSwatch colorSwatch;
+    private final IconButton moveUpButton;
+    private final IconButton moveDownButton;
     private final IconButton duplicateButton;
     private final IconButton deleteButton;
 
-    // state
-    private boolean isValid;
-    private boolean conflicting;   // set by the list each frame; drives the red-cross gutter marker
-    private ItemStack previewItem;
+    // state — derived from the rule's regex selector
+    private boolean isValid;        // pattern is valid and matches at least one registered item
+    private int matchCount;         // how many items the selector matches (raw pattern reach, ignoring exclusions)
+    private ItemStack previewItem;  // first matched item's stack (bind-guarded), or EMPTY
 
     FlashRuleRow(FlashRulesList list, FlashRule rule)
     {
@@ -61,11 +61,9 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.list = list;
         rule.normalize();  // repair a rule carried over from an older config schema before any widget reads it
         this.rule = rule;
-        Item item = resolveItem(rule.item());
-        this.isValid = item != Items.AIR;
-        this.previewItem = getItemStack(item);
 
         // widgets
+        this.previewButton = new ItemPreviewButton(() -> this.previewItem, () -> this.matchCount, this::openPreviewModal);
         this.itemBox = createItemInput(rule);
         this.onButton = createTriggerSelector(rule);
         this.intensityButton = createIntensitySelector(rule);
@@ -73,16 +71,20 @@ public final class FlashRuleRow extends AbstractContainerWidget
                 COLOR_SWATCH,
                 () -> 0xFF000000 | (this.rule.colorFor(this.list.preset()) & 0xFFFFFF)
         );
+        this.moveUpButton = new IconButton(
+                MOVE_WIDTH, Icons.MOVE_UP, Component.literal("Move up (higher priority)"),
+                () -> this.list.moveUp(this)
+        );
+        this.moveDownButton = new IconButton(
+                MOVE_WIDTH, Icons.MOVE_DOWN, Component.literal("Move down (lower priority)"),
+                () -> this.list.moveDown(this)
+        );
         this.duplicateButton = new IconButton(
-                DUPLICATE_WIDTH,
-                Icons.DUPLICATE,
-                Component.literal("Duplicate this rule"),
+                DUPLICATE_WIDTH, Icons.DUPLICATE, Component.literal("Duplicate this rule"),
                 () -> this.list.duplicate(this)
         );
         this.deleteButton = new IconButton(
-                DELETE_WIDTH,
-                Icons.DELETE,
-                Component.literal("Delete this rule"),
+                DELETE_WIDTH, Icons.DELETE, Component.literal("Delete this rule"),
                 () -> this.list.removeRule(this)
         );
 
@@ -92,17 +94,22 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.onButton.setTooltip(Tooltip.create(Component.literal("When this item flashes: on attack, on use, or both")));
         this.intensityButton.setTooltip(Tooltip.create(Component.literal("Flash strength (Low = subtle, High = punchy)")));
 
-        refreshItemColor();
+        refreshMatches();
 
         this.children = List.of(
+                this.previewButton,
                 this.itemBox,
                 this.onButton,
                 this.intensityButton,
                 this.colorSwatch,
+                this.moveUpButton,
+                this.moveDownButton,
                 this.duplicateButton,
                 this.deleteButton
         );
     }
+
+    private void openPreviewModal() { RegexPreviewModal.open(this.rule); }
 
     /// A rule tint is RGB-only (its alpha byte carries the flash gamma), so the picker hides alpha and writes the
     /// picked RGB straight onto the rule (opaque), then retargets the swap preview — the same effect the old hex box's
@@ -125,10 +132,10 @@ public final class FlashRuleRow extends AbstractContainerWidget
     {
         EditBox input = new EditBox(
                 Minecraft.getInstance().font, //
-                0, 0, 100, WIDGET_HEIGHT, Component.literal("Item identifier")
+                0, 0, 100, WIDGET_HEIGHT, Component.literal("Item selector (regex)")
         );
         input.setMaxLength(256);
-        input.setHint(Component.literal("minecraft:item"));
+        input.setHint(Component.literal("filter (e.g \".*\")"));
         input.setValue(rule.item() == null ? "" : rule.item());
         input.setResponder(this::onItemEdited);
         input.moveCursorToStart(false);
@@ -171,15 +178,17 @@ public final class FlashRuleRow extends AbstractContainerWidget
 
     public FlashRule getRule() { return this.rule; }
 
-    /// Whether this row's item id resolves to a real item — a blank or unknown id renders as an empty slot and never
-    /// flashes. The screen counts these to warn before saving.
+    /// Whether this row's selector is a valid regex that matches at least one registered item — a blank/unparseable
+    /// pattern, or one matching nothing, renders an empty slot and never flashes. The screen counts these to block Done.
     public boolean isItemValid() { return this.isValid; }
 
-    /// Tag this row as conflicting with another rule (same item + overlapping trigger). Recomputed by the list each
-    /// frame (see {@link FlashRulesList#recomputeConflicts}); shows a red cross in the gutter and blocks saving.
-    void setConflicting(boolean conflicting) { this.conflicting = conflicting; }
+    /// Enable/disable the reorder buttons — the list calls these each layout pass so the top visible row can't move up
+    /// and the bottom can't move down.
+    void setCanMoveUp(boolean can) { this.moveUpButton.active = can; }
 
-    /// Give keyboard focus to the item id box (used when the screen adds a fresh rule so the user can type at once).
+    void setCanMoveDown(boolean can) { this.moveDownButton.active = can; }
+
+    /// Give keyboard focus to the selector box (used when the screen adds a fresh rule so the user can type at once).
     public void focusItemInput()
     {
         setFocused(this.itemBox);
@@ -206,27 +215,22 @@ public final class FlashRuleRow extends AbstractContainerWidget
         int midY = getY() + getHeight() / 2;
         int widgetY = midY - WIDGET_HEIGHT / 2;
 
-        // item icon
-        int iconY = midY - ICON / 2;
-        if (this.previewItem.isEmpty())
-        {
-            g.fill(left, iconY, left + ICON, iconY + ICON, SLOT_BORDER);
-            g.fill(left + 1, iconY + 1, left + ICON - 1, iconY + ICON - 1, SLOT_BG);
-        }
-        else
-        {
-            g.item(this.previewItem, left, iconY);
-        }
+        // clickable item preview
+        this.previewButton.setPosition(left, midY - ICON / 2);
 
-        // right-anchored columns: trigger | intensity | colour swatch | duplicate | delete
+        // right-anchored columns: trigger | intensity | colour | up | down | duplicate | delete
         int deleteX = right - DELETE_WIDTH;
         int duplicateX = deleteX - ACTION_GAP - DUPLICATE_WIDTH;
-        int colorX = duplicateX - GAP - COLOR_SWATCH;
+        int downX = duplicateX - ACTION_GAP - MOVE_WIDTH;
+        int upX = downX - ACTION_GAP - MOVE_WIDTH;
+        int colorX = upX - GAP - COLOR_SWATCH;
         int intensityX = colorX - GAP - INTENSITY_WIDTH;
         int onX = intensityX - GAP - ON_WIDTH;
 
         this.deleteButton.setPosition(deleteX, widgetY);
         this.duplicateButton.setPosition(duplicateX, widgetY);
+        this.moveDownButton.setPosition(downX, widgetY);
+        this.moveUpButton.setPosition(upX, widgetY);
         this.intensityButton.setPosition(intensityX, widgetY);
         this.onButton.setPosition(onX, widgetY);
 
@@ -240,35 +244,22 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.itemBox.setY(widgetY);
         this.itemBox.setWidth(boxW);
 
+        this.previewButton.extractRenderState(g, mouseX, mouseY, a);
         this.itemBox.extractRenderState(g, mouseX, mouseY, a);
         this.onButton.extractRenderState(g, mouseX, mouseY, a);
         this.intensityButton.extractRenderState(g, mouseX, mouseY, a);
         this.colorSwatch.extractRenderState(g, mouseX, mouseY, a);
+        this.moveUpButton.extractRenderState(g, mouseX, mouseY, a);
+        this.moveDownButton.extractRenderState(g, mouseX, mouseY, a);
         this.duplicateButton.extractRenderState(g, mouseX, mouseY, a);
         this.deleteButton.extractRenderState(g, mouseX, mouseY, a);
 
-        // left-gutter marker: a red cross when this rule conflicts with another (same item + trigger, blocks saving),
-        // else the unsaved-changes dot — green when newly added, orange when an existing rule was edited.
-        if (this.conflicting)
+        // left-gutter marker: the unsaved-changes dot — green when newly added, orange when an existing rule was edited.
+        int marker = this.rule.isNew() ? NEW_ARGB : this.rule.isModified() ? MODIFIED_ARGB : 0;
+        if (marker != 0)
         {
-            int cross = 7;
-            Icons.blit(
-                    g,
-                    Icons.DELETE,
-                    getX() - 2 - cross,
-                    midY - cross / 2,
-                    cross,
-                    CONFLICT_ARGB
-            );  // DELETE is a ✕ glyph
-        }
-        else
-        {
-            int marker = this.rule.isNew() ? NEW_ARGB : this.rule.isModified() ? MODIFIED_ARGB : 0;
-            if (marker != 0)
-            {
-                int dot = 6;
-                Icons.blit(g, Icons.DIRTY, getX() - 2 - dot, midY - dot / 2, dot, marker);
-            }
+            int dot = 6;
+            Icons.blit(g, Icons.DIRTY, getX() - 2 - dot, midY - dot / 2, dot, marker);
         }
     }
 
@@ -279,12 +270,22 @@ public final class FlashRuleRow extends AbstractContainerWidget
 
     private void onItemEdited(String value)
     {
-        Item item = resolveItem(value);
         this.rule.setItem(value);
-        this.isValid = item != Items.AIR;
-        this.previewItem = getItemStack(item);
-        refreshItemColor();
+        refreshMatches();
         this.list.notifyTextChanged(value);
+    }
+
+    /// Recompute the selector's reach: validity, match count, and the preview icon (the first matched item). Called on
+    /// construction and after every keystroke in the selector box.
+    private void refreshMatches()
+    {
+        ItemRegex.Summary summary = ItemRegex.summarize(this.rule.pattern());
+        this.matchCount = summary.count();
+        this.isValid = summary.count() >= 1;
+        this.previewItem = (summary.first() != null)
+                           ? ItemIcons.stackFor(BuiltInRegistries.ITEM.getValue(summary.first()))
+                           : ItemStack.EMPTY;
+        refreshItemColor();
     }
 
     /// Point the colour column at {@code preset}: only allow edits (picker) under Custom. The swatch tracks the list's
@@ -295,24 +296,4 @@ public final class FlashRuleRow extends AbstractContainerWidget
     }
 
     private void refreshItemColor() { this.itemBox.setTextColor(this.isValid ? TEXT_VALID : TEXT_INVALID); }
-
-    static Item resolveItem(String id)
-    {
-        Identifier ident = Identifier.tryParse(id == null ? "" : id.trim());
-        if (ident == null) return Items.AIR;
-        return BuiltInRegistries.ITEM.getValue(ident);
-    }
-
-    static ItemStack getItemStack(Item item)
-    {
-        if (item == Items.AIR) return ItemStack.EMPTY;
-
-        // if item model already loaded
-        if (BuiltInRegistries.ITEM.wrapAsHolder(item).areComponentsBound()) return new ItemStack(item);
-
-        // load item model
-        Identifier id = BuiltInRegistries.ITEM.getKey(item);
-        DataComponentMap components = DataComponentMap.builder().set(DataComponents.ITEM_MODEL, id).build();
-        return new ItemStack(Holder.direct(item, components));
-    }
 }

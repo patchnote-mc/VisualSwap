@@ -3,8 +3,6 @@ package com.patchnote.visualswap.client.hud.click;
 import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.config.models.FlashIntensity;
 import com.patchnote.visualswap.client.config.models.FlashRule;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
@@ -100,19 +98,12 @@ public final class ItemFlash
         return (exponentByte << 24) | (color & 0xFFFFFF);
     }
 
-    /// The first rule for {@code stack}'s item that flashes on the given input — attack when {@code forAttack}, else use
-    /// — or null when none matches. Resolving each input separately lets two rules for one item cover different inputs.
+    /// The highest-precedence rule whose selector matches {@code stack}'s item and that flashes on the given input —
+    /// attack when {@code forAttack}, else use — or null when none matches. Resolution + regex matching is memoised per
+    /// item by {@link FlashRuleIndex}, so this is an O(1) map lookup on the tick path.
     private static @Nullable FlashRule getRuleFor(ItemStack stack, boolean forAttack)
     {
         if (stack == null || stack.isEmpty()) return null;
-
-        Identifier held = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        for (FlashRule rule : ModConfig.get().clickFlashRules)
-        {
-            if (rule == null || rule.item() == null || rule.flashesAt() == null) continue;
-            boolean covers = forAttack ? rule.flashesAt().flashesOnAttack() : rule.flashesAt().flashesOnUse();
-            if (covers && held.equals(Identifier.tryParse(rule.item()))) return rule;
-        }
-        return null;
+        return FlashRuleIndex.forCurrentConfig().rule(stack.getItem(), forAttack);
     }
 }
