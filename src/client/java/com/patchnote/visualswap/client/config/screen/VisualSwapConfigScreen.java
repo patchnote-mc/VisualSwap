@@ -175,6 +175,7 @@ public final class VisualSwapConfigScreen extends Screen
 
         // --- scrollable content column ---
         LinearLayout content = LinearLayout.vertical().spacing(CONTENT_SPACING);
+        content.addChild(new SpacerElement(0, 4));
 
         // top controls, a 2x3 grid:  preset | From colour | swap preview
         //                            slider | To colour   | reset-colours button
@@ -286,6 +287,8 @@ public final class VisualSwapConfigScreen extends Screen
                     s -> s.alignHorizontallyCenter().paddingVertical(SECTION_GAP)
             );
         }
+
+        content.addChild(new SpacerElement(0, 4));
 
         // --- wrap the content in a full-width scroll viewport so the panel + scrollbar reach the screen edges ---
         FrameLayout viewport = new FrameLayout();

@@ -18,7 +18,7 @@ import java.util.function.IntConsumer;
 /// A colour picker in a floating overlay, opened from a colour swatch. Three tabs:
 /// - **Wheel** (default) — the HSV pinwheel (hue = angle, saturation = radius) with value/alpha sliders below;
 /// - **Sliders** — one gradient slider per HSVA channel;
-/// - **Hex** — direct hex entry (AARRGGBB, or RRGGBB when alpha is disabled).
+/// - **Hex** — a {@code #RRGGBB} entry box (RGB only), with an alpha slider below it when alpha is enabled.
 ///
 /// HSV state is the source of truth (so hue survives zero-saturation edits); every change is pushed live through
 /// {@code onChange} — the opener wires that to its hex box, whose responder runs the normal edit pipeline. With
@@ -39,6 +39,7 @@ public final class ColorPickerOverlay extends Overlay
     private static final int CHIP = 15;       // live-colour chip, right of the tabs
     private static final int TABS_TO_BODY = 6;
     private static final int SLIDER_H = 11;
+    private static final int HEX_BOX_H = 18;   // hex entry box height
     private static final int ROW_STEP = 16;   // vertical pitch between stacked sliders
     private static final int LABEL_W = 11;    // "H"/"S"/"V"/"A" gutter left of a slider
     private static final int WHEEL_GAP = 8;   // wheel → its value/alpha sliders
@@ -63,6 +64,7 @@ public final class ColorPickerOverlay extends Overlay
     private final List<AbstractWidget> wheelWidgets = new ArrayList<>();
     private final List<AbstractWidget> sliderWidgets = new ArrayList<>();
     private final EditBox hexBox;
+    private final GradientSlider hexAlpha;  // alpha slider under the hex box; null when alpha is disabled
 
     private Mode mode = Mode.WHEEL;
     private boolean syncingHex;
@@ -115,6 +117,7 @@ public final class ColorPickerOverlay extends Overlay
         buildWheelTab(x);
         buildSlidersTab(x);
         this.hexBox = addChild(buildHexBox(x));
+        this.hexAlpha = this.alphaEnabled ? addChild(alphaSlider(x, hexAlphaY())) : null;
 
         setMode(Mode.WHEEL);
         syncHexBox();
@@ -126,6 +129,9 @@ public final class ColorPickerOverlay extends Overlay
     /// Top of the tab body — derived live from the current origin so it tracks {@link #position} instead of freezing at
     /// the construction-time (0,0) origin (children shift with the overlay; free-form content must too).
     private int bodyY() { return contentY() + TAB_H + TABS_TO_BODY; }
+
+    /// Top of the hex tab's alpha slider — sits below the hex entry box.
+    private int hexAlphaY() { return bodyY() + 4 + HEX_BOX_H + WHEEL_GAP; }
 
     /* TAB CONTENT */
 
@@ -191,9 +197,9 @@ public final class ColorPickerOverlay extends Overlay
 
     private EditBox buildHexBox(int x)
     {
-        EditBox box = new EditBox(this.font, x + 2, bodyY() + 4, CONTENT_W - 4, 18, Component.literal("Hex color"));
+        EditBox box = new EditBox(this.font, x + 2, bodyY() + 4, CONTENT_W - 4, HEX_BOX_H, Component.literal("Hex color"));
         box.setMaxLength(10);
-        box.setHint(Component.literal(this.alphaEnabled ? "AARRGGBB" : "RRGGBB"));
+        box.setHint(Component.literal("RRGGBB"));
         box.setResponder(this::onHexEdited);
         return box;
     }
@@ -206,6 +212,7 @@ public final class ColorPickerOverlay extends Overlay
         this.wheelWidgets.forEach(w -> w.visible = mode == Mode.WHEEL);
         this.sliderWidgets.forEach(w -> w.visible = mode == Mode.SLIDERS);
         this.hexBox.visible = mode == Mode.HEX;
+        if (this.hexAlpha != null) this.hexAlpha.visible = mode == Mode.HEX;
     }
 
     private int argb()
@@ -224,12 +231,13 @@ public final class ColorPickerOverlay extends Overlay
     {
         this.syncingHex = true;
         int argb = argb();
-        this.hexBox.setValue(this.alphaEnabled ? ColorHelpers.formatArgbHex(argb) : ColorHelpers.formatRgbHex(argb));
+        this.hexBox.setValue("#" + ColorHelpers.formatRgbHex(argb));
         this.hexBox.setTextColor(TEXT_VALID);
         this.syncingHex = false;
     }
 
-    /// A hex-tab edit: adopt the parsed colour as the new HSV state (without rewriting the box mid-typing).
+    /// A hex-tab edit: adopt the parsed RGB as the new HSV state (without rewriting the box mid-typing). Alpha is
+    /// owned by the tab's alpha slider, so any alpha byte in the entry is ignored.
     private void onHexEdited(String text)
     {
         if (this.syncingHex) return;
@@ -241,7 +249,6 @@ public final class ColorPickerOverlay extends Overlay
         if (hsv[1] > 1e-4f) this.hue = hsv[0];  // greys carry no hue — keep the current one
         this.sat = hsv[1];
         this.val = hsv[2];
-        if (this.alphaEnabled) this.alpha = color >>> 24;
         this.onChange.accept(argb());
     }
 
@@ -278,6 +285,10 @@ public final class ColorPickerOverlay extends Overlay
             int slidersY = bodyY() + HueSatWheel.SIZE + WHEEL_GAP;
             sliderLabel(g, "V", slidersY);
             if (this.alphaEnabled) sliderLabel(g, "A", slidersY + ROW_STEP);
+        }
+        else if (this.mode == Mode.HEX && this.alphaEnabled)
+        {
+            sliderLabel(g, "A", hexAlphaY());
         }
     }
 
