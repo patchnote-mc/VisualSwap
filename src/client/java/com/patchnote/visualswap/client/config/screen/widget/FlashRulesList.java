@@ -6,6 +6,7 @@ import com.patchnote.visualswap.client.config.models.FlashTrigger;
 import com.patchnote.visualswap.client.config.models.PresetType;
 import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.client.gui.layouts.LinearLayout;
@@ -193,6 +194,14 @@ public final class FlashRulesList implements Layout
         int n = 0;
         for (FlashRuleRow row : this.rows) if (!row.isItemValid()) n++;
         return n;
+    }
+
+    /// Grey out (or restore) every row — the screen calls this with {@code false} when the Item Flash effect is switched
+    /// off, so the rules can't be edited while their effect is disabled. {@code disabledTip} becomes every cell's
+    /// tooltip while disabled, so hovering any row explains which switch turned the table off.
+    public void setEnabled(boolean enabled, @Nullable Tooltip disabledTip)
+    {
+        for (FlashRuleRow row : this.rows) row.setEnabled(enabled, disabledTip);
     }
 
     /// Insert a fresh, blank rule at the TOP and ask the screen to re-lay-out the page. The screen focuses and scrolls

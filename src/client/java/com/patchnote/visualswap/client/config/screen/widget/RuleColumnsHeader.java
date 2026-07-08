@@ -95,6 +95,21 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         this.overlays.open(picker);
     }
 
+    /// Grey out the whole rules toolbar — the screen calls this when the Item Flash effect is off (its rules can't be
+    /// edited while disabled). Disables the search box, bulk swatch and Add/Clear/Reset icons, and puts {@code tip} on
+    /// the action icons so hovering explains why. One-way: the header is rebuilt fresh each init, so there is no restore.
+    public void disableWith(Tooltip tip)
+    {
+        this.searchBox.setEditable(false);
+        this.colorSwatch.setClickable(false);
+        this.addButton.active = false;
+        this.clearButton.active = false;
+        this.resetButton.active = false;
+        this.addButton.setTooltip(tip);
+        this.clearButton.setTooltip(tip);
+        this.resetButton.setTooltip(tip);
+    }
+
     /// Give keyboard focus to the search box (the screen calls this after a filter-triggered rebuild so typing isn't
     /// interrupted). The screen must also make this header its own focused child.
     public void focusSearch()

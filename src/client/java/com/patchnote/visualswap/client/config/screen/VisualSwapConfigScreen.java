@@ -7,6 +7,7 @@ import com.patchnote.visualswap.client.config.models.PresetType;
 import com.patchnote.visualswap.client.config.screen.widget.*;
 import com.patchnote.visualswap.client.hud.click.ItemFlashPreview;
 import com.patchnote.visualswap.client.screen.modal.ConfirmModal;
+import com.patchnote.visualswap.client.screen.modal.EffectsModal;
 import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
 import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
 import me.shedaniel.autoconfig.AutoConfig;
@@ -26,7 +27,6 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
@@ -44,6 +44,8 @@ public final class VisualSwapConfigScreen extends Screen
 {
     private static final int CHIP_H = 20;
     private static final int COL_GAP = 8;       // between the top grid's columns
+    private static final int EFFECTS_BTN_W = 64; // header "Effects" button that opens the toggles modal
+    private static final int EFFECTS_BTN_MARGIN = 8;
 
     // Custom-colour row: a "From"/"To" caption then a colour swatch (click opens the picker).
     private static final int COLOR_LABEL_W = 34;
@@ -116,6 +118,8 @@ public final class VisualSwapConfigScreen extends Screen
     private boolean isModified;
 
     private @Nullable Button doneButton;   // held so the live invalid-rule check can toggle whether saving is allowed
+
+    private @Nullable Button effectsButton;   // header button opening the EffectsModal; positioned in arrangeContents
 
     /// One-shot: when set, the next rebuild snaps the rules viewport to the top (a filter/reset/discard replaces the
     /// visible set) instead of preserving the prior scroll position.
@@ -200,37 +204,12 @@ public final class VisualSwapConfigScreen extends Screen
         LinearLayout content = LinearLayout.vertical().spacing(CONTENT_SPACING);
         content.addChild(new SpacerElement(0, 4));
 
-        // effect toggles: a top row of the master + effect groups, then the HUD's finer sub-toggles beneath it.
-        // Mod gates everything; HUD gates the glyph plus the two finer switches. Toggling either rebuilds so the
-        // dependent switches grey out to show the umbrella relationship.
-        boolean hudControlsActive = this.workingModEnabled && this.workingHudEnabled;
-
-        GridLayout toggles = new GridLayout().columnSpacing(COL_GAP);
-        toggles.defaultCellSetting().alignVerticallyMiddle();
-        int toggleW = (rowWidth - 2 * COL_GAP) / 3;
-        toggles.addChild(masterToggle(
-                toggleW, "Mod", this.workingModEnabled, true,
-                v -> { this.workingModEnabled = v; rebuildWidgets(); }), 0, 0);
-        toggles.addChild(masterToggle(
-                toggleW, "HUD", this.workingHudEnabled, this.workingModEnabled,
-                v -> { this.workingHudEnabled = v; rebuildWidgets(); }), 0, 1);
-        toggles.addChild(masterToggle(
-                toggleW, "Particles", this.workingParticlesEnabled, this.workingModEnabled,
-                v -> { this.workingParticlesEnabled = v; rebuildWidgets(); }), 0, 2);
-        content.addChild(toggles, LayoutSettings::alignHorizontallyCenter);
-
-        GridLayout hudToggles = new GridLayout().columnSpacing(COL_GAP);
-        hudToggles.defaultCellSetting().alignVerticallyMiddle();
-        int subW = (rowWidth - COL_GAP) / 2;
-        hudToggles.addChild(masterToggle(
-                subW, "Hotbar Highlight", this.workingHotbarHighlightEnabled, hudControlsActive,
-                v -> { this.workingHotbarHighlightEnabled = v; rebuildWidgets(); }), 0, 0);
-        hudToggles.addChild(masterToggle(
-                subW, "Item Flash", this.workingItemFlashEnabled, hudControlsActive,
-                v -> { this.workingItemFlashEnabled = v; rebuildWidgets(); }), 0, 1);
-        content.addChild(hudToggles, LayoutSettings::alignHorizontallyCenter);
-
-        content.addChild(new SpacerElement(0, 8));
+        // The effect switches now live in the Effects modal (opened from the header button). Their working state drives
+        // which config controls below are greyed: a control is disabled whenever the effect it feeds isn't active. The
+        // colours + preset feed several effects at once, so they only grey when the whole mod is off.
+        boolean modOn = this.workingModEnabled;
+        boolean itemFlashOn = this.workingModEnabled && this.workingHudEnabled && this.workingItemFlashEnabled;
+        boolean particlesOn = this.workingModEnabled && this.workingParticlesEnabled;
 
         // top controls, a 2x3 grid:  preset | From colour | swap preview
         //                            slider | To colour   | reset-colours button
@@ -244,14 +223,18 @@ public final class VisualSwapConfigScreen extends Screen
                 0, 0, colW, CHIP_H, //
                 Component.literal("Preset"), (button, value) -> setPreset(value)
         );
+        presetButton.active = modOn;
+        if (!modOn) presetButton.setTooltip(offTooltip("Mod"));
         top.addChild(presetButton, 0, 0);
 
         this.slider = new SizeSlider(
                 0, 0, colW, CHIP_H, //
                 this.workingType.getDisplayName(), effectiveSize(), this.workingCustom::setSizeMultiplier
         );
-        this.slider.active = this.workingType.isColorEditable();
-        this.slider.setTooltip(Tooltip.create(Component.literal("Scale of the swap highlight overlay.")));
+        this.slider.active = particlesOn && this.workingType.isColorEditable();
+        this.slider.setTooltip(particlesOn
+                               ? Tooltip.create(Component.literal("Scale of the swap-hit particle burst."))
+                               : offTooltip(particlesOffSwitch()));
         top.addChild(this.slider, 1, 0);
 
         // From/To highlight colours — a caption + a swatch that opens the colour picker (Custom only)
@@ -272,7 +255,8 @@ public final class VisualSwapConfigScreen extends Screen
                 CHIP_H, Icons.RESET, //
                 Component.literal("Reset colours & size to defaults"), this::confirmResetColors
         );
-        resetColorsButton.active = resetColorsEnabled;
+        resetColorsButton.active = modOn && resetColorsEnabled;
+        if (!modOn) resetColorsButton.setTooltip(offTooltip("Mod"));
         top.addChild(resetColorsButton, 1, 2, LayoutSettings::alignHorizontallyLeft);
 
         content.addChild(top, LayoutSettings::alignHorizontallyCenter);
@@ -285,8 +269,11 @@ public final class VisualSwapConfigScreen extends Screen
                 0, 0, topWidth, CHIP_H, //
                 this.workingVisibleTicks, ticks -> this.workingVisibleTicks = ticks
         );
-        ticksSlider.setTooltip(Tooltip.create(Component.literal(
-                "How many ticks a clicked item's flash tint stays visible.")));
+        ticksSlider.active = itemFlashOn;
+        ticksSlider.setTooltip(itemFlashOn
+                               ? Tooltip.create(Component.literal(
+                "How many ticks a clicked item's flash tint stays visible."))
+                               : offTooltip(itemFlashOffSwitch()));
         content.addChild(ticksSlider, LayoutSettings::alignHorizontallyCenter);
 
         content.addChild(new SpacerElement(0, 8));
@@ -321,6 +308,14 @@ public final class VisualSwapConfigScreen extends Screen
                 this.overlays
         );
         content.addChild(this.tableHeader, LayoutSettings::alignVerticallyMiddle);
+
+        // Item Flash off → the rules are inert: grey the toolbar and every row so they can't be edited.
+        if (!itemFlashOn)
+        {
+            Tooltip off = offTooltip(itemFlashOffSwitch());
+            this.tableHeader.disableWith(off);
+            this.list.setEnabled(false, off);
+        }
 
         if (!this.filterText.isEmpty())
         {
@@ -367,6 +362,12 @@ public final class VisualSwapConfigScreen extends Screen
         this.scrollContainer = null;
         this.scrollArea.visitWidgets(w -> this.scrollContainer = w);   // capture the inner scroll widget for row focus
 
+        // header button that opens the effect switches — always enabled, so a disabled config can always be re-enabled
+        this.effectsButton = Button.builder(Component.literal("Toggles"), b -> EffectsModal.open(effectToggles()))
+                .width(EFFECTS_BTN_W).build();
+        this.effectsButton.setTooltip(Tooltip.create(Component.literal("Turn the mod's effects on or off.")));
+        addRenderableWidget(this.effectsButton);
+
         arrangeContents();
         restoreScroll(previousScroll);
         applyPendingFocus();
@@ -378,6 +379,13 @@ public final class VisualSwapConfigScreen extends Screen
     {
         this.layout.arrangeElements();
         int available = this.height - this.layout.getFooterHeight() - this.layout.getHeaderHeight();
+
+        // pin the Effects button to the header's top-right corner (it sits outside the header/footer layout)
+        if (this.effectsButton != null)
+        {
+            int by = Math.max(2, (this.layout.getHeaderHeight() - CHIP_H) / 2);
+            this.effectsButton.setPosition(this.width - EFFECTS_BTN_MARGIN - EFFECTS_BTN_W, by);
+        }
 
         // set scrollArea position and size
         this.scrollArea.setY(this.layout.getHeaderHeight());
@@ -452,18 +460,60 @@ public final class VisualSwapConfigScreen extends Screen
         area.setScrollAmount(Math.clamp(target, 0.0, area.maxScrollAmount()));
     }
 
-    /// One effect on/off toggle: an "ON/OFF"-suffixed cycle button whose value is written straight to {@code onChange}.
-    /// {@code active} greys it out when a switch it depends on is off (e.g. a HUD sub-toggle while HUD is off).
-    private CycleButton<Boolean> masterToggle(int width, String label, boolean initial, boolean active,
-                                              Consumer<Boolean> onChange)
+    /// The effect switches shown in the {@link EffectsModal}, each bound live to a working field. Sub-switches carry an
+    /// {@code enabled} predicate so they grey out under a parent that is off; the modal re-reads these on every rebuild,
+    /// and its changes flow straight back into this screen's working state (refreshed on the modal's close → re-init).
+    private List<EffectsModal.Toggle> effectToggles()
     {
-        CycleButton<Boolean> button = CycleButton.onOffBuilder(initial).create(
-                0, 0, width, CHIP_H, //
-                Component.literal(label), (b, value) -> onChange.accept(value)
+        return List.of(
+                new EffectsModal.Toggle("Mod",
+                        "Master switch — turns the whole mod on or off.",
+                        () -> this.workingModEnabled, v -> this.workingModEnabled = v, () -> true, 0),
+                new EffectsModal.Toggle("HUD",
+                        "Umbrella for the on-screen effects: the swap-hit glyph, hotbar highlight and item flash.",
+                        () -> this.workingHudEnabled, v -> this.workingHudEnabled = v,
+                        () -> this.workingModEnabled, 0),
+                new EffectsModal.Toggle("Hotbar Highlight",
+                        "Highlights the swapped hotbar slots — the From/To colour swatches tint it. Part of the HUD.",
+                        () -> this.workingHotbarHighlightEnabled, v -> this.workingHotbarHighlightEnabled = v,
+                        () -> this.workingModEnabled && this.workingHudEnabled, 1),
+                new EffectsModal.Toggle("Item Flash",
+                        "Flashes the clicked hotbar item's tint — what the flash-duration slider and rules below "
+                                + "configure. Part of the HUD.",
+                        () -> this.workingItemFlashEnabled, v -> this.workingItemFlashEnabled = v,
+                        () -> this.workingModEnabled && this.workingHudEnabled, 1),
+                new EffectsModal.Toggle("Particles",
+                        "The particle burst when a swap hit lands — the size slider scales it.",
+                        () -> this.workingParticlesEnabled, v -> this.workingParticlesEnabled = v,
+                        () -> this.workingModEnabled, 0)
         );
-        button.active = active;
-        return button;
     }
+
+    /// Tooltip for a control greyed because its effect is off — names the switch to flip and points at the header.
+    private Tooltip offTooltip(String switchName)
+    {
+        return Tooltip.create(Component.literal(
+                switchName + " is turned off. Open Toggles (top-right) and turn it back on."));
+    }
+
+    /// The first switch that is off along the Item Flash gate chain (mod → HUD → item flash) — the one to re-enable.
+    private String itemFlashOffSwitch()
+    {
+        if (!this.workingModEnabled) return "Mod";
+        if (!this.workingHudEnabled) return "HUD";
+        return "Item Flash";
+    }
+
+    /// The first switch that is off along the hotbar-highlight gate chain (mod → HUD → hotbar highlight).
+    private String hotbarHighlightOffSwitch()
+    {
+        if (!this.workingModEnabled) return "Mod";
+        if (!this.workingHudEnabled) return "HUD";
+        return "Hotbar Highlight";
+    }
+
+    /// The first switch that is off along the particle gate chain (mod → particles).
+    private String particlesOffSwitch() { return this.workingModEnabled ? "Particles" : "Mod"; }
 
     /// One From/To colour row: a caption and a swatch that opens the picker (Custom preset only). The picker writes the
     /// picked ARGB straight to {@code onEdit}, and the swatch reads {@code color} live, so no rebuild is needed.
@@ -477,7 +527,11 @@ public final class VisualSwapConfigScreen extends Screen
 
         ColorSwatch swatch = new ColorSwatch(COLOR_SWATCH_SIZE, color);
         swatch.setOnPress(() -> openPicker(swatch, color.getAsInt(), onEdit));
-        swatch.setClickable(this.workingType.isColorEditable());
+        // From/To are the swap-highlight colours, so they follow the Hotbar Highlight effect: greyed while it (or a
+        // switch above it) is off, else editable under an editable (Custom) preset.
+        boolean highlightOn = this.workingModEnabled && this.workingHudEnabled && this.workingHotbarHighlightEnabled;
+        swatch.setClickable(highlightOn && this.workingType.isColorEditable());
+        if (!highlightOn) swatch.setTooltip(offTooltip(hotbarHighlightOffSwitch()));
         row.addChild(swatch, LayoutSettings::alignVerticallyMiddle);
         return row;
     }
