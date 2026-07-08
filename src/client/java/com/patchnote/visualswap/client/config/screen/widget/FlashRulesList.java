@@ -130,6 +130,26 @@ public final class FlashRulesList implements Layout
         for (FlashRuleRow row : this.rows) row.refreshColor(preset);
     }
 
+    /// The tint every rule shares under the current preset, or the preset's default flash tint when the table is empty
+    /// or the rows disagree. Seeds (and is displayed by) the header's bulk "set all colours" swatch.
+    public int commonColor()
+    {
+        int fallback = this.preset.getFlashTint();
+        if (this.rows.isEmpty()) return fallback;
+        int shared = this.rows.getFirst().getRule().colorFor(this.preset);
+        for (FlashRuleRow row : this.rows)
+            if (row.getRule().colorFor(this.preset) != shared) return fallback;
+        return shared;
+    }
+
+    /// Set every rule's tint under the current preset to {@code color} — the header's bulk action. Applies to the whole
+    /// table, ignoring the active filter (hidden rows included), and no-ops under a non-editable preset (setColorFor
+    /// guards it). Swatches read their colour live, so no rebuild is needed.
+    public void setColorForAll(int color)
+    {
+        for (FlashRuleRow row : this.rows) row.getRule().setColorFor(this.preset, color);
+    }
+
     /// Filter the visible rows to those whose item id contains {@code text} (case-insensitive). View-only — the
     /// underlying rules and {@link #toRules()} are unaffected. Rebuilds the layout; the page re-arranges after.
     public void setFilter(@Nullable String text)

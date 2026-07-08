@@ -82,9 +82,11 @@ there are two source sets, both registered as the `visual-swap` mod:
     footer) plus a fixed **rules header** (`RuleColumnsHeader`, an
     `AbstractContainerWidget`) pinned just under the title — it hosts the **search box**
     in the Item column (magnifier where the item icons sit), the Flash/Intensity column
-    captions, and the **Add / Clear / Reset** icon buttons on the right (aligned above
-    each row's duplicate/delete icons), all off the same right-anchored column maths as
-    the rows. The whole middle is a `ScrollableLayout` styled like a
+    captions, a **bulk tint swatch** in the colour column (above each row's own swatch;
+    click → a confirm, then the picker recolours **every** rule at once via
+    `FlashRulesList.setColorForAll`, ignoring the filter), and the **Add / Clear / Reset**
+    icon buttons on the right (aligned above each row's duplicate/delete icons), all off
+    the same right-anchored column maths as the rows. The whole middle is a `ScrollableLayout` styled like a
     vanilla list panel (`menu_list_background` + header/footer separators drawn
     in the screen's `extractRenderState` override). Content: a 2×3 `GridLayout`
     on top — preset selector & size slider | From/To colour **swatches** |

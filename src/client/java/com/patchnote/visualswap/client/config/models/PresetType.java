@@ -7,9 +7,9 @@ import net.minecraft.network.chat.Component;
 /// Custom preset is user-editable; Vanilla/Practice always show these defaults.
 public enum PresetType
 {
-    VANILLA("Vanilla", 0.8, 0x40FFFFFF, 0x95FFFFFF, 0xFFFFFFFF),
-    PRACTICE("Practice", 1.0, 0xFFFF2C2C, 0xFFC30010, 0xFF00FF00),
-    CUSTOM("Custom", 1.0, 0xFF2CFF2C, 0xFF00C310, 0xFFFF0000);
+    VANILLA("Vanilla", 0.8, 0x35FFFFFF, 0x95FFFFFF, 0xFFFFFFFF),
+    PRACTICE("Practice", 1.5, 0xFFFEA82F, 0xFFFF2E00, 0xFFFCFFF7),
+    CUSTOM("Custom", 1.5, 0xFF0B0014, 0xFFF5E9E2, 0xFF0B0014);
 
     private final String displayName;
     private final double size;

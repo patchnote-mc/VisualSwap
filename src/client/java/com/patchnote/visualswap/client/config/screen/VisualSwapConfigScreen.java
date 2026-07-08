@@ -46,7 +46,7 @@ public final class VisualSwapConfigScreen extends Screen
 
     // Custom-colour row: a "From"/"To" caption then a colour swatch (click opens the picker).
     private static final int COLOR_LABEL_W = 34;
-    private static final int COLOR_SWATCH = 16;
+    private static final int COLOR_SWATCH_SIZE = 16;
     private static final int COLOR_GAP = 6;     // caption → swatch
 
     // Vertical rhythm of the scrollable content column.
@@ -93,6 +93,11 @@ public final class VisualSwapConfigScreen extends Screen
     private String filterText = "";
     private boolean refocusSearch;
     private boolean focusNewRow;
+
+    /// One-shot: set when the "set all colours" confirm is accepted, so the next init opens the bulk-tint picker — the
+    /// confirm-modal's return re-runs init (clearing overlays), so the picker must be (re)opened after that, not
+    /// during.
+    private boolean openBulkColorPicker;
 
     /// Recomputed each init; drives the header dot, the Discard button, and the confirm-before-leaving guard.
     private boolean isModified;
@@ -216,13 +221,19 @@ public final class VisualSwapConfigScreen extends Screen
 
         content.addChild(top, LayoutSettings::alignHorizontallyCenter);
 
-        // global flash-duration slider (not preset-scoped, so always editable)
+        content.addChild(new SpacerElement(0, 8));
+
+        int topWidth = colW + COL_GAP + (COLOR_LABEL_W + COLOR_ROW_GAP + COLOR_SWATCH_SIZE) + COL_GAP +
+                HotbarSwapPreview.WIDTH;
         TicksSlider ticksSlider = new TicksSlider(
-                0, 0, rowWidth, CHIP_H, this.workingVisibleTicks, ticks -> this.workingVisibleTicks = ticks
+                0, 0, topWidth, CHIP_H, //
+                this.workingVisibleTicks, ticks -> this.workingVisibleTicks = ticks
         );
-        ticksSlider.setTooltip(
-                Tooltip.create(Component.literal("How many ticks a clicked item's flash tint stays visible.")));
+        ticksSlider.setTooltip(Tooltip.create(Component.literal(
+                "How many ticks a clicked item's flash tint stays visible.")));
         content.addChild(ticksSlider, LayoutSettings::alignHorizontallyCenter);
+
+        content.addChild(new SpacerElement(0, 8));
 
         // rules table — build first so the count + empty-state can read its filtered size
         this.list = new FlashRulesList(
@@ -246,7 +257,12 @@ public final class VisualSwapConfigScreen extends Screen
                 this::confirmClear,
                 this::confirmResetRules,
                 this.list.totalCount() > 0,
-                resetRulesEnabled
+                resetRulesEnabled,
+                this.list::commonColor,
+                this.workingType.isColorEditable(),
+                this::confirmSetAllColors,
+                this.list::setColorForAll,
+                this.overlays
         );
         content.addChild(this.tableHeader, LayoutSettings::alignVerticallyMiddle);
 
@@ -296,6 +312,7 @@ public final class VisualSwapConfigScreen extends Screen
         arrangeContents();
         restoreScroll(previousScroll);
         applyPendingFocus();
+        applyPendingColorPicker();
     }
 
     /// The fixed header, then the scroll viewport below it — dropping HeaderAndFooterLayout's ~30px content margin.
@@ -331,6 +348,16 @@ public final class VisualSwapConfigScreen extends Screen
             }
             this.focusNewRow = false;
         }
+    }
+
+    /// Open the bulk-tint picker if the last "set all colours" confirm asked for it — deferred to here (init's tail, so
+    /// the header is laid out and {@link #init}'s {@code overlays.close()} has already run) because the confirm modal's
+    /// return re-runs init and would otherwise close a picker opened mid-confirm. One-shot.
+    private void applyPendingColorPicker()
+    {
+        if (!this.openBulkColorPicker) return;
+        this.openBulkColorPicker = false;
+        this.tableHeader.openColorPicker();
     }
 
     /// The rules viewport's current scroll offset (0 before the first init, when there is no container yet).
@@ -377,7 +404,7 @@ public final class VisualSwapConfigScreen extends Screen
                 LayoutSettings::alignVerticallyMiddle
         );
 
-        ColorSwatch swatch = new ColorSwatch(COLOR_SWATCH, color);
+        ColorSwatch swatch = new ColorSwatch(COLOR_SWATCH_SIZE, color);
         swatch.setOnPress(() -> openPicker(swatch, color.getAsInt(), onEdit));
         swatch.setClickable(this.workingType.isColorEditable());
         row.addChild(swatch, LayoutSettings::alignVerticallyMiddle);
@@ -467,6 +494,20 @@ public final class VisualSwapConfigScreen extends Screen
         );
     }
 
+    /// Gate the header's bulk tint action behind a confirm (it overwrites every rule's colour). On confirm, just flag
+    /// the picker to open on the next init — the modal's return re-runs init, which is where the picker is opened so it
+    /// isn't torn down by that rebuild. No rebuild is triggered here, so init runs exactly once (from the modal
+    /// close).
+    private void confirmSetAllColors()
+    {
+        openConfirm(
+                "Set all colours?",
+                List.of("Set the tint of every rule to a single colour?"),
+                "Set all",
+                () -> this.openBulkColorPicker = true
+        );
+    }
+
     private void confirmDiscard()
     {
         openConfirm(
@@ -547,8 +588,10 @@ public final class VisualSwapConfigScreen extends Screen
     private boolean isModified(List<FlashRule> currentRules)
     {
         return this.workingType != this.savedType || this.workingVisibleTicks != this.savedVisibleTicks ||
-                !this.workingCustom.sameValuesAs(this.savedCustom) ||
-                !FlashRule.listsSameValues(currentRules, this.savedRules);
+                !this.workingCustom.sameValuesAs(this.savedCustom) || !FlashRule.listsSameValues(
+                currentRules,
+                this.savedRules
+        );
     }
 
     /// Enable/disable the Done button and set the matching tooltip — an invalid config can never be saved.
