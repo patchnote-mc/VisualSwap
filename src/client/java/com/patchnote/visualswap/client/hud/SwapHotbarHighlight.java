@@ -44,7 +44,7 @@ public final class SwapHotbarHighlight
     /// Called Via {@link HudHotbarHighlightMixin}
     public void highlightSlot(GuiGraphicsExtractor graphics, int slotX, int slotY)
     {
-        if (!this.active || this.trailLen == 0) return;
+        if (!this.active || this.trailLen == 0 || !ModConfig.get().hotbarHighlightActive()) return;
 
         // Last match wins so a slot revisited later in the chain renders at its brightest position.
         int idx = -1;

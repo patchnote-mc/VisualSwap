@@ -1,6 +1,7 @@
 package com.patchnote.visualswap.client.particles;
 
 import com.patchnote.visualswap.VisualSwap;
+import com.patchnote.visualswap.client.config.ModConfig;
 import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
@@ -56,6 +57,7 @@ public final class ParticlesHandler
     public static void spawnParticles(Minecraft client, Entity target, int chainHits, AttackParticleProps props)
     {
         if (client.level == null) return;
+        if (!ModConfig.get().particlesActive()) return;
 
         boolean consecutive = chainHits >= CONSECUTIVE_MIN_HITS;
         SwapParticleType type = consecutive ? SWAP_CONSECUTIVE : SWAP_ATTACKED;

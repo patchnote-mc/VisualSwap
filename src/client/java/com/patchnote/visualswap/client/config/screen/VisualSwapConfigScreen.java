@@ -26,6 +26,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
@@ -77,11 +78,23 @@ public final class VisualSwapConfigScreen extends Screen
     /// Working copy of the global flash-visible-ticks setting (not preset-scoped); committed to ModConfig on "Done".
     private int workingVisibleTicks;
 
+    /// Working copies of the master toggles (not preset-scoped); committed to ModConfig on "Done".
+    private boolean workingModEnabled;
+    private boolean workingHudEnabled;
+    private boolean workingHotbarHighlightEnabled;
+    private boolean workingItemFlashEnabled;
+    private boolean workingParticlesEnabled;
+
     /// The saved config as captured on open — the baseline the working state is diffed against to detect unsaved edits,
     /// and the values a "Discard" reverts to.
     private final PresetType savedType;
     private final Preset savedCustom;
     private final int savedVisibleTicks;
+    private final boolean savedModEnabled;
+    private final boolean savedHudEnabled;
+    private final boolean savedHotbarHighlightEnabled;
+    private final boolean savedItemFlashEnabled;
+    private final boolean savedParticlesEnabled;
     private final List<FlashRule> savedRules;
 
     /// When set, {@link #init} seeds the rules table from this list (instead of carrying the current rows over) — used
@@ -132,10 +145,20 @@ public final class VisualSwapConfigScreen extends Screen
         this.workingType = cfg.preset;
         this.workingCustom = new Preset(cfg.customPresetData);
         this.workingVisibleTicks = cfg.flashVisibleTicks;
+        this.workingModEnabled = cfg.modEnabled;
+        this.workingHudEnabled = cfg.hudEnabled;
+        this.workingHotbarHighlightEnabled = cfg.hotbarHighlightEnabled;
+        this.workingItemFlashEnabled = cfg.itemFlashEnabled;
+        this.workingParticlesEnabled = cfg.particlesEnabled;
 
         this.savedType = cfg.preset;
         this.savedCustom = new Preset(cfg.customPresetData);
         this.savedVisibleTicks = cfg.flashVisibleTicks;
+        this.savedModEnabled = cfg.modEnabled;
+        this.savedHudEnabled = cfg.hudEnabled;
+        this.savedHotbarHighlightEnabled = cfg.hotbarHighlightEnabled;
+        this.savedItemFlashEnabled = cfg.itemFlashEnabled;
+        this.savedParticlesEnabled = cfg.particlesEnabled;
         this.savedRules = cfg.clickFlashRules.stream()
                 .map(FlashRule::new).toList();
         // Each saved rule is its own baseline; working copies inherit the link (copy ctor) to drive per-row markers.
@@ -176,6 +199,38 @@ public final class VisualSwapConfigScreen extends Screen
         // --- scrollable content column ---
         LinearLayout content = LinearLayout.vertical().spacing(CONTENT_SPACING);
         content.addChild(new SpacerElement(0, 4));
+
+        // effect toggles: a top row of the master + effect groups, then the HUD's finer sub-toggles beneath it.
+        // Mod gates everything; HUD gates the glyph plus the two finer switches. Toggling either rebuilds so the
+        // dependent switches grey out to show the umbrella relationship.
+        boolean hudControlsActive = this.workingModEnabled && this.workingHudEnabled;
+
+        GridLayout toggles = new GridLayout().columnSpacing(COL_GAP);
+        toggles.defaultCellSetting().alignVerticallyMiddle();
+        int toggleW = (rowWidth - 2 * COL_GAP) / 3;
+        toggles.addChild(masterToggle(
+                toggleW, "Mod", this.workingModEnabled, true,
+                v -> { this.workingModEnabled = v; rebuildWidgets(); }), 0, 0);
+        toggles.addChild(masterToggle(
+                toggleW, "HUD", this.workingHudEnabled, this.workingModEnabled,
+                v -> { this.workingHudEnabled = v; rebuildWidgets(); }), 0, 1);
+        toggles.addChild(masterToggle(
+                toggleW, "Particles", this.workingParticlesEnabled, this.workingModEnabled,
+                v -> { this.workingParticlesEnabled = v; rebuildWidgets(); }), 0, 2);
+        content.addChild(toggles, LayoutSettings::alignHorizontallyCenter);
+
+        GridLayout hudToggles = new GridLayout().columnSpacing(COL_GAP);
+        hudToggles.defaultCellSetting().alignVerticallyMiddle();
+        int subW = (rowWidth - COL_GAP) / 2;
+        hudToggles.addChild(masterToggle(
+                subW, "Hotbar Highlight", this.workingHotbarHighlightEnabled, hudControlsActive,
+                v -> { this.workingHotbarHighlightEnabled = v; rebuildWidgets(); }), 0, 0);
+        hudToggles.addChild(masterToggle(
+                subW, "Item Flash", this.workingItemFlashEnabled, hudControlsActive,
+                v -> { this.workingItemFlashEnabled = v; rebuildWidgets(); }), 0, 1);
+        content.addChild(hudToggles, LayoutSettings::alignHorizontallyCenter);
+
+        content.addChild(new SpacerElement(0, 8));
 
         // top controls, a 2x3 grid:  preset | From colour | swap preview
         //                            slider | To colour   | reset-colours button
@@ -397,6 +452,19 @@ public final class VisualSwapConfigScreen extends Screen
         area.setScrollAmount(Math.clamp(target, 0.0, area.maxScrollAmount()));
     }
 
+    /// One effect on/off toggle: an "ON/OFF"-suffixed cycle button whose value is written straight to {@code onChange}.
+    /// {@code active} greys it out when a switch it depends on is off (e.g. a HUD sub-toggle while HUD is off).
+    private CycleButton<Boolean> masterToggle(int width, String label, boolean initial, boolean active,
+                                              Consumer<Boolean> onChange)
+    {
+        CycleButton<Boolean> button = CycleButton.onOffBuilder(initial).create(
+                0, 0, width, CHIP_H, //
+                Component.literal(label), (b, value) -> onChange.accept(value)
+        );
+        button.active = active;
+        return button;
+    }
+
     /// One From/To colour row: a caption and a swatch that opens the picker (Custom preset only). The picker writes the
     /// picked ARGB straight to {@code onEdit}, and the swatch reads {@code color} live, so no rebuild is needed.
     private LinearLayout colorRow(String label, IntSupplier color, IntConsumer onEdit)
@@ -561,6 +629,11 @@ public final class VisualSwapConfigScreen extends Screen
         this.workingType = this.savedType;
         this.workingCustom = new Preset(this.savedCustom);
         this.workingVisibleTicks = this.savedVisibleTicks;
+        this.workingModEnabled = this.savedModEnabled;
+        this.workingHudEnabled = this.savedHudEnabled;
+        this.workingHotbarHighlightEnabled = this.savedHotbarHighlightEnabled;
+        this.workingItemFlashEnabled = this.savedItemFlashEnabled;
+        this.workingParticlesEnabled = this.savedParticlesEnabled;
         this.filterText = "";
         this.pendingRules = this.savedRules;
         this.list = null;
@@ -591,6 +664,10 @@ public final class VisualSwapConfigScreen extends Screen
     private boolean isModified(List<FlashRule> currentRules)
     {
         return this.workingType != this.savedType || this.workingVisibleTicks != this.savedVisibleTicks ||
+                this.workingModEnabled != this.savedModEnabled || this.workingHudEnabled != this.savedHudEnabled ||
+                this.workingHotbarHighlightEnabled != this.savedHotbarHighlightEnabled ||
+                this.workingItemFlashEnabled != this.savedItemFlashEnabled ||
+                this.workingParticlesEnabled != this.savedParticlesEnabled ||
                 !this.workingCustom.sameValuesAs(this.savedCustom) || !FlashRule.listsSameValues(
                 currentRules,
                 this.savedRules
@@ -617,6 +694,11 @@ public final class VisualSwapConfigScreen extends Screen
         cfg.preset = this.workingType;
         cfg.customPresetData = new Preset(this.workingCustom);
         cfg.flashVisibleTicks = this.workingVisibleTicks;
+        cfg.modEnabled = this.workingModEnabled;
+        cfg.hudEnabled = this.workingHudEnabled;
+        cfg.hotbarHighlightEnabled = this.workingHotbarHighlightEnabled;
+        cfg.itemFlashEnabled = this.workingItemFlashEnabled;
+        cfg.particlesEnabled = this.workingParticlesEnabled;
         cfg.clickFlashRules = this.list.toRules();
         AutoConfig.getConfigHolder(ModConfig.class).save();
         this.minecraft.setScreenAndShow(this.parent);

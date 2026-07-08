@@ -1,5 +1,6 @@
 package com.patchnote.visualswap.client.mixin;
 
+import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.hud.click.ItemFlash;
 import com.patchnote.visualswap.client.hud.click.ItemFlashPipeline;
 import com.patchnote.visualswap.client.utils.Constants;
@@ -33,6 +34,8 @@ public class HotbarItemGlowMixin
     private void visualswap$glowClickedSlot(GuiItemRenderState itemState, GuiItemAtlas.SlotView slotView,
                                             CallbackInfo ci)
     {
+        if (!ModConfig.get().itemFlashActive()) return;
+
         Minecraft mc = Minecraft.getInstance();
         int guiWidth = mc.getWindow().getGuiScaledWidth();
         int guiHeight = mc.getWindow().getGuiScaledHeight();

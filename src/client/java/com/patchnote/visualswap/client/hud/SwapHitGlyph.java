@@ -49,7 +49,7 @@ public final class SwapHitGlyph implements HudElement
     @Override
     public void extractRenderState(@NonNull GuiGraphicsExtractor graphics, @NonNull DeltaTracker deltaTracker)
     {
-        if (!this.visible) { return; }
+        if (!this.visible || !ModConfig.get().hudActive()) { return; }
 
         ensureLoaded();
         SwapHitMasks.Mask mask;
