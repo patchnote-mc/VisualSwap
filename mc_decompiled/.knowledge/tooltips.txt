@@ -1,0 +1,90 @@
+Tooltips (MC 26.2, extract-render model) — verified 2026-07-07 against client_src/common_src.
+
+SUBMISSION (GuiGraphicsExtractor, client/gui/GuiGraphicsExtractor.java) — all setTooltipForNextFrame
+overloads are DEFERRED: they only store `deferredTooltip` (Runnable field, line 143); it is run later by
+extractDeferredElements (line 733), which Screen.extractRenderStateWithTooltipAndSubtitles calls AFTER
+extractRenderState (Screen.java 149-155). So a widget just calls setTooltipForNextFrame during its extract
+pass and vanilla draws it topmost automatically. First submission per frame wins unless replaceExisting=true.
+Overloads (lines 630-683):
+- setTooltipForNextFrame(Component text, int x, int y)                                   [630]
+- setTooltipForNextFrame(List<FormattedCharSequence>, int x, int y)                      [634]
+- setTooltipForNextFrame(Font, ItemStack, int xo, int yo)                                [638]
+    = Screen.getTooltipFromItem(mc, stack) + stack.getTooltipImage() + style from
+    stack.get(DataComponents.TOOLTIP_STYLE). ONE-LINER for item tooltips.
+- setTooltipForNextFrame(Font, List<Component>, Optional<TooltipComponent>, int xo, int yo[, @Nullable Identifier style])  [642/646]
+- setTooltipForNextFrame(Font, List<FormattedCharSequence>, Optional<TooltipComponent>, ClientTooltipPositioner, int xo, int yo, boolean replaceExisting, @Nullable Identifier style)  [652]
+- setTooltipForNextFrame(Font, Component, int xo, int yo[, style])                       [658/662]
+- setComponentTooltipForNextFrame(Font, List<Component>, int xo, int yo[, style])        [666/670]
+- setTooltipForNextFrame(Font, List<? extends FormattedCharSequence>, int xo, int yo[, style])  [674/678]
+- setTooltipForNextFrame(Font, List<FormattedCharSequence>, ClientTooltipPositioner, int xo, int yo, boolean replaceExisting)  [682]
+All funnel into private setTooltipForNextFrameInternal(...) [686] (no-op on empty lines).
+
+IMMEDIATE draw: public void tooltip(Font, List<ClientTooltipComponent> lines, int xo, int yo,
+ClientTooltipPositioner, @Nullable Identifier style) [695] — measures w=max line.getWidth(font),
+h=sum line.getHeight(font) (h-=2 if exactly 1 line), positions via positioner.positionTooltip(guiWidth,
+guiHeight, xo, yo, w, h) -> (x,y)=TEXT top-left, then TooltipRenderUtil.extractTooltipBackground(this,x,y,w,h,style),
+then per-line extractText and extractImage passes; y advance = line.getHeight(font) + (i==0 ? 2 : 0).
+Callable directly if you want a tooltip NOT on the top stratum / multiple tooltips.
+
+STRATA: nextStratum() [184] -> GuiRenderState.nextStratum() (client/renderer/state/gui/GuiRenderState.java 52-55
+— note package, NOT gui/render/state). Appends a new root node; strata render strictly in creation order, so a
+later stratum is always on top of earlier ones. Screen frame = stratum(background), stratum(widgets), then
+extractDeferredElements [733]: if preeditOverlay set -> nextStratum + draw it; if deferredTooltip set ->
+nextStratum + run + clear. blurBeforeThisStratum() [188] marks blur point (once per frame max).
+
+VANILLA CONTAINER SLOT CHAIN (client/gui/screens/inventory/AbstractContainerScreen.java):
+extractRenderState [109-113] -> extractTooltip [177-185]: if hoveredSlot has item and carried empty:
+  graphics.setTooltipForNextFrame(this.font, this.getTooltipFromContainerItem(item), item.getTooltipImage(),
+      mouseX, mouseY, (Identifier)item.get(DataComponents.TOOLTIP_STYLE));
+getTooltipFromContainerItem [191] -> Screen.getTooltipFromItem(minecraft, itemStack) (Screen.java 293):
+  itemStack.getTooltipLines(Item.TooltipContext.of(minecraft.level), minecraft.player,
+      minecraft.options.advancedItemTooltips ? TooltipFlag.ADVANCED : TooltipFlag.NORMAL)
+minecraft.level / minecraft.player may be null — signature tolerates both (see below).
+
+ITEMSTACK LINES (common_src/net/minecraft/world/item/ItemStack.java):
+- public List<Component> getTooltipLines(Item.TooltipContext context, @Nullable Player player, TooltipFlag tooltipFlag)  [825]
+  Reads TOOLTIP_DISPLAY from the stack, adds getStyledHoverName() then addDetailsToTooltip [837].
+- public Optional<TooltipComponent> getTooltipImage()  [230] (bundle contents etc.)
+Item.TooltipContext (common_src Item.java 606-689): interface { @Nullable HolderLookup.Provider registries();
+float tickRate(); @Nullable MapItemSavedData mapData(MapId); boolean isPeaceful(); }
+  - TooltipContext.EMPTY [607] (null registries, 20.0 tickrate, null map, not peaceful)
+  - static TooltipContext of(@Nullable Level level) [638] — returns EMPTY when level==null. NULL-SAFE.
+  - static TooltipContext of(HolderLookup.Provider) [666]
+TooltipFlag (common_src TooltipFlag.java): interface with constants directly on it:
+  TooltipFlag.NORMAL = new Default(false,false); TooltipFlag.ADVANCED = new Default(true,false);
+  record Default(boolean advanced, boolean creative); isAdvanced()/isCreative().
+Null behavior: player==null is fine (all player uses guarded, e.g. isEnabled check is `player != null && ...`).
+TITLE-SCREEN GOTCHA: getTooltipLines itself is safe on an EXISTING stack; the unbound-components NPE happens
+when CONSTRUCTING the stack (new ItemStack(item) / getDefaultInstance) before a world has loaded — guard with
+item.builtInRegistryHolder().areComponentsBound() (see screen-and-widget-api.txt GOTCHA). With EMPTY context
+registries()==null; exotic component tooltips needing registries may degrade, plain items fine.
+
+BACKGROUND PANEL (client/gui/screens/inventory/tooltip/TooltipRenderUtil.java) — sprite-based, PUBLIC helper,
+callable from mod code with any position:
+  public static void extractTooltipBackground(GuiGraphicsExtractor g, int x, int y, int w, int h, @Nullable Identifier style)
+  (x,y)=TEXT top-left, (w,h)=text block size. Draws two nine-slice gui sprites via
+  g.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x-12, y-12, w+24, h+24):
+  minecraft:tooltip/background then minecraft:tooltip/frame (style!=null -> tooltip/{path}_background / _frame).
+  Constants: PADDING(3 each side), MARGIN=9 (12 = 3+9 sprite overhang), MOUSE_OFFSET=12.
+
+POSITIONERS (client/gui/screens/inventory/tooltip/):
+- interface ClientTooltipPositioner { Vector2ic positionTooltip(int screenW, int screenH, int x, int y, int tooltipW, int tooltipH); }  (org.joml)
+- DefaultTooltipPositioner.INSTANCE: mouse-style, (x,y)+(12,-12); if x+w>screenW -> x=max(x-24-w,4);
+  if y+h+3>screenH -> y=screenH-h-3. Returned coords = TEXT top-left.
+- MenuTooltipPositioner(ScreenRectangle) — below hovered widget; BelowOrAboveWidgetTooltipPositioner(ScreenRectangle)
+  — keyboard-focus. For an exact fixed spot: implement the interface returning your own Vector2i, or call
+  g.tooltip(...) / extractTooltipBackground + g.text(...) yourself.
+
+WIDGET BUILT-IN (client/gui/components/AbstractWidget.java): field WidgetTooltipHolder tooltip [62];
+setTooltip(@Nullable Tooltip) [97], setTooltipDelay(Duration) [101]. AbstractWidget.extractRenderState wrapper
+calls extractTooltipForNextRenderPass [87] -> holder.refreshTooltipForNextRenderPass(g, mouseX, mouseY,
+isHovered(), isFocused(), getRectangle()) which, after delay while hovered/keyboard-focused, calls
+g.setTooltipForNextFrame(font, tooltip.toCharSequence(mc), tooltip.component(), positioner, mouseX, mouseY,
+isFocused, tooltip.style()); positioner = MenuTooltipPositioner(rect) when hovered else
+BelowOrAboveWidgetTooltipPositioner. Tooltip.create(Component[, narration]) wraps at MAX_WIDTH=170
+(Tooltip.splitTooltip). Text-only — for ITEM tooltips call g.setTooltipForNextFrame(font, stack, x, y) yourself
+in extractWidgetRenderState when isHoveredOrFocused().
+
+ClientTooltipComponent (same pkg, ClientTooltipComponent.java): static create(FormattedCharSequence) [23] /
+create(TooltipComponent) [27] (throws on unknown component); int getHeight(Font); int getWidth(Font);
+default void extractText(GuiGraphicsExtractor, Font, int x, int y); default void extractImage(Font, x, y, w, h, GuiGraphicsExtractor).

@@ -1,5 +1,5 @@
 {
-  "_comment": "Single source of truth for the swap-hit glyph shapes. '#' = filled cell. Each mask has a 'color' (ARGB HUD tint) and a 'particleColor' (ARGB particle tint), and each carries 'vanilla' and 'practice' variants selected at runtime by the IndicatorType config. Particle sprites are baked OPAQUE WHITE by the bakeParticleSprites Gradle task (assets/.../textures/particle/<particle>.png) and tinted at render time by particleColor, so one static sprite serves both variants. Edit a mask here and BOTH the HUD glyph and the particle update.",
+  "_comment": "Single source of truth for the swap-hit glyph shapes. '#' = filled cell. Each mask has a 'color' (ARGB HUD tint) and a 'particleColor' (ARGB particle tint), and each carries 'vanilla' and 'practice' variants selected at runtime by the Preset config. A mask with a 'particle' name bakes an OPAQUE WHITE sprite via the bakeParticleSprites Gradle task (assets/.../textures/particle/<particle>.png), tinted at render time by particleColor so one static sprite serves both variants; a HUD-only mask omits 'particle' (no particle type is registered for it and no sprite is baked). Edit a mask here and BOTH the HUD glyph and the particle update.",
   "masks": {
     "possible": {
       "particle": "swap_possible",
@@ -42,7 +42,6 @@
       ]
     },
     "failed": {
-      "particle": "swap_failed",
       "color": {
         "vanilla": "0xAAC85A5A",
         "practice": "0xAAFF0000"

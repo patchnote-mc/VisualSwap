@@ -1,0 +1,56 @@
+GUI layout system (MC 26.2) — net.minecraft.client.gui.layouts.* — verified from decompiled client_src.
+A real flex/grid-like layout toolkit. Everything implements LayoutElement (so do all AbstractWidgets:
+Button, EditBox, StringWidget, AbstractSliderButton, CycleButton, and our ColorSwatch/SizeSlider/FlashRulesList).
+
+CLASSES:
+- Layout (interface extends LayoutElement): visitChildren, visitWidgets(Consumer<AbstractWidget>) [default:
+  recurses to leaf widgets], arrangeElements() [default: recurse], removeChildren().
+- AbstractLayout: base; getX/Y/Width/Height, setX/Y.
+- LinearLayout implements Layout: flexbox row/column. Static: LinearLayout.horizontal() / .vertical().
+  .spacing(int) = gap (columnSpacing for horizontal, rowSpacing for vertical). Backed by a GridLayout (1 row or
+  1 col). addChild(child) / addChild(child, LayoutSettings) / addChild(child, Consumer<LayoutSettings>).
+- GridLayout extends AbstractLayout: CSS-grid-ish. addChild(child, row, col[, rows, cols][, cellSettings]).
+  rowSpacing(n)/columnSpacing(n)/spacing(n). createRowHelper(cols) -> RowHelper.addChild(widget[, colSpan])
+  auto-flows left-to-right wrapping every `cols`. Column width = MAX intrinsic width of that column's children
+  (content-sized; NO fr/percentage units, NO flex-grow). Spanning via rows/cols params.
+- FrameLayout extends AbstractLayout: z-stack / overlay + centering. Sizes to max child (or setMinDimensions).
+  Static helpers (no instance needed): FrameLayout.centerInRectangle(widget, x,y,w,h) and (widget, ScreenRectangle);
+  alignInRectangle(widget, x,y,w,h, alignX, alignY); alignInDimension(pos,length,widgetLen,setter,align).
+- EqualSpacingLayout(x,y,w,h, Orientation): distributes children across a fixed length = flex space-between.
+- HeaderAndFooterLayout: standard screen scaffold (title header + scrolling content + footer buttons).
+- LayoutSettings (per-cell, like margin+align-self): padding(...)/paddingLeft/Top/Right/Bottom/Horizontal/Vertical;
+  align(xAlign,yAlign) with 0=start .5=center 1=end, + alignHorizontally/Vertically{Left,Center,Right,Top,Middle,
+  Bottom}. Grid default align = top-left; FrameLayout default = center (.5,.5). copy().
+- SpacerElement, CommonLayouts: helpers.
+
+WIRING INTO A Screen (init()):
+  var root = LinearLayout.vertical().spacing(4);
+  root.addChild(widget, s -> s.alignHorizontallyCenter());   // build tree
+  root.arrangeElements();                                     // compute all x/y (call AFTER setting root x/y)
+  root.visitWidgets(this::addRenderableWidget);               // register leaf widgets with the screen
+  Position the whole tree with root.setX/setY BEFORE arrangeElements, or FrameLayout.centerInRectangle(root,
+  0,0,this.width,this.height) after arrange to center it. On resize, init() re-runs so rebuild+rearrange.
+
+LIMITS vs CSS flex: content-sized only (no grow/shrink, no %/fr); you still pass explicit widget widths for
+"fill". Column/row size = max of children. Good for STACKS (vertical control column), ROWS (label+swatch+box),
+and FOOTER button rows. NOT automatic for the rules-table header<->entry alignment: those columns
+(ON_WIDTH/INTENSITY_WIDTH/COLOR_WIDTH/DELETE_WIDTH) are a contract shared between the screen header
+(addColumnHeaders) and FlashRuleEntry's own right-anchored math inside the list; a screen-level grid won't line
+up with list rows unless BOTH use the same grid geometry. Keep those shared constants (or push both onto one grid).
+
+SCROLLING A LAYOUT (whole-page scroll) — verified:
+- ScrollableLayout (net.minecraft.client.gui.components.ScrollableLayout) implements Layout. Wraps ANY Layout content
+  and scrolls it within a max height: new ScrollableLayout(minecraft, contentLayout, maxHeight[, ReserveStrategy]);
+  setMinWidth/setMinHeight/setMaxHeight; its inner Container (an AbstractContainerWidget) scissors + renders the
+  content's leaf widgets (collected via content.visitWidgets), routes events, and offsets content.setY by scrollAmount.
+- HeaderAndFooterLayout(this): standard shell — addTitleHeader(title, font); addToContents(LinearLayout...);
+  addToFooter(LinearLayout.horizontal().spacing(8)); then layout.visitWidgets(this::addRenderableWidget);
+  repositionElements() calls layout.arrangeElements() and can grow the ScrollableLayout to fill leftover height.
+  Header + footer are FIXED; only the contents scroll. Template: worldselection/ExperimentsScreen (init + repositionElements).
+- A NON-scrolling container widget = AbstractContainerWidget with NO_SCROLL. Its 5-arg ctor passes
+  ScrollbarSettings.NO_SCROLL; you implement contentHeight() (return getHeight() so maxScroll==0), children(),
+  extractWidgetRenderState (position + render child widgets each frame), updateWidgetNarration. Event routing comes
+  free (implements ContainerEventHandler; mouseClicked uses getChildAt — single child, so rebuilding widgets from a
+  child's onPress is CME-safe). VisualSwap's FlashRuleRow uses this so rows can be stacked by a LinearLayout and later
+  scrolled by the page instead of each row/list self-scrolling. FlashRulesList is now a plain Layout (delegates to a
+  vertical LinearLayout of FlashRuleRow); add/remove fires a Runnable = screen::rebuildWidgets.

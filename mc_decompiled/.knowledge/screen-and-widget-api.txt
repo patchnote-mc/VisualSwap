@@ -1,0 +1,96 @@
+Screen / widget API (MC 26.2) — verified while building the custom config screen (VisualSwapConfigScreen).
+
+RENDER MODEL: extract-render, NOT the old render(GuiGraphics). Everything draws into a
+GuiGraphicsExtractor during an "extract" pass.
+- Screen: override extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a).
+  super.extractRenderState loops added renderables (widgets + lists). Background is automatic
+  (extractBackground runs before extractRenderState via extractRenderStateWithTooltipAndSubtitles).
+  Draw your own overlay text/labels in the override (before or after super).
+- AbstractWidget: abstract extractWidgetRenderState(g, mouseX, mouseY, a) + abstract
+  updateWidgetNarration(NarrationElementOutput). Use defaultButtonNarrationText(output) for buttons.
+  isHoveredOrFocused(), getX/getY, this.width/this.height, this.active, setMessage/getMessage.
+  setPosition(x,y) exists (LayoutElement default). onClick(MouseButtonEvent, boolean) to handle clicks;
+  base mouseClicked already gates on isActive + isValidClickButton + isMouseOver and plays the sound.
+  isValidClickButton(MouseButtonInfo) default = button()==0; override to accept right-click (==1).
+
+INPUT: net.minecraft.client.input.{MouseButtonEvent, MouseButtonInfo, KeyEvent}.
+  MouseButtonEvent(double x, double y, MouseButtonInfo) — .button() (0=left,1=right), .x(), .y().
+  GuiEventListener.mouseScrolled(double x, double y, double scrollX, double scrollY).
+
+GuiGraphicsExtractor drawing (net.minecraft.client.gui.GuiGraphicsExtractor):
+  guiWidth/guiHeight, pose() (Matrix3x2fStack), enableScissor(x0,y0,x1,y1)/disableScissor,
+  fill(x0,y0,x1,y1,argb) [default GUI pipeline] / fill(RenderPipeline,...), fillGradient, outline(x,y,w,h,col),
+  horizontalLine/verticalLine, text(Font,{String|Component|FormattedCharSequence},x,y,col[,dropShadow]),
+  centeredText(Font,...,centerX,y,col), textWithWordWrap, item(ItemStack,x,y[,seed]), itemDecorations,
+  blit/blitSprite(...). Font via Minecraft.getInstance().font; lineHeight~9; font.width(str).
+  Text y is the TOP of the line; vertical-center a line in height h with y + (h-8)/2.
+
+SCROLLABLE TABLE: ContainerObjectSelectionList<E extends Entry<E>> (extends AbstractSelectionList ->
+AbstractContainerWidget -> AbstractWidget; add to screen via addRenderableWidget — routes events + focus).
+  ctor(Minecraft, int width, int height, int y, int itemHeight). x is 0; rows centered.
+  Override getRowWidth() (default 220). scrollBarX() default = getRowRight()+? ; override to place it.
+  addEntry(E) [protected], removeEntry(E) [protected], scrollToEntry(E) [protected], setSelected(E) [public],
+  children() returns List<E>. Draws menu_list_background over its rect + top/bottom separators + scrollbar.
+  Entry (ContainerObjectSelectionList.Entry<E>, implements ContainerEventHandler) — implement:
+    void extractContent(g, mouseX, mouseY, boolean hovered, float a)  // position child widgets here each frame
+    List<? extends GuiEventListener> children()      // for click/focus routing
+    List<? extends NarratableEntry> narratables()
+  The list sets each entry's X/width per frame; read geometry via getContentX/getContentY/getContentRight/
+  getContentWidth/getContentHeight/getContentYMiddle. Position child widgets (setX/setY/setWidth), then call
+  child.extractRenderState(g, mouseX, mouseY, a). EditBox typing works automatically through this chain.
+  Pattern mirrored from net.minecraft.client.gui.screens.worldselection.AbstractGameRulesScreen.
+
+WIDGETS: Button.builder(Component,OnPress).bounds(x,y,w,h).build(); EditBox(font,x,y,w,h,Component) with
+  setValue/getValue/setResponder(Consumer<String>)/setMaxLength/setHint/setTextColor(ARGB — MUST include the
+  alpha byte, e.g. 0xFFE0E0E0; the extract path draws text via graphics.text with the raw ARGB, so a bare
+  0xRRGGBB has alpha 0 and renders INVISIBLE while the selection rect still shows. Default is -2039584=0xFFE1E1E0);
+  AbstractSliderButton(x,y,w,h,Component,double value 0..1) abstract updateMessage()+applyValue(), protected
+  double value, protected setValue. CycleButton.builder / onOffBuilder exists (not used here; built custom chips).
+  StringWidget(x,y,w,h,Component,Font).
+
+MISC: Minecraft.setScreenAndShow(Screen) (NOT setScreen). BuiltInRegistries.ITEM is a DefaultedRegistry:
+  getValue(Identifier) returns AIR item for unknown ids; getKey(Item) -> Identifier. Identifier.tryParse(String).
+
+GOTCHA — item components bind LATE (only on a data/resource reload, i.e. when a world loads; see
+  ReloadableServerResources.reload -> PendingComponents::apply). At the TITLE MENU no world is loaded, so
+  item components are UNBOUND and `new ItemStack(item)` (also item.getDefaultInstance()) throws
+  NPE "Components not bound yet" (Holder$Reference.components). A ModMenu config screen opened from the title
+  screen hits this. Guard before building/rendering a stack: item.builtInRegistryHolder().areComponentsBound().
+  Validate an id via getValue(...)!=Items.AIR (works pre-bind); only build/draw the ItemStack when components
+  are bound (in a world). VisualSwapConfigScreen.FlashRulesList does exactly this (valid flag vs preview stack).
+  Component.literal/translatable/empty (net.minecraft.network.chat.Component). Identifier is
+  net.minecraft.resources.Identifier (this repo uses Identifier, never ResourceLocation).
+
+Config screen (2026-07-07): client/config/screen/VisualSwapConfigScreen.java + widget/ classes. Built on the
+layouts package (see gui-layouts.txt): HeaderAndFooterLayout + ScrollableLayout page scroll; FlashRulesList is a
+plain vertical Layout of FlashRuleRow (AbstractContainerWidget + NO_SCROLL, NOT ContainerObjectSelectionList —
+the page owns scrolling; add/remove fires screen::rebuildWidgets). Custom widgets: SizeSlider, ColorSwatch,
+RuleColumnsHeader, HotbarSwapPreview (two-slot hotbar crop; flashes an item through WHITE_SILHOUETTE by
+registering coords+tint in hud/click/ItemFlashPreview, consumed by GuiItemFlashPreviewMixin at
+GuiRenderer.submitBlitFromItemAtlas TAIL — GuiItemRenderState.x()/y() equal the g.item(x,y) args, gui-scaled,
+so exact position match is the correlation; screen.removed() clears the registry). ModMenuIntegration returns
+VisualSwapConfigScreen::new. Edits go to working copies; committed to ModConfig + AutoConfig save() only on "Done".
+
+CycleButton.builder(Function<T,Component> stringifier, T default).withValues(T...).displayOnlyValue()
+  .create(x,y,w,h, Component name, (CycleButton<T> btn, T val)->...). displayOnlyValue() shows just the value
+  (no "name: value"). Left/scroll-up cycle back, shift-click/scroll-down cycle forward.
+
+OVERLAY LAYER (mod-side, 2026-07-07): client/screen/overlay/* — Overlay (AbstractContainerWidget + NO_SCROLL;
+TooltipRenderUtil.extractTooltipBackground panel; setX/setY shift children), OverlayManager (screen routes ALL
+input to it first, extracts last with g.nextStratum(); modal = capture + click-outside/Esc dismiss; hover
+tooltips immediate-mode via showTooltip re-requested per frame), TooltipOverlay (Screen.getTooltipFromItem
+lines), ColorPickerOverlay (wheel/sliders/hex tabs; HueSatWheel bakes a NativeImage->DynamicTexture once,
+value = grey tint on blit; GradientSlider paints per-column). Widget visibility: AbstractWidget.extractRenderState
+is final and gates on .visible; isActive() = visible && active — toggling .visible per tab handles render+input.
+ContainerEventHandler drag: child mouseClicked true -> setFocused + setDragging -> onDrag routing works for
+custom widgets with no extra code. KeyEvent.isEscape() via InputWithModifiers. charTyped(CharacterEvent(codepoint)).
+
+HOVER + CURSOR are extract-time, not event-time (2026-07-07): AbstractWidget.extractRenderState (final) sets
+isHovered = g.containsPointInScissor(mx,my) && areCoordinatesInRectangle(mx,my); the hover outline AND the
+requested cursor are gated on isHovered() — handleCursor -> g.requestCursor(POINTING_HAND/NOT_ALLOWED),
+EditBox render -> g.requestCursor(IBEAM/NOT_ALLOWED). g.requestCursor sets pendingCursor, applied once per frame
+via applyCursor(window)->window.selectCursor (com.mojang.blaze3d.platform.cursor.CursorTypes). So an OverlayManager
+that only intercepts input does NOT stop covered widgets from hovering/grabbing the cursor. Fix: while
+overlays.isModalOpen(), render the page beneath with an off-screen mouse — super.extractRenderState(g, -1, -1, a) —
+then overlays.extract(g, mouseX, mouseY, a) with real coords (last requestCursor wins). Gate on modal only; a
+passive tooltip must leave base hover intact (it is what triggered the tooltip).

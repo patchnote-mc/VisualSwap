@@ -1,12 +1,14 @@
 package com.patchnote.visualswap.client.hud;
 
+import static com.patchnote.visualswap.client.utils.Constants.NO_TICK;
+
 /**
  * State for the GLYPH. Driven by {@code VisualSwapClient}.
  * <p>
  * Model
  * <ul>
- *     <li>{@link #onSwap(int, boolean)} arms the window for {@link #WINDOW_TICKS}; while armed {@code possible} or {@code possible} GLYPH is shown depending on passed argument</li>
- *     <li>Click within the window (set by {@link #onClick(int)}) flashes the {@code attacked} GLYPH</li>
+ *     <li>{@link #eventSwap(int, boolean)} arms the window for {@link #WINDOW_TICKS}; while armed {@code possible} or {@code failed} GLYPH is shown depending on passed argument</li>
+ *     <li>Click within the window (set by {@link #eventClick(int)}) flashes the {@code attacked} GLYPH</li>
  * </ul>
  */
 public final class SwapWindowState
@@ -24,12 +26,10 @@ public final class SwapWindowState
      */
     private static final int WINDOW_TICKS = 2;
 
-    /// Number of ticks {@code attacked} GLYPH is on screen
-    private static final int FLASH_TICKS = 5;
+    /// Number of ticks {@code attacked/failed} GLYPH is on screen
+    private static final int GLYPH_VISIBLE_TICKS = 5;
 
     /* VARIABLES & STATE */
-
-    private static final int NO_TICK = Integer.MIN_VALUE;
 
     private int lastSwapTick = NO_TICK;
     private int flashUntilTick = NO_TICK;
@@ -58,14 +58,14 @@ public final class SwapWindowState
     /* EVENTS */
 
     /// Call when item is swapped.
-    public void onSwap(int tick, boolean failed)
+    public void eventSwap(int tick, boolean failed)
     {
         this.lastSwapTick = tick;
         this.failed = failed;
     }
 
     /// Call when mouse clicked
-    public void onClick(int tick)
+    public void eventClick(int tick)
     {
         if (possible(tick) || this.possibleLastTick)
         {
@@ -76,13 +76,13 @@ public final class SwapWindowState
                 this.chainCount = attacked(tick) ? this.chainCount + 1 : 1;
                 this.lastCreditedSwapTick = this.lastSwapTick;
             }
-            this.flashUntilTick = tick + FLASH_TICKS;
+            this.flashUntilTick = tick + GLYPH_VISIBLE_TICKS;
             this.flashFailed = this.failed;
         }
     }
 
     /// Call on Tick End
-    public void onTickEnd(int tick) { this.possibleLastTick = possible(tick); }
+    public void eventTickEnd(int tick) { this.possibleLastTick = possible(tick); }
 
     /* QUERIES */
 

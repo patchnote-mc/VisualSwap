@@ -13,5 +13,28 @@ Verified members (client_src):
 - void textWithBackdrop / textWithWordWrap(...)
 - void blit / blitSprite / item / fakeItem(...)
 
+blit overloads for plain (non-atlas) textures (verified, lines 331-353):
+- blit(RenderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int textureWidth, int textureHeight[, int color])
+- blit(RenderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int srcWidth, int srcHeight, int textureWidth, int textureHeight[, int color])
+- blit(Identifier location, int x0, int y0, int x1, int y1, float u0, float u1, float v0, float v1)   // GUI_TEXTURED, raw UVs, color -1
+- blit(GpuTextureView, GpuSampler, int x0, int y0, int x1, int y1, float u0, float u1, float v0, float v1)
+  Identifier -> minecraft.getTextureManager().getTexture(location) (line 480). Use RenderPipelines.GUI_TEXTURED.
+  color = ARGB vertex tint, multiplied with texel in position_tex_color shader. See .knowledge/dynamic-textures.txt.
+
+blitSprite overloads (verified, lines 355-421):
+- blitSprite(RenderPipeline, Identifier location, int x, int y, int width, int height)            // full sprite, color -1
+- blitSprite(RenderPipeline, Identifier location, int x, int y, int width, int height, float alpha)
+- blitSprite(RenderPipeline, Identifier location, int x, int y, int width, int height, int color)  // dispatches on GuiSpriteScaling (Stretch/Tile/NineSlice)
+- blitSprite(RenderPipeline, Identifier location, int spriteWidth, int spriteHeight, int textureX, int textureY, int x, int y, int width, int height[, int color])
+    // SUB-REGION crop: spriteWidth/Height = nominal full sprite size; textureX/Y = crop origin in
+    // sprite-local px; width/height = crop size drawn 1:1 at x,y. Stretch scaling -> UV math
+    // (sprite.getU(textureX/spriteWidth) .. getU((textureX+width)/spriteWidth)); non-stretch ->
+    // scissor(x,y,x+w,y+h) + full-sprite draw offset by (-textureX,-textureY).
+- blitSprite(RenderPipeline, TextureAtlasSprite sprite, int x, int y, int width, int height[, int color])
+
+item overloads (496-533): item(ItemStack,x,y) / item(ItemStack,x,y,seed) / item(LivingEntity owner,ItemStack,x,y,seed);
+fakeItem(ItemStack,x,y[,seed]) = null owner. itemDecorations(Font,ItemStack,x,y[,String countText]).
+fill: fill(x0,y0,x1,y1,col) -> GUI pipeline; fill(RenderPipeline,x0,y0,x1,y1,col); fill(RenderPipeline,TextureSetup,x0,y0,x1,y1) color=-1.
+
 Font: get via Minecraft.getInstance().font (public field). font.lineHeight ~= 9, font.width(str).
 Used by: SwapHitGlyph (HudElement), HudHotbarHighlightMixin (Hud.extractSlot @HEAD), SwapHotbarHighlight.

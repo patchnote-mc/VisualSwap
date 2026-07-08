@@ -30,6 +30,8 @@ public class SwapParticle extends SingleQuadParticle
         this.alpha = 1.0f;
     }
 
+    /* OVERRIDES */
+
     @Override
     public void tick()
     {
