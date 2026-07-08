@@ -254,10 +254,25 @@ public final class FlashRulesList implements Layout
         if (this.onChanged != null) this.onChanged.run();
     }
 
-    /// Remove {@code row} — invoked by the row's own delete button — and ask the screen to re-lay-out the page.
+    /// Remove {@code row} — invoked by the row's own delete button (behind a confirm) — and ask the screen to
+    /// re-lay-out the page.
     void removeRule(FlashRuleRow row)
     {
         this.rows.remove(row);
+        if (this.onChanged != null) this.onChanged.run();
+    }
+
+    /// Revert {@code row}'s rule to the saved value it descends from — invoked by the row's own revert button, which is
+    /// shown in place of delete only while the rule is modified. Replaces the row in place (keeping its list position)
+    /// with a fresh working copy of its saved origin, then re-lays-out the page. No-op for a newly-added rule (it has
+    /// no saved value to revert to, so it never shows the revert button).
+    void revertRule(FlashRuleRow row)
+    {
+        int i = this.rows.indexOf(row);
+        if (i < 0) return;
+        FlashRule origin = row.getRule().savedOrigin();
+        if (origin == null) return;
+        this.rows.set(i, new FlashRuleRow(this, new FlashRule(origin)));
         if (this.onChanged != null) this.onChanged.run();
     }
 

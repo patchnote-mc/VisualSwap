@@ -124,8 +124,8 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         int onX = intensityX - GAP - ON_WIDTH;
 
         // captions over the cycler columns
-        g.centeredText(this.font, "Flash", onX + ON_WIDTH / 2, midY - this.font.lineHeight / 2, CAPTION_ARGB);
-        g.centeredText(this.font, "Intensity", intensityX + INTENSITY_WIDTH / 2, midY - this.font.lineHeight / 2,
+        g.centeredText(this.font, "Trigger", onX + ON_WIDTH / 2, midY - this.font.lineHeight / 2, CAPTION_ARGB);
+        g.centeredText(this.font, "Strength", intensityX + INTENSITY_WIDTH / 2, midY - this.font.lineHeight / 2,
                        CAPTION_ARGB);
 
         // bulk tint swatch, centred in the colour column above each row's own swatch

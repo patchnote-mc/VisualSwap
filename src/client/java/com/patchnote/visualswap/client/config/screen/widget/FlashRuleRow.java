@@ -4,6 +4,7 @@ import com.patchnote.visualswap.client.config.models.FlashIntensity;
 import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.FlashTrigger;
 import com.patchnote.visualswap.client.config.models.PresetType;
+import com.patchnote.visualswap.client.screen.modal.ConfirmModal;
 import com.patchnote.visualswap.client.screen.modal.RegexPreviewModal;
 import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
 import com.patchnote.visualswap.client.utils.ItemIcons;
@@ -49,6 +50,9 @@ public final class FlashRuleRow extends AbstractContainerWidget
     private final IconButton moveDownButton;
     private final IconButton duplicateButton;
     private final IconButton deleteButton;
+    /// Occupies the delete slot in place of {@link #deleteButton} while the rule is modified (see the swap in
+    /// {@link #extractWidgetRenderState}); reverts just this rule to its saved value.
+    private final IconButton revertButton;
 
     // state — derived from the rule's regex selector
     private boolean isValid;        // pattern is valid and matches at least one registered item
@@ -85,8 +89,13 @@ public final class FlashRuleRow extends AbstractContainerWidget
         );
         this.deleteButton = new IconButton(
                 DELETE_WIDTH, Icons.DELETE, Component.literal("Delete this rule"),
-                () -> this.list.removeRule(this)
+                this::confirmDelete
         );
+        this.revertButton = new IconButton(
+                DELETE_WIDTH, Icons.RESET, Component.literal("Revert this rule to its saved value"),
+                () -> this.list.revertRule(this)
+        );
+        this.revertButton.visible = false;   // delete is shown until the first extract flips this per the rule's state
 
         this.colorSwatch.setOnPress(this::openColorPicker);
         this.colorSwatch.setClickable(list.preset().isColorEditable());
@@ -105,11 +114,23 @@ public final class FlashRuleRow extends AbstractContainerWidget
                 this.moveUpButton,
                 this.moveDownButton,
                 this.duplicateButton,
+                this.revertButton,
                 this.deleteButton
         );
     }
 
     private void openPreviewModal() { RegexPreviewModal.open(this.rule); }
+
+    /// Gate deleting this rule behind a confirmation modal — only Confirm removes it.
+    private void confirmDelete()
+    {
+        ConfirmModal.open(
+                Component.literal("Delete this rule?"),
+                List.of(Component.literal("Remove this rule from the table?")),
+                Component.literal("Delete"),
+                () -> this.list.removeRule(this)
+        );
+    }
 
     /// A rule tint is RGB-only (its alpha byte carries the flash gamma), so the picker hides alpha and writes the
     /// picked RGB straight onto the rule (opaque), then retargets the swap preview — the same effect the old hex box's
@@ -227,7 +248,14 @@ public final class FlashRuleRow extends AbstractContainerWidget
         int intensityX = colorX - GAP - INTENSITY_WIDTH;
         int onX = intensityX - GAP - ON_WIDTH;
 
-        this.deleteButton.setPosition(deleteX, widgetY);
+        // A modified rule offers a revert (to its saved value); otherwise the delete button occupies the slot. Evaluated
+        // live because in-row edits flip isModified() without a screen rebuild (same as the left-gutter marker below).
+        boolean modified = this.rule.isModified();
+        this.revertButton.visible = modified;
+        this.deleteButton.visible = !modified;
+        IconButton actionButton = modified ? this.revertButton : this.deleteButton;
+
+        actionButton.setPosition(deleteX, widgetY);
         this.duplicateButton.setPosition(duplicateX, widgetY);
         this.moveDownButton.setPosition(downX, widgetY);
         this.moveUpButton.setPosition(upX, widgetY);
@@ -252,7 +280,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.moveUpButton.extractRenderState(g, mouseX, mouseY, a);
         this.moveDownButton.extractRenderState(g, mouseX, mouseY, a);
         this.duplicateButton.extractRenderState(g, mouseX, mouseY, a);
-        this.deleteButton.extractRenderState(g, mouseX, mouseY, a);
+        actionButton.extractRenderState(g, mouseX, mouseY, a);
 
         // left-gutter marker: the unsaved-changes dot — green when newly added, orange when an existing rule was edited.
         int marker = this.rule.isNew() ? NEW_ARGB : this.rule.isModified() ? MODIFIED_ARGB : 0;
