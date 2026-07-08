@@ -18,7 +18,6 @@ public final class ItemFlash
     public static final ItemFlash INSTANCE = new ItemFlash();
 
     public static final int TINT_RGB = 0xFFFFFF;
-    private static final int FLASH_VISIBLE_TICKS = 5;
 
     /// The shade exponent (1/gamma; see {@link FlashIntensity}) rides in the tint int's alpha byte, {@code 0..1}
     /// mapped onto {@code 0..255} — the silhouette shader reads it straight back as the exponent (the output alpha
@@ -51,7 +50,7 @@ public final class ItemFlash
             // A press (re)lights this slot's own timeline and, if the key is down, begins the hold here.
             FlashRule active = attackPressedThisTick ? attackRule : useRule;
             this.slotsTint[currentSlot] = calculateTintFor(active);
-            this.slotsExpirationTick[currentSlot] = tick + FLASH_VISIBLE_TICKS;
+            this.slotsExpirationTick[currentSlot] = tick + ModConfig.get().flashVisibleTicks;
             this.heldSlot = keyHeldThisTick ? currentSlot : NO_SLOT;
         }
         else if (validSlot && keyHeldThisTick && currentSlot == this.heldSlot)

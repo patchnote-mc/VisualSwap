@@ -75,10 +75,14 @@ public final class VisualSwapConfigScreen extends Screen
     private PresetType workingType;
     private Preset workingCustom;
 
+    /// Working copy of the global flash-visible-ticks setting (not preset-scoped); committed to ModConfig on "Done".
+    private int workingVisibleTicks;
+
     /// The saved config as captured on open — the baseline the working state is diffed against to detect unsaved edits,
     /// and the values a "Discard" reverts to.
     private final PresetType savedType;
     private final Preset savedCustom;
+    private final int savedVisibleTicks;
     private final List<FlashRule> savedRules;
 
     /// When set, {@link #init} seeds the rules table from this list (instead of carrying the current rows over) — used
@@ -127,9 +131,11 @@ public final class VisualSwapConfigScreen extends Screen
         ModConfig cfg = ModConfig.get();
         this.workingType = cfg.preset;
         this.workingCustom = new Preset(cfg.customPresetData);
+        this.workingVisibleTicks = cfg.flashVisibleTicks;
 
         this.savedType = cfg.preset;
         this.savedCustom = new Preset(cfg.customPresetData);
+        this.savedVisibleTicks = cfg.flashVisibleTicks;
         this.savedRules = cfg.clickFlashRules.stream()
                 .map(FlashRule::new).toList();
         // Each saved rule is its own baseline; working copies inherit the link (copy ctor) to drive per-row markers.
@@ -215,13 +221,21 @@ public final class VisualSwapConfigScreen extends Screen
 
         content.addChild(top, LayoutSettings::alignHorizontallyCenter);
 
+        // global flash-duration slider (not preset-scoped, so always editable)
+        TicksSlider ticksSlider = new TicksSlider(
+                0, 0, rowWidth, CHIP_H, this.workingVisibleTicks, ticks -> this.workingVisibleTicks = ticks
+        );
+        ticksSlider.setTooltip(
+                Tooltip.create(Component.literal("How many ticks a clicked item's flash tint stays visible.")));
+        content.addChild(ticksSlider, LayoutSettings::alignHorizontallyCenter);
+
         // rules table — build first so the count + empty-state can read its filtered size
         this.list = new FlashRulesList(
                 rowWidth,
                 this.workingType,
-                rules, //
+                rules,
                 this::rebuildWidgets,
-                rule -> this.previewRule = rule, //
+                rule -> this.previewRule = rule,
                 _ -> applyDoneState(
                         this.list.invalidCount() == 0 ? DoneButtonState.ENABLED : DoneButtonState.INVALID_RULE),
                 this.overlays
@@ -508,6 +522,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         this.workingType = this.savedType;
         this.workingCustom = new Preset(this.savedCustom);
+        this.workingVisibleTicks = this.savedVisibleTicks;
         this.filterText = "";
         this.pendingRules = this.savedRules;
         this.list = null;
@@ -537,7 +552,8 @@ public final class VisualSwapConfigScreen extends Screen
 
     private boolean isModified(List<FlashRule> currentRules)
     {
-        return this.workingType != this.savedType || !this.workingCustom.sameValuesAs(this.savedCustom) ||
+        return this.workingType != this.savedType || this.workingVisibleTicks != this.savedVisibleTicks ||
+                !this.workingCustom.sameValuesAs(this.savedCustom) ||
                 !FlashRule.listsSameValues(currentRules, this.savedRules);
     }
 
@@ -574,6 +590,7 @@ public final class VisualSwapConfigScreen extends Screen
         ModConfig cfg = ModConfig.get();
         cfg.preset = this.workingType;
         cfg.customPresetData = new Preset(this.workingCustom);
+        cfg.flashVisibleTicks = this.workingVisibleTicks;
         cfg.clickFlashRules = this.list.toRules();
         AutoConfig.getConfigHolder(ModConfig.class).save();
         this.minecraft.setScreenAndShow(this.parent);
