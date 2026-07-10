@@ -44,9 +44,9 @@ public class VisualSwapClient implements ClientModInitializer
 
     private void onEndClientTick(Minecraft client)
     {
-        if (client.player == null)
+        if (client.player == null || !ModConfig.get().modEnabled)
         {
-            // invoked when not in a world
+            // invoked when not in a world, or the mod is switched off — clear any carried state so nothing renders
             reset();
             return;
         }
@@ -62,6 +62,7 @@ public class VisualSwapClient implements ClientModInitializer
     private InteractionResult onInteractEntity(Player player, Level level, InteractionHand hand, Entity entity,
                                                HitResult hitResult)
     {
+        if (!ModConfig.get().modEnabled) return InteractionResult.PASS;
         return SwapHandler.INSTANCE.eventInteractEntity(player, entity);
     }
 

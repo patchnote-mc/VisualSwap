@@ -162,10 +162,21 @@ Then set `26.2-main` (or `*-main`) protection via the ruleset above, and make
 
 Set once at the repository level (Settings → Secrets and variables → Actions):
 
-- Secret **`MODRINTH_TOKEN`** — Modrinth PAT with _Create versions_ scope.
+- Secret **`MODRINTH_TOKEN`** — Modrinth PAT with _Create versions_ **and _Write
+  projects_** scopes. The second scope is what lets `publish.yml` patch the
+  project's environment; without it the publish succeeds and the sync step 403s.
 - Secret **`CURSEFORGE_TOKEN`** — CurseForge upload API token.
 
 `GITHUB_TOKEN` is provided automatically. The Modrinth/CurseForge **project IDs
 are hardcoded** in [`publish.yml`](.github/workflows/publish.yml) (same project
-for every Minecraft version) — replace the `REPLACE_WITH_VISUALSWAP_*`
-placeholders before the first release.
+for every Minecraft version).
+
+### Mod environment
+
+`publish.yml` mirrors `environment` from `fabric.mod.json` onto the Modrinth
+project after each release (`client` → `client_side: required` /
+`server_side: unsupported`), so the listing can't drift from the mod.
+
+CurseForge's **Client**/**Server** tag has no equivalent automation —
+`mc-publish` never sends the environment tag, and CurseForge only accepts it at
+file-upload time. Set it by hand on each uploaded file, or leave it untagged.

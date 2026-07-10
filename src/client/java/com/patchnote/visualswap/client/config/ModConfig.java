@@ -27,6 +27,24 @@ public final class ModConfig implements ConfigData
     /// How many ticks a clicked item's flash tint stays visible.
     public int flashVisibleTicks = 5;
 
+    /* MASTER TOGGLES */
+
+    /// Master switch: when false the mod does nothing at all — no swap detection, HUD effects, or particles.
+    public boolean modEnabled = true;
+
+    /// Umbrella for the on-screen HUD effects — the swap-hit glyph plus the hotbar-highlight and item-flash finer
+    /// switches below. When false none of them draw, regardless of the finer switches.
+    public boolean hudEnabled = true;
+
+    /// Whether the hotbar slot highlight is drawn (finer switch, gated by {@link #hudEnabled}).
+    public boolean hotbarHighlightEnabled = true;
+
+    /// Whether the clicked-item tint flash is drawn (finer switch, gated by {@link #hudEnabled}).
+    public boolean itemFlashEnabled = true;
+
+    /// Whether the swap-hit particle burst is spawned. When false, no swap particles are emitted.
+    public boolean particlesEnabled = true;
+
     /// The Custom preset's editable settings. A real data object (not an enum) so its fields persist; Vanilla/Practice
     /// use their fixed {@link PresetType} defaults instead. Only touched when the active preset is Custom.
     public Preset customPresetData = PresetType.CUSTOM.createDefault();
@@ -36,6 +54,18 @@ public final class ModConfig implements ConfigData
     /* HELPERS */
 
     public static ModConfig get() { return AutoConfig.getConfigHolder(ModConfig.class).getConfig(); }
+
+    /// HUD effects (the glyph) run only when both the master switch and the HUD umbrella are on.
+    public boolean hudActive() { return this.modEnabled && this.hudEnabled; }
+
+    /// The hotbar highlight runs only when the HUD is active and its finer switch is on.
+    public boolean hotbarHighlightActive() { return hudActive() && this.hotbarHighlightEnabled; }
+
+    /// The item flash runs only when the HUD is active and its finer switch is on.
+    public boolean itemFlashActive() { return hudActive() && this.itemFlashEnabled; }
+
+    /// Particles run only when both the master switch and the particle switch are on.
+    public boolean particlesActive() { return this.modEnabled && this.particlesEnabled; }
 
     public int getFromColor() { return preset.isCustom() ? customPresetData.getFromColor() : preset.getFromColor(); }
 

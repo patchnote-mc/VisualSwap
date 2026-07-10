@@ -12,6 +12,7 @@ import com.patchnote.visualswap.client.utils.ItemRegex;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
@@ -21,6 +22,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -58,6 +60,12 @@ public final class FlashRuleRow extends AbstractContainerWidget
     private boolean isValid;        // pattern is valid and matches at least one registered item
     private int matchCount;         // how many items the selector matches (raw pattern reach, ignoring exclusions)
     private ItemStack previewItem;  // first matched item's stack (bind-guarded), or EMPTY
+
+    // Whether this row accepts input at all — false greys the whole row out when the Item Flash effect is switched off.
+    // The reorder buttons also depend on list position (see setCanMove*), so both inputs are stored and combined.
+    private boolean enabled = true;
+    private boolean canMoveUp;
+    private boolean canMoveDown;
 
     FlashRuleRow(FlashRulesList list, FlashRule rule)
     {
@@ -204,10 +212,37 @@ public final class FlashRuleRow extends AbstractContainerWidget
     public boolean isItemValid() { return this.isValid; }
 
     /// Enable/disable the reorder buttons — the list calls these each layout pass so the top visible row can't move up
-    /// and the bottom can't move down.
-    void setCanMoveUp(boolean can) { this.moveUpButton.active = can; }
+    /// and the bottom can't move down. Combined with {@link #enabled} so a disabled row's arrows stay greyed.
+    void setCanMoveUp(boolean can) { this.canMoveUp = can; this.moveUpButton.active = can && this.enabled; }
 
-    void setCanMoveDown(boolean can) { this.moveDownButton.active = can; }
+    void setCanMoveDown(boolean can) { this.canMoveDown = can; this.moveDownButton.active = can && this.enabled; }
+
+    /// Grey the whole row out (or restore it) — used when the Item Flash effect is off, so its rules can't be edited.
+    /// Order-independent w.r.t. {@link #setCanMoveUp}/{@link #setCanMoveDown}: both recompute the reorder buttons from
+    /// the stored can-move + enabled flags. While disabled, every cell's own tooltip is swapped for {@code disabledTip}
+    /// so hovering any part of the row explains why the table is locked (rows are rebuilt fresh, so there is no restore).
+    public void setEnabled(boolean enabled, @Nullable Tooltip disabledTip)
+    {
+        this.enabled = enabled;
+        this.previewButton.active = enabled;
+        this.itemBox.setEditable(enabled);
+        this.onButton.active = enabled;
+        this.intensityButton.active = enabled;
+        this.colorSwatch.setClickable(enabled && this.list.preset().isColorEditable());
+        this.duplicateButton.active = enabled;
+        this.deleteButton.active = enabled;
+        this.revertButton.active = enabled;
+        this.moveUpButton.active = this.canMoveUp && enabled;
+        this.moveDownButton.active = this.canMoveDown && enabled;
+
+        if (!enabled)
+        {
+            for (GuiEventListener child : this.children)
+            {
+                if (child instanceof AbstractWidget w) w.setTooltip(disabledTip);
+            }
+        }
+    }
 
     /// Give keyboard focus to the selector box (used when the screen adds a fresh rule so the user can type at once).
     public void focusItemInput()

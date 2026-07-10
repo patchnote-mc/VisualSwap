@@ -43,3 +43,7 @@ replay_*.log
 
 # scripts
 .github-token
+
+
+# affinity
+*.af~lock~

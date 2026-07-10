@@ -12,7 +12,7 @@
     "sources": "https://github.com/patchnote-mc/VisualSwap",
     "issues": "https://github.com/patchnote-mc/VisualSwap/issues"
   },
-  "license": "CC0-1.0",
+  "license": "All Rights Reserved",
   "icon": "assets/visual-swap/icon.png",
   "environment": "client",
   "entrypoints": {
