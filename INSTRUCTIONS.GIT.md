@@ -1,5 +1,7 @@
 # Git & Release Guide
 
+_Last updated 2026-07-10._
+
 How this repository is branched, versioned, and released. Read this before
 pushing or cutting a release.
 
@@ -87,6 +89,32 @@ release.** Publishing the same version twice is blocked (see below).
    [`publish.yml`](.github/workflows/publish.yml), which builds and publishes to
    **Modrinth + CurseForge + a GitHub Release** (tag = the full version string).
 
+In practice, run [`merge_main.sh`](merge_main.sh) — it does steps 2-4 and first
+prompts for the two per-release inputs:
+
+- **the `-sources` jar** — `[y/N]`, default **no**. Only the main jar is uploaded
+  unless you opt in.
+- **the changelog** — Markdown, typed or pasted, terminated with `Ctrl-D`.
+  It may not be empty, and may not contain `[skip publish]`.
+
+### How the release inputs reach the workflow
+
+`publish.yml` is triggered by a *push*, so it cannot take parameters directly.
+`merge_main.sh` therefore stamps both answers into the **merge commit message**
+(the same channel `[skip publish]` already uses):
+
+```
+Release 26.2-main [sources]      <- subject: markers
+
+- Master toggles collapsed …     <- body: the changelog
+- Config rows disabled …
+```
+
+`publish.yml` splits that message back apart: the subject is scanned for
+`[sources]`, and the body becomes the Modrinth changelog and the GitHub Release
+body. Pushing to `-main` by hand still works — you just get an empty changelog
+and no sources jar.
+
 ### Merging without publishing (`--skip-publish`)
 
 Sometimes you want to promote `-staging` into `-main` **without** cutting a release
@@ -162,9 +190,10 @@ Then set `26.2-main` (or `*-main`) protection via the ruleset above, and make
 
 Set once at the repository level (Settings → Secrets and variables → Actions):
 
-- Secret **`MODRINTH_TOKEN`** — Modrinth PAT with _Create versions_ **and _Write
-  projects_** scopes. The second scope is what lets `publish.yml` patch the
-  project's environment; without it the publish succeeds and the sync step 403s.
+- Secret **`MODRINTH_TOKEN`** — Modrinth PAT with _Create versions_ **and _Read
+  projects_** scopes. The read scope is what lets the duplicate check list the
+  project's existing versions; it is required because an unpublished (draft)
+  project 404s for anonymous callers. _Write projects_ is **no longer needed.**
 - Secret **`CURSEFORGE_TOKEN`** — CurseForge upload API token.
 
 `GITHUB_TOKEN` is provided automatically. The Modrinth/CurseForge **project IDs
@@ -173,9 +202,25 @@ for every Minecraft version).
 
 ### Mod environment
 
-`publish.yml` mirrors `environment` from `fabric.mod.json` onto the Modrinth
-project after each release (`client` → `client_side: required` /
-`server_side: unsupported`), so the listing can't drift from the mod.
+Each Modrinth version is published with **`environment: client_only`**, set from
+`MODRINTH_ENVIRONMENT` in [`publish.yml`](.github/workflows/publish.yml).
+
+This is why `publish.yml` uploads to Modrinth with `curl` instead of letting
+`mc-publish` do it: `environment` is only accepted **at version creation**. It
+exists on `CreatableVersion` (`POST /v2/version`) but not on `EditableVersion`
+(`PATCH /v2/version/{id}`), and there is no project-level equivalent — so a
+version created without it can never be corrected. `mc-publish` has no
+`environment` input and never sends the field.
+
+`mc-publish` still owns CurseForge and the GitHub Release (it auto-detects
+CurseForge dependencies from `fabric.mod.json`); its Modrinth leg is disabled
+simply by not passing it any `modrinth-*` inputs. The Modrinth **dependencies**
+are therefore declared explicitly in `publish.yml`, resolved from slugs
+(`fabric-api`, `cloth-config` required; `modmenu` optional) so they mirror the
+`depends`/`suggests` blocks of `fabric.mod.json`. **Keep the two in sync by hand.**
+
+The project-level `client_side`/`server_side` fields are the older, coarser
+system and are no longer written by CI. Set them once on the Modrinth project.
 
 CurseForge's **Client**/**Server** tag has no equivalent automation —
 `mc-publish` never sends the environment tag, and CurseForge only accepts it at

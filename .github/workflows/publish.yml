@@ -1,9 +1,21 @@
 # Publish a release to Modrinth, CurseForge, and GitHub Releases.
-# Triggered when a *-main branch is updated (e.g. merging <mc>-v<ver>-staging
-# into <mc>-v<ver>-main). Game versions, loaders and dependencies are detected
-# automatically from src/main/resources/fabric.mod.json, so this file is the
-# same on every -main branch. The mod environment is mirrored onto the Modrinth
-# project from the same file (see "sync modrinth environment" below).
+# Triggered when a *-main branch is updated (e.g. merging <mc>-staging into
+# <mc>-main). Last updated 2026-07-10.
+#
+# The release inputs travel in the MERGE COMMIT MESSAGE, written by merge_main.sh:
+#   subject  -> "Release <mc>-main" plus optional "[sources]" / "[skip publish]" markers
+#   body     -> the changelog (Markdown), used for Modrinth and the GitHub Release
+# "[sources]" additionally uploads the -sources jar. Default is the main jar only.
+#
+# Modrinth is uploaded by hand (curl) rather than by mc-publish, because Modrinth's
+# per-version `environment` is only accepted at CREATION time: it exists on
+# CreatableVersion (POST /v2/version) but NOT on EditableVersion (PATCH
+# /v2/version/{id}), and there is no project-level equivalent. mc-publish never
+# sends it, so there would be no way to set or repair it afterwards.
+# See https://docs.modrinth.com/api/operations/createversion/
+# mc-publish still owns CurseForge + GitHub Releases (it auto-detects CurseForge
+# dependencies from fabric.mod.json); omitting its modrinth-* inputs disables its
+# Modrinth leg.
 #
 # Duplicate protection is two-layered: version-guard.yml blocks the staging->main
 # PR when the version already exists, and this workflow ALSO hard-fails (it never
@@ -28,11 +40,12 @@ permissions:
   contents: write
 
 env:
-  # TODO: replace with the Visual Swap Modrinth + CurseForge project IDs
-  # (create the projects first, then paste their IDs here). One project per
-  # platform serves every Minecraft version.
   MODRINTH_ID: nx3AGjVg
   CURSEFORGE_ID: '1595322'
+  # Modrinth's per-version environment tag. This mod is a client-side visualizer
+  # with no server entrypoint, and it works against any (vanilla) server.
+  MODRINTH_ENVIRONMENT: client_only
+  MODRINTH_API: https://api.modrinth.com/v2
 
 jobs:
   publish:
@@ -53,17 +66,28 @@ jobs:
       - name: build
         run: ./gradlew build
 
+      # The version listing is fetched WITH the token: an unpublished (draft)
+      # Modrinth project 404s for anonymous callers.
       - name: resolve version and check if it already exists
         id: check
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
           ver=$(grep '^mod_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
           mc=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
           full="v${ver}+mc-${mc}"
           echo "full=$full" >> "$GITHUB_OUTPUT"
           echo "mc=$mc" >> "$GITHUB_OUTPUT"
-          id=$(curl -s "https://api.modrinth.com/v2/project/${MODRINTH_ID}/version" \
-            | jq -r --arg v "$full" 'map(select(.version_number == $v)) | .[0].id // empty')
-          if [ -n "$id" ]; then
+
+          code=$(curl -sS -o "$RUNNER_TEMP/versions.json" -w '%{http_code}' \
+            -H "Authorization: ${MODRINTH_TOKEN}" \
+            "${MODRINTH_API}/project/${MODRINTH_ID}/version")
+          if [ "$code" != "200" ]; then
+            echo "::error::Modrinth returned HTTP ${code} listing versions of ${MODRINTH_ID}. The token needs the 'Read projects' scope."
+            cat "$RUNNER_TEMP/versions.json"
+            exit 1
+          fi
+          if jq -e --arg v "$full" 'any(.[]; .version_number == $v)' "$RUNNER_TEMP/versions.json" >/dev/null; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -75,46 +99,133 @@ jobs:
           echo "::error::${{ steps.check.outputs.full }} is already published on Modrinth - refusing to publish a duplicate. Bump mod_version in gradle.properties before merging to main."
           exit 1
 
-      - name: publish to modrinth, curseforge and github releases
-        if: steps.check.outputs.exists == 'false'
+      # Splits the merge commit into subject (markers) and body (changelog). The
+      # message is read from an env var, never interpolated into the script.
+      - name: resolve release inputs from the merge commit
+        id: release
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          FULL: ${{ steps.check.outputs.full }}
+        run: |
+          subject=${COMMIT_MESSAGE%%$'\n'*}
+          body=""
+          if [ "$subject" != "$COMMIT_MESSAGE" ]; then
+            body=${COMMIT_MESSAGE#*$'\n'}
+          fi
+          # drop leading blank lines; command substitution drops trailing ones
+          body=$(printf '%s\n' "$body" | sed -e '/./,$!d')
+
+          jar="build/libs/visual-swap-${FULL}.jar"
+          sources_jar="build/libs/visual-swap-${FULL}-sources.jar"
+          [ -f "$jar" ] || { echo "::error::expected jar not found: ${jar}"; exit 1; }
+
+          case "$subject" in
+            *'[sources]'*)
+              [ -f "$sources_jar" ] || { echo "::error::[sources] requested but not found: ${sources_jar}"; exit 1; }
+              sources=true ;;
+            *)
+              sources=false ;;
+          esac
+
+          printf '%s\n' "$body" > "$RUNNER_TEMP/changelog.md"
+          echo "sources=$sources" >> "$GITHUB_OUTPUT"
+          {
+            echo 'files<<MC_PUBLISH_FILES'
+            echo "$jar"
+            if [ "$sources" = true ]; then echo "$sources_jar"; fi
+            echo 'MC_PUBLISH_FILES'
+          } >> "$GITHUB_OUTPUT"
+
+          echo "include sources jar: ${sources}"
+          echo "changelog:"
+          cat "$RUNNER_TEMP/changelog.md"
+
+      - name: publish to modrinth
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          FULL: ${{ steps.check.outputs.full }}
+          MC: ${{ steps.check.outputs.mc }}
+          INCLUDE_SOURCES: ${{ steps.release.outputs.sources }}
+        run: |
+          set -euo pipefail
+
+          files=(-F "primary=@build/libs/visual-swap-${FULL}.jar")
+          parts='["primary"]'
+          types='{}'
+          if [ "$INCLUDE_SOURCES" = true ]; then
+            files+=(-F "sources=@build/libs/visual-swap-${FULL}-sources.jar")
+            parts='["primary","sources"]'
+            types='{"sources":"sources-jar"}'
+          fi
+
+          # Resolved from slugs so the opaque project IDs aren't hardcoded. Mirrors
+          # the depends/suggests blocks of src/main/resources/fabric.mod.json.
+          deps='[]'
+          add_dep() {
+            local id
+            id=$(curl -fsS "${MODRINTH_API}/project/$1" | jq -r '.id')
+            deps=$(jq -n --argjson d "$deps" --arg id "$id" --arg t "$2" \
+              '$d + [{project_id: $id, dependency_type: $t}]')
+          }
+          add_dep fabric-api required
+          add_dep cloth-config required
+          add_dep modmenu optional
+
+          jq -n \
+            --arg project_id "$MODRINTH_ID" \
+            --arg version "$FULL" \
+            --arg mc "$MC" \
+            --arg environment "$MODRINTH_ENVIRONMENT" \
+            --argjson dependencies "$deps" \
+            --argjson file_parts "$parts" \
+            --argjson file_types "$types" \
+            --rawfile changelog "$RUNNER_TEMP/changelog.md" \
+            '{
+               project_id: $project_id,
+               name: $version,
+               version_number: $version,
+               changelog: $changelog,
+               dependencies: $dependencies,
+               game_versions: [$mc],
+               version_type: "release",
+               loaders: ["fabric"],
+               featured: true,
+               status: "listed",
+               environment: $environment,
+               file_parts: $file_parts,
+               primary_file: "primary",
+               file_types: $file_types
+             }
+             | if (.file_types | length) == 0 then del(.file_types) else . end' \
+            > "$RUNNER_TEMP/data.json"
+
+          code=$(curl -sS -o "$RUNNER_TEMP/response.json" -w '%{http_code}' -X POST \
+            -H "Authorization: ${MODRINTH_TOKEN}" \
+            -F "data=@${RUNNER_TEMP}/data.json;type=application/json" \
+            "${files[@]}" \
+            "${MODRINTH_API}/version")
+          if [ "$code" != "200" ] && [ "$code" != "201" ]; then
+            echo "::error::Modrinth version creation failed (HTTP ${code})."
+            cat "$RUNNER_TEMP/response.json"
+            exit 1
+          fi
+          echo "published $(jq -r '.version_number' "$RUNNER_TEMP/response.json") (environment=${MODRINTH_ENVIRONMENT})"
+
+      # No modrinth-* inputs here: Modrinth was uploaded above. CurseForge's
+      # Client tag has no API path through mc-publish - set it by hand on the file.
+      - name: publish to curseforge and github releases
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          modrinth-id: ${{ env.MODRINTH_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           curseforge-id: ${{ env.CURSEFORGE_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           github-tag: ${{ steps.check.outputs.full }}
           github-commitish: ${{ github.sha }}
           version-type: release
+          changelog-file: ${{ runner.temp }}/changelog.md
+          files: ${{ steps.release.outputs.files }}
           # CurseForge requires a concrete game version; auto-detection from the
           # fabric.mod.json minecraft range can resolve to none, so pass it (and
           # the loader) explicitly from gradle.properties.
           loaders: fabric
           game-versions: ${{ steps.check.outputs.mc }}
-
-      # mc-publish has no environment input: Modrinth's client_side/server_side
-      # are project fields (PATCH /project), not version fields, and mc-publish
-      # never sends CurseForge's environment tag. Mirror fabric.mod.json onto the
-      # Modrinth project so the two can't drift. CurseForge's Client tag has no
-      # API path through mc-publish - set it by hand on the uploaded file.
-      # Idempotent; PATCH needs a token with the "Write projects" scope.
-      - name: sync modrinth environment
-        if: steps.check.outputs.exists == 'false'
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-        run: |
-          case "$(jq -r '.environment // "*"' src/main/resources/fabric.mod.json)" in
-            client) client=required;    server=unsupported ;;
-            server) client=unsupported; server=required ;;
-            '*')    client=required;    server=required ;;
-            *)
-              echo "::error::unrecognized fabric.mod.json environment"
-              exit 1 ;;
-          esac
-          echo "setting client_side=$client server_side=$server"
-          curl -fsS -X PATCH \
-            -H "Authorization: ${MODRINTH_TOKEN}" \
-            -H 'Content-Type: application/json' \
-            -d "{\"client_side\":\"${client}\",\"server_side\":\"${server}\"}" \
-            "https://api.modrinth.com/v2/project/${MODRINTH_ID}"
