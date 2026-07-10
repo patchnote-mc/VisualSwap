@@ -231,17 +231,19 @@ public final class FlashRule
         return map;
     }
 
+    /// Mutable — {@link com.patchnote.visualswap.client.config.ModConfig#validatePostLoad} sorts and re-stamps the
+    /// list in place.
     public static List<FlashRule> defaultFlashRules()
     {
-        return List.of(
-                new FlashRule("_sword", FlashTrigger.ATTACK, FlashIntensity.HIGH),
-                new FlashRule("_axe", FlashTrigger.ATTACK, FlashIntensity.HIGH),
-                new FlashRule("_spear", FlashTrigger.ATTACK, FlashIntensity.HIGH),
-                new FlashRule("minecraft:mace", FlashTrigger.ATTACK, FlashIntensity.HIGH),
-                new FlashRule("minecraft:trident", FlashTrigger.ATTACK, FlashIntensity.LOW),
-                new FlashRule("minecraft:ender_pearl", FlashTrigger.USE, FlashIntensity.LOW),
-                new FlashRule("minecraft:wind_charge", FlashTrigger.USE, FlashIntensity.LOW)
-        );
+        List<FlashRule> rules = new ArrayList<>();
+        addRule(rules, "_sword", FlashTrigger.ATTACK, FlashIntensity.HIGH);
+        addRule(rules, "_axe", FlashTrigger.ATTACK, FlashIntensity.HIGH);
+        addRule(rules, "_spear", FlashTrigger.ATTACK, FlashIntensity.HIGH);
+        addRule(rules, "minecraft:mace", FlashTrigger.ATTACK, FlashIntensity.HIGH);
+        addRule(rules, "minecraft:trident", FlashTrigger.ATTACK, FlashIntensity.LOW);
+        addRule(rules, "minecraft:ender_pearl", FlashTrigger.USE, FlashIntensity.LOW);
+        addRule(rules, "minecraft:wind_charge", FlashTrigger.USE, FlashIntensity.LOW);
+        return rules;
     }
 
     private static void addRule(List<FlashRule> list, String item, FlashTrigger flashesAt, FlashIntensity intensity)
