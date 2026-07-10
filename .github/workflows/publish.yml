@@ -2,7 +2,8 @@
 # Triggered when a *-main branch is updated (e.g. merging <mc>-v<ver>-staging
 # into <mc>-v<ver>-main). Game versions, loaders and dependencies are detected
 # automatically from src/main/resources/fabric.mod.json, so this file is the
-# same on every -main branch.
+# same on every -main branch. The mod environment is mirrored onto the Modrinth
+# project from the same file (see "sync modrinth environment" below).
 #
 # Duplicate protection is two-layered: version-guard.yml blocks the staging->main
 # PR when the version already exists, and this workflow ALSO hard-fails (it never
@@ -91,3 +92,29 @@ jobs:
           # the loader) explicitly from gradle.properties.
           loaders: fabric
           game-versions: ${{ steps.check.outputs.mc }}
+
+      # mc-publish has no environment input: Modrinth's client_side/server_side
+      # are project fields (PATCH /project), not version fields, and mc-publish
+      # never sends CurseForge's environment tag. Mirror fabric.mod.json onto the
+      # Modrinth project so the two can't drift. CurseForge's Client tag has no
+      # API path through mc-publish - set it by hand on the uploaded file.
+      # Idempotent; PATCH needs a token with the "Write projects" scope.
+      - name: sync modrinth environment
+        if: steps.check.outputs.exists == 'false'
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          case "$(jq -r '.environment // "*"' src/main/resources/fabric.mod.json)" in
+            client) client=required;    server=unsupported ;;
+            server) client=unsupported; server=required ;;
+            '*')    client=required;    server=required ;;
+            *)
+              echo "::error::unrecognized fabric.mod.json environment"
+              exit 1 ;;
+          esac
+          echo "setting client_side=$client server_side=$server"
+          curl -fsS -X PATCH \
+            -H "Authorization: ${MODRINTH_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"client_side\":\"${client}\",\"server_side\":\"${server}\"}" \
+            "https://api.modrinth.com/v2/project/${MODRINTH_ID}"
