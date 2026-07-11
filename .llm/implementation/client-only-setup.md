@@ -1,4 +1,4 @@
-<!-- last updated: 2026-06-27 -->
+<!-- last updated: 2026-07-11 -->
 
 # Client-only setup
 
@@ -17,6 +17,32 @@ and *why* the dedicated-server behavior is what it is.
 
 Do not re-introduce a `main`/server entrypoint or set `environment` back to
 `"*"`.
+
+## Don't touch network-synced registries (LAN-host contract)
+
+`"environment": "client"` only stops the mod loading on a **dedicated** server.
+It does **not** protect the *integrated* server: when a player opens their
+single-player world to LAN, the integrated server shares the client JVM (and its
+registries), and Visual Swap's client code has run. So anything the mod adds to a
+**network-synced** registry (`BuiltInRegistries.PARTICLE_TYPE`, `ITEM`, `BLOCK`,
+`ENTITY_TYPE`, …) leaks onto that host.
+
+Fabric flags a synced registry `MODDED` the instant a mod adds a non-`minecraft`
+entry, then registry-sync pushes those entries to every joining client during
+configuration. A client **without** Visual Swap is then disconnected:
+
+- no Fabric API → *"This server requires Fabric Loader and Fabric API installed"*;
+- Fabric API but no Visual Swap → *"unknown remote registry entries"*
+  (`visual-swap:swap_*`). `RegistryAttribute.OPTIONAL` does **not** rescue this
+  case — it's only consulted when the whole registry is missing on the client, not
+  for missing entries in a registry the client already has.
+
+**Rule:** never register into a synced registry from this mod. History: the swap
+particle used to register three `PARTICLE_TYPE` entries and broke exactly this
+LAN-join path (fixed 2026-07-11). `ParticlesHandler` now builds particles
+client-side and adds them straight to `Minecraft.particleEngine`, looking up the
+sprite from the vanilla particle atlas — zero synced-registry footprint. Keep it
+that way.
 
 ## Server behavior decision
 

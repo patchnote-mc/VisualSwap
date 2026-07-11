@@ -1,4 +1,4 @@
-<!-- last updated: 2026-07-08 -->
+<!-- last updated: 2026-07-11 -->
 
 # AGENTS.md — Visual Swap architecture & flows
 
@@ -58,9 +58,9 @@ there are two source sets, both registered as the `visual-swap` mod:
     `MOD_ID` (`"visual-swap"`) and `LOGGER`. **Not** an entrypoint.
 - `src/client/` — client-only source set; everything that touches the client.
   - `com.patchnote.visualswap.client.VisualSwapClient` — the `client`
-    entrypoint (`ClientModInitializer`). Registers the particle types/factories
-    and HUD glyph, wires the Fabric events, and delegates the swap-window
-    detection to `SwapHandler` (see below).
+    entrypoint (`ClientModInitializer`). Registers the HUD glyph, wires the
+    Fabric events, and delegates the swap-window detection to `SwapHandler` (see
+    below). It registers **no** particle type — see the particle burst note.
   - `com.patchnote.visualswap.client.swap.SwapHandler` — drives detection each
     tick: reads the `ClickTickTracker` snapshots, feeds `SwapWindowState`, and
     pushes render state to the glyph, hotbar highlight, and particles.
@@ -68,11 +68,11 @@ there are two source sets, both registered as the `visual-swap` mod:
     state (arm on swap, click→flash, active/expiry, chain counting). No Minecraft
     imports; all timing is driven by an integer tick passed in.
   - `com.patchnote.visualswap.client.particles.{ParticlesHandler, SwapParticle,
-    SwapParticleProvider, SwapParticleType, SwapParticleOptions, SwapHitMasks}` —
-    particle-type registration, the in-world particle + its provider, the custom
-    `ParticleOptions` that carries a particle's full spawn spec, and the shared
-    reader of `swap_hit_masks.json` (glyph shapes/colours) used by both the HUD
-    glyph and the particle tint. Ported from AttributeSwapFixes.
+    SwapHitMasks}` — `ParticlesHandler` builds the in-world particle burst and
+    hands each `SwapParticle` (a `SingleQuadParticle`) straight to the vanilla
+    `ParticleEngine` (**no** custom `ParticleType` — see the particle burst note),
+    and `SwapHitMasks` reads `swap_hit_masks.json` (glyph shapes/colours) for both
+    the HUD glyph and the particle tint. Ported from AttributeSwapFixes.
   - `com.patchnote.visualswap.client.hud.SwapHitGlyph` — the below-the-hotbar
     glyph HUD element.
   - `com.patchnote.visualswap.client.config.screen.*` — the hand-built config
@@ -234,8 +234,11 @@ Standard Loom build (`./gradlew build`) with one project-specific wrinkle: the
   colour, via `ModConfig.getFromColor()`/`getToColor()`). Four masks today: `possible` (→ `swap_possible`), `attacked`
   (→ `swap_attacked`) and `consecutive` (→ `swap_consecutive`) each have a
   `particle` and bake a sprite; `failed` is **HUD glyph only** — it omits
-  `particle`, so no particle type is registered and the bake skips it (no unused
-  sprite ships).
+  `particle`, so the bake skips it (no unused sprite ships). `possible` bakes a
+  sprite but is currently never spawned (only `attacked`/`consecutive` are). The
+  baked sprites are stitched into the vanilla particle atlas by its directory
+  source over `textures/particle/`, so `ParticlesHandler` looks them up by id at
+  spawn — no particle definition JSON or registered type.
 - `tasks.bakeParticleSprites` (in `build.gradle`) rasterizes each mask into
   `build/generated/particle-sprites/assets/visual-swap/textures/particle/<particle>.png`,
   scaling each cell by `cellPx = 8`. Filled cells are baked **opaque white** and
@@ -335,13 +338,21 @@ pushes render state each tick.
   target's mid-height (`getY(0.5)`), `PARTICLES_PER_HIT` (9) × `clamp(chainHits, 1,
   MAX_CHAIN_HITS)`, using the `consecutive` sprite for chains ≥ 2 else `attacked`.
   The attack style (`AttackParticleProps.{NORMAL,CRIT,SMASH}`) sets each particle's
-  impulse (outward/up) and lifetime; all per-particle properties travel with the
-  particle in a custom `SwapParticleOptions` (no shared spawn-time state), tinted with
-  the mask `particleColor`.
+  impulse (outward/up) and lifetime; `ParticlesHandler.Tier` holds the per-tier
+  physics (baseSize/gravity/friction/jitter/upBias) applied per particle, tinted
+  with the mask `particleColor`.
 
-Particle types + client factories register from the client entrypoint — built-in
-registries are still unfrozen at client-init time (Fabric freezes them later in
-`Minecraft.<init>`), so no main entrypoint is added.
+**No custom particle type is registered.** `ParticlesHandler` builds each
+`SwapParticle` directly and calls `Minecraft.particleEngine.add(...)`; the sprite
+is looked up from the vanilla particle atlas
+(`getAtlasManager().getAtlasOrThrow(AtlasIds.PARTICLES).getSprite(id)`). This is
+deliberate: `BuiltInRegistries.PARTICLE_TYPE` is network-synced and Fabric flags
+it MODDED the instant a mod adds an entry, so registering there pollutes the
+**integrated server's** registry when a player opens their world to LAN — Fabric's
+registry-sync then disconnects any joining client that lacks Visual Swap. Building
+particles client-side keeps the effect purely local with zero server-visible
+footprint. **Do not reintroduce a `ParticleType`/`ParticleOptions`.** See
+`.llm/implementation/client-only-setup.md`.
 
 Tunable constants: `SwapWindowState.WINDOW_TICKS`/`GLYPH_VISIBLE_TICKS`,
 `SwapHitGlyph.SCALE`/`VERTICAL_OFFSET`, `ParticlesHandler.PARTICLES_PER_HIT`/`MAX_CHAIN_HITS`,

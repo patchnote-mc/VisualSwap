@@ -3,25 +3,15 @@
   "id": "visual-swap",
   "version": "${version}",
   "name": "Visual Swap",
-  "description": "Client-side visualizer for Minecraft's attribute-swapping behavior.",
-  "authors": [
-    "patchnote-mc"
-  ],
-  "contact": {
-    "homepage": "https://github.com/patchnote-mc/VisualSwap",
-    "sources": "https://github.com/patchnote-mc/VisualSwap",
-    "issues": "https://github.com/patchnote-mc/VisualSwap/issues"
-  },
+  "description": "Visualizes attribute swapping for better PVP",
+  "authors": ["patchnote-mc"],
+  "contact": {},
   "license": "All Rights Reserved",
   "icon": "assets/visual-swap/icon.png",
   "environment": "client",
   "entrypoints": {
-    "client": [
-      "com.patchnote.visualswap.client.VisualSwapClient"
-    ],
-    "modmenu": [
-      "com.patchnote.visualswap.client.config.ModMenuIntegration"
-    ]
+    "client": ["com.patchnote.visualswap.client.VisualSwapClient"],
+    "modmenu": ["com.patchnote.visualswap.client.config.ModMenuIntegration"]
   },
   "mixins": [
     "visual-swap.mixins.json",
