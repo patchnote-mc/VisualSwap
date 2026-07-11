@@ -4,7 +4,6 @@ import com.patchnote.visualswap.VisualSwap;
 import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.hud.HUDHandler;
 import com.patchnote.visualswap.client.hud.click.ItemFlashHandler;
-import com.patchnote.visualswap.client.particles.ParticlesHandler;
 import com.patchnote.visualswap.client.swap.SwapHandler;
 import com.patchnote.visualswap.client.tracker.ClickTickTracker;
 import me.shedaniel.autoconfig.AutoConfig;
@@ -31,7 +30,6 @@ public class VisualSwapClient implements ClientModInitializer
 
         // registration
         AutoConfig.register(ModConfig.class, Toml4jConfigSerializer::new);
-        ParticlesHandler.register();
         HUDHandler.register();
 
         // event callbacks

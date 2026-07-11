@@ -50,7 +50,9 @@ dependencies {
 // Rasterize the swap-hit glyph masks (the single source of truth in
 // src/main/resources/assets/.../swap_hit_masks.json — also read at runtime by SwapHitGlyph)
 // into the particle sprite PNGs. Only masks with a 'particle' name are baked (HUD-only masks omit
-// it and have no registered particle type). Filled '#' cells are baked OPAQUE WHITE; the particle's
+// it). The PNGs land under textures/particle/, which the vanilla particle atlas stitches via its
+// directory source, so ParticlesHandler can look each sprite up by id at spawn time WITHOUT
+// registering a (network-synced) particle type. Filled '#' cells are baked OPAQUE WHITE; the particle's
 // runtime tint (the mask's particleColor, vanilla/practice per the Preset config) colors
 // them, so one static sprite serves both variants. Empty cells are transparent. Each cell is
 // scaled up (CELL_PX) so the atlas sprite isn't a tiny 7x7. Output lands in a generated resources
