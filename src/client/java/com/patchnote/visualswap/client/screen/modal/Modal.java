@@ -21,7 +21,7 @@ public abstract class Modal extends Screen
     protected Modal(Component title)
     {
         super(title);
-        this.background = Minecraft.getInstance().gui.screen();
+        this.background = Minecraft.getInstance().screen;
     }
 
     /// Show this modal over the currently-open screen.

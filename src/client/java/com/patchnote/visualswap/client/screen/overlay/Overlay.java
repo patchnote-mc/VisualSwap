@@ -3,6 +3,7 @@ package com.patchnote.visualswap.client.screen.overlay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
+import net.minecraft.client.gui.components.AbstractScrollArea;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -30,7 +31,7 @@ public abstract class Overlay extends AbstractContainerWidget
 
     protected Overlay(int width, int height)
     {
-        super(0, 0, width, height, Component.empty());
+        super(0, 0, width, height, Component.empty(), AbstractScrollArea.defaultSettings(0));
     }
 
     /// Inset from the overlay bounds to the content — must match the {@code content + 2*pad} sizing the subclass used.
