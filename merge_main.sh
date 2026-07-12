@@ -54,7 +54,7 @@ require jq   # json processor
 # config
 REPO="patchnote-mc/VisualSwap"
 # release line: <MC_VERSION>-staging -> <MC_VERSION>-main
-MC_VERSION="26.2"                          
+MC_VERSION="26.1"
 STAGING="${MC_VERSION}-staging"
 MAIN="${MC_VERSION}-main"
 PR_TITLE="Release ${MAIN}"
