@@ -27,7 +27,18 @@ trap 'rm -f "$TMP_BODY"' EXIT
 # api METHOD PATH [JSON_BODY] -> HTTP status in $HTTP_CODE, response body in $TMP_BODY
 api() {
   local method="$1" path="$2" body="${3:-}"
-  local args=(-sS -o "$TMP_BODY" -w '%{http_code}' -X "$method"
+  # --http1.1 dodges intermittent "HTTP2 framing layer" errors (curl exit 16);
+  # --retry rides out transient network/5xx failures. Non-transient codes we
+  # handle ourselves (e.g. 422) aren't errors to curl, so they aren't retried.
+  local args=(
+    --http1.1
+    --retry 5
+    --retry-delay 2
+    --retry-all-errors
+    -sS
+    -o "$TMP_BODY"
+    -w '%{http_code}'
+    -X "$method"
     -H "Authorization: Bearer ${GH_TOKEN}"
     -H "Accept: application/vnd.github+json"
     -H "X-GitHub-Api-Version: 2022-11-28")
@@ -209,7 +220,12 @@ HEAD_SHA="$(jq -r '.head.sha' "$TMP_BODY")"
 log "polling '${REQUIRED_CHECK}' on ${HEAD_SHA:0:7} (every ${POLL_INTERVAL}s, up to $((POLL_INTERVAL * POLL_MAX))s)"
 attempt=0
 while :; do
-  api GET "/commits/${HEAD_SHA}/check-runs"
+  # A single failed poll shouldn't kill the release - just retry the loop.
+  if ! api GET "/commits/${HEAD_SHA}/check-runs"; then
+    warn "GitHub API temporarily unavailable - retrying…"
+    sleep 5
+    continue
+  fi
   cstatus="$(jq -r --arg c "$REQUIRED_CHECK" '[.check_runs[]? | select(.name==$c)] | last | .status // empty' "$TMP_BODY")"
   cconcl="$(jq -r --arg c "$REQUIRED_CHECK" '[.check_runs[]? | select(.name==$c)] | last | .conclusion // empty' "$TMP_BODY")"
   if [ "$cstatus" = "completed" ]; then
