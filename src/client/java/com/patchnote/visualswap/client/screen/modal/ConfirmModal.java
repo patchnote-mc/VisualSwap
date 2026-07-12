@@ -77,7 +77,7 @@ public final class ConfirmModal extends Modal
     private void confirm()
     {
         this.onConfirm.run();
-        if (Minecraft.getInstance().gui.screen() == this) close();
+        if (Minecraft.getInstance().screen == this) close();
     }
 
     @Override

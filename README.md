@@ -31,8 +31,7 @@ sprites (see [AGENTS.md](AGENTS.md) → "Build pipeline").
 
 ## Stack
 
-Minecraft `26.2` · Fabric (Loader `0.19.3`, API `0.153.0+26.2`, Loom
-`1.17-SNAPSHOT`) · Java `25` · Mojang mappings.
+Minecraft `26.1` · Fabric (Loader `0.19.3`, API) · Java `25` · Mojang mappings.
 
 ## For contributors / agents
 

@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
+import net.minecraft.client.gui.components.AbstractScrollArea;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -53,7 +54,7 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
                              IntSupplier tintColor, boolean colorEditable, Runnable onColorSwatchPressed,
                              IntConsumer onSetAllColors, OverlayManager overlays)
     {
-        super(0, 0, width, HEIGHT, Component.empty());
+        super(0, 0, width, HEIGHT, Component.empty(), AbstractScrollArea.defaultSettings(0));
 
         this.overlays = overlays;
         this.tintColor = tintColor;

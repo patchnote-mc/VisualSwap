@@ -9,7 +9,7 @@ git submodule update --init --recursive --depth 1
 cd src
 
 # check out the matching fabric-api tag
-git fetch origin tag "0.153.0+26.2" --no-tags
-git checkout "0.153.0+26.2"
+git fetch origin tag "0.145.1+26.1" --no-tags
+git checkout "0.145.1+26.1"
 
 cd ..

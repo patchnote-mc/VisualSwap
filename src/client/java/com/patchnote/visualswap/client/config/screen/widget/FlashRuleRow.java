@@ -12,6 +12,7 @@ import com.patchnote.visualswap.client.utils.ItemRegex;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
+import net.minecraft.client.gui.components.AbstractScrollArea;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
@@ -69,7 +70,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
 
     FlashRuleRow(FlashRulesList list, FlashRule rule)
     {
-        super(0, 0, list.getRowWidth(), ROW_HEIGHT, Component.empty());
+        super(0, 0, list.getRowWidth(), ROW_HEIGHT, Component.empty(), AbstractScrollArea.defaultSettings(0));
         this.list = list;
         rule.normalize();  // repair a rule carried over from an older config schema before any widget reads it
         this.rule = rule;

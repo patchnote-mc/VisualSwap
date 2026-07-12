@@ -58,7 +58,8 @@ public final class FlashRulesList implements Layout
     private final Consumer<String> onTextChanged;
     private final OverlayManager overlays;
     private final List<FlashRuleRow> rows = new ArrayList<>();
-    private final LinearLayout layout = LinearLayout.vertical().spacing(ROW_SPACING);
+    // Rebuilt from scratch each layout pass — 26.1's LinearLayout has no way to clear its children.
+    private LinearLayout layout = LinearLayout.vertical().spacing(ROW_SPACING);
 
     /// The preset whose colour each row currently shows/edits — mirrors the screen's working preset.
     private PresetType preset;
@@ -88,7 +89,11 @@ public final class FlashRulesList implements Layout
 
     private void rebuildLayout()
     {
-        this.layout.removeChildren();
+        int x = this.layout.getX();
+        int y = this.layout.getY();
+        this.layout = LinearLayout.vertical().spacing(ROW_SPACING);
+        this.layout.setX(x);
+        this.layout.setY(y);
         List<FlashRuleRow> visible = visibleRows();
         for (int i = 0; i < visible.size(); i++)
         {
@@ -331,9 +336,6 @@ public final class FlashRulesList implements Layout
 
     @Override
     public void visitWidgets(@NonNull Consumer<AbstractWidget> visitor) { this.layout.visitWidgets(visitor); }
-
-    @Override
-    public void removeChildren() { this.layout.removeChildren(); }
 
     @Override
     public void setX(int x) { this.layout.setX(x); }
