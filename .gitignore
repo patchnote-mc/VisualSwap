@@ -47,3 +47,6 @@ replay_*.log
 
 # affinity
 *.af~lock~
+
+# decompilations
+mc_decompiled/sources/
