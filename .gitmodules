@@ -1,3 +1,0 @@
-[submodule "fabric_decompiled/src"]
-	path = fabric_decompiled/src
-	url = https://github.com/FabricMC/fabric-api.git
