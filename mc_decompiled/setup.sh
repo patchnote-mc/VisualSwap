@@ -75,13 +75,7 @@ if [[ -f client.jar ]]; then
 fi
 download '.downloads.client.url' client.jar
 
-if [[ -f server.jar ]]; then
-    warn "Deleting existing server.jar"
-    rm server.jar
-fi
-download '.downloads.server.url' server.jar
-
-if [[ ! -f cfr.jar ]]; then
+if [[ ! -f cfr.jar ]]; then 
     log "Downloading CFR ..."
     run curl -L "https://www.benf.org/other/cfr/cfr-0.152.jar" -o cfr.jar
 fi
@@ -91,11 +85,6 @@ step "Decompiling ..."
 if [[ -f client.jar ]]; then
     log "Decompiling client ..."
     run java -jar cfr.jar client.jar --outputdir client_src
-fi
-
-if [[ -f server.jar ]]; then
-    log "Decompiling server ..."
-    run java -jar cfr.jar server.jar --outputdir server_src
 fi
 
 step "Cleaning up ..."
