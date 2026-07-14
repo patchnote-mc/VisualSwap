@@ -68,7 +68,24 @@ REPO="patchnote-mc/VisualSwap"
 MC_VERSION="26.1"
 STAGING="${MC_VERSION}-staging"
 MAIN="${MC_VERSION}-main"
-PR_TITLE="Release ${MAIN}"
+
+# read a property from gradle.properties (script must be run from the repo root)
+prop() { grep -E "^$1[[:space:]]*=" gradle.properties 2>/dev/null | head -1 | cut -d= -f2- | tr -d '[:space:]'; }
+# Mod version string, matching build.gradle's format:
+#   version = "v${mod_version}+mc-${minecraft_version}"   (e.g. v1.1.4+mc-26.1)
+# Read from gradle.properties so the PR title, the release tag, and the
+# version-guard check all derive from the same source and stay in sync.
+MOD_VERSION="$(prop mod_version || true)"
+MC_VERSION_PROP="$(prop minecraft_version || true)"
+LOADER_VERSION="$(prop loader_version || true)"
+FABRIC_API_VERSION="$(prop fabric_api_version || true)"
+[ -n "$MOD_VERSION" ] && [ -n "$MC_VERSION_PROP" ] || { fail "Could not read mod_version / minecraft_version from gradle.properties - run this from the repo root."; exit 1; }
+FULL_VERSION="v${MOD_VERSION}+mc-${MC_VERSION_PROP}"
+PR_TITLE="$FULL_VERSION"
+
+# release build metadata, rendered into the PR body
+PR_META="$(printf '| Key | Info |\n|---|---|\n| Version | `%s` |\n| Minecraft | `%s` |\n| Fabric Loader | `%s` |\n| Fabric API | `%s` |\n| Merge | `%s` → `%s` |\n' \
+  "$FULL_VERSION" "$MC_VERSION_PROP" "${LOADER_VERSION:-?}" "${FABRIC_API_VERSION:-?}" "$STAGING" "$MAIN")"
 
 # variables
 REQUIRED_CHECK="block duplicate version"   
@@ -137,7 +154,8 @@ COMMIT_TITLE="$PR_TITLE"
 
 step "Step 1/6 - Release details"
 if [ "$SKIP_PUBLISH" = true ]; then
-  PR_BODY="Automated release PR: ${STAGING} -> ${MAIN}. No release will be published."
+  PR_BODY="$(printf 'Automated release PR — **no release will be published** (`[skip publish]`).\n\n## Build info\n\n%s\n| Sources | `%s` |\n' \
+    "$PR_META" "Not included")"
   log "skip-publish mode - no changelog or artifact selection needed"
 else
   [ -t 0 ] || { fail "No terminal on stdin - the changelog must be entered interactively (or pass --skip-publish)."; exit 1; }
@@ -170,8 +188,9 @@ else
     *"[skip publish]"*) fail "The changelog contains '[skip publish]', which would suppress the release. Remove it and re-run."; exit 1 ;;
   esac
 
-  PR_BODY="$(printf 'Automated release PR: %s -> %s.\n\nUploads the -sources jar: %s\n\n## Changelog\n\n%s\n' \
-    "$STAGING" "$MAIN" "$INCLUDE_SOURCES" "$CHANGELOG")"
+  if [ "$INCLUDE_SOURCES" = true ]; then SOURCES_LABEL="Included"; else SOURCES_LABEL="Not included"; fi
+  PR_BODY="$(printf '## Changelog\n\n%s\n\n## Build info\n\n%s\n| Sources | `%s` |\n' \
+    "$CHANGELOG" "$PR_META" "$SOURCES_LABEL")"
   printf '\n'
   success "changelog captured"
 fi
