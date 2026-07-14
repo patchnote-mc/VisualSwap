@@ -1,18 +1,121 @@
-#!/bin/zsh
+#!/bin/bash
+set -euo pipefail
 
-# set version here
+clear
+clear
+clear
+
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[0;33m'
+BLUE=$'\033[0;34m'
+GRAY=$'\033[0;90m'
+BOLD=$'\033[1m'
+RESET=$'\033[0m'
+
+log()     { printf '%s\n' "${GRAY}> $* ${RESET}"; }
+step()    { printf '\n%s\n' "${BOLD}${BLUE}==> ${BOLD}$*${RESET}"; }
+success() { printf '%s\n' "${GREEN}> $* ${RESET}"; }
+warn()    { printf '%s\n' "${YELLOW}> $* ${RESET}"; }
+fail()    { printf '%s\n' "${RED}> $* ${RESET}" >&2; }
+
+trap 'fail "Failed at line $LINENO. Aborting - nothing further will run."' ERR
+
+run() {
+  printf '%s\n' "${GRAY}\$${BLUE} $*${RESET}"
+  "$@"
+}
+
+# Decompile $1 into $2, turning CFR's per-class "Processing" lines into a bar.
+# CFR emits one "Processing" per top-level class, so the denominator counts
+# .class entries excluding inner classes (those containing '$').
+decompile() {
+  local jar="$1" outdir="$2"
+  local total count=0 percent filled width=40
+  local FULL='########################################'
+  local BLANK='........................................'
+
+  total=$(jar tf "$jar" | grep '\.class$' | grep -vc '\$' || true)
+  (( total > 0 )) || total=1
+
+  printf '%s\n' "${GRAY}\$${BLUE} java -jar cfr.jar $jar --outputdir $outdir${RESET}"
+
+  java -jar cfr.jar "$jar" --outputdir "$outdir" 2>&1 |
+  while IFS= read -r line; do
+    [[ $line == Processing\ * ]] || continue
+    count=$((count + 1))
+    percent=$((count * 100 / total))
+    (( percent > 100 )) && percent=100
+    filled=$((percent * width / 100))
+    printf '\r%s[%s%s]%s %3d%% (%d/%d)' \
+      "$GREEN" "${FULL:0:filled}" "${BLANK:0:width-filled}" "$RESET" \
+      "$percent" "$count" "$total"
+  done
+  printf '\n'
+}
+
+download() {
+    local key="$1"
+    local outfile="$2"
+
+    # filter URL from version.json
+    local url
+    url=$(jq -r "$key // empty" version.json)
+
+    # if url exists
+    if [[ -n "$url" ]]; then
+        log "Downloading $outfile"
+        run curl -L "$url" -o "$outfile"
+    else
+        warn "$outfile not present"
+    fi
+}
+
 VERSION="26.2"
 
-# mc decompiled sources are added as a submodule using command
-# git submodule add --depth 1 -b "$VERSION" git@github-patch:patchnote-mc/mc_decompiled.git mc_decompiled/sources/$VERSION
+run mkdir -p sources/$VERSION
+run cd sources/$VERSION
 
-# reloading
-git submodule update --init --recursive --depth 1
+log "Fetching Version Manifest ..."
 
-cd "sources/$VERSION"
+MANIFEST="https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+VERSION_JSON_URL=$(
+    curl -s "$MANIFEST" |
+    jq -r --arg v "$VERSION" '
+        .versions[]
+        | select(.id==$v)
+        | .url
+    '
+)
 
-# check out the matching version branch
-git fetch origin "$VERSION" --depth 1
-git checkout "$VERSION"
+if [[ "$VERSION_JSON_URL" == "null" ]]; then
+    fail "Unknown Minecraft version: $VERSION"
+    run exit 1
+fi
 
-cd ../..
+run curl -s "$VERSION_JSON_URL" -o version.json
+
+step "Downloading JARs ..."
+
+if [[ -f client.jar ]]; then
+    warn "Deleting existing client.jar"
+    rm client.jar
+fi
+download '.downloads.client.url' client.jar
+
+if [[ ! -f cfr.jar ]]; then 
+    log "Downloading CFR ..."
+    run curl -L "https://www.benf.org/other/cfr/cfr-0.152.jar" -o cfr.jar
+fi
+
+step "Decompiling ..."
+
+if [[ -f client.jar ]]; then
+    log "Decompiling client ..."
+    decompile client.jar client_src
+fi
+
+step "Cleaning up ..."
+run rm cfr.jar
+
+success "Done"

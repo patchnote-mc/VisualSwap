@@ -13,8 +13,8 @@ public final class SwapHitGlyph implements HudElement
     private static final int SCALE = 1;
     private static final int VERTICAL_OFFSET = 20;
 
-    /// Horizontal gap (px) between the glyph and the `xN` chain counter.
-    private static final int COUNTER_GAP = 2;
+    /// Horizontal gap (px) between the glyph and the chain counter.
+    private static final int COUNTER_GAP = 3;
 
     // state
     private boolean visible;
@@ -81,7 +81,7 @@ public final class SwapHitGlyph implements HudElement
                 int x = left + col * SCALE;
                 int y = top + row * SCALE;
                 graphics.fill(
-                        vanilla ? RenderPipelines.GUI_INVERT : RenderPipelines.GUI,
+                        vanilla && !this.failed ? RenderPipelines.GUI_INVERT : RenderPipelines.GUI,
                         x,
                         y,
                         x + SCALE,
@@ -91,23 +91,34 @@ public final class SwapHitGlyph implements HudElement
             }
         }
 
-        // chain count
+        // chain count — full count mirrored on both sides of the glyph
         if (this.chainCount >= 2)
         {
             int markWidth = SCALE;
             int markHeight = rows * SCALE;
+            int step = markWidth + SCALE;
 
-            int startX = left + cols * SCALE + COUNTER_GAP;
+            int startXRight = left + cols * SCALE + COUNTER_GAP;
+            int startXLeft = left - COUNTER_GAP - markWidth;
 
             for (int i = 0; i < this.chainCount; i++)
             {
-                int x = startX + i * (markWidth + SCALE);
+                int rightX = startXRight + i * step;
+                int leftX = startXLeft - i * step;
 
                 graphics.fill(
                         vanilla ? RenderPipelines.GUI_INVERT : RenderPipelines.GUI,
-                        x,
+                        rightX,
                         top,
-                        x + markWidth,
+                        rightX + markWidth,
+                        top + markHeight,
+                        color
+                );
+                graphics.fill(
+                        vanilla ? RenderPipelines.GUI_INVERT : RenderPipelines.GUI,
+                        leftX,
+                        top,
+                        leftX + markWidth,
                         top + markHeight,
                         color
                 );
