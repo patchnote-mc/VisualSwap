@@ -4,7 +4,7 @@
     "possible": {
       "particle": "swap_possible",
       "color": {
-        "vanilla": "0xAA9D97A4",
+        "vanilla": "0xFFFFFFFF",
         "practice": "0xAA0000FF"
       },
       "particleColor": {
@@ -24,7 +24,7 @@
     "attacked": {
       "particle": "swap_attacked",
       "color": {
-        "vanilla": "0xAA9D97B8",
+        "vanilla": "0xFFFFFFFF",
         "practice": "0xAA00FF00"
       },
       "particleColor": {
@@ -43,12 +43,12 @@
     },
     "failed": {
       "color": {
-        "vanilla": "0xAAC85A5A",
-        "practice": "0xAAFF0000"
+        "vanilla": "0xFFF85A5A",
+        "practice": "0xFFFF0000"
       },
       "particleColor": {
-        "vanilla": "0xAAC85A5A",
-        "practice": "0xAAFF0000"
+        "vanilla": "0xFFF85A5A",
+        "practice": "0xFFFF0000"
       },
       "rows": [
         ".......",
@@ -63,7 +63,7 @@
     "consecutive": {
       "particle": "swap_consecutive",
       "color": {
-        "vanilla": "0xAA9D97D0",
+        "vanilla": "0xFFFFFFFF",
         "practice": "0xFFFFAA00"
       },
       "particleColor": {
@@ -71,13 +71,13 @@
         "practice": "0xFFFFAA00"
       },
       "rows": [
-        "#..#..#",
         ".#.#.#.",
-        "..###..",
         "#######",
-        "..###..",
-        ".#.#.#.",
-        "#..#..#"
+        ".#####.",
+        "#######",
+        ".#####.",
+        "#######",
+        ".#.#.#."
       ]
     }
   }
