@@ -26,6 +26,34 @@ run() {
   "$@"
 }
 
+# Decompile $1 into $2, turning CFR's per-class "Processing" lines into a bar.
+# CFR emits one "Processing" per top-level class, so the denominator counts
+# .class entries excluding inner classes (those containing '$').
+decompile() {
+  local jar="$1" outdir="$2"
+  local total count=0 percent filled width=40
+  local FULL='########################################'
+  local BLANK='........................................'
+
+  total=$(jar tf "$jar" | grep '\.class$' | grep -vc '\$' || true)
+  (( total > 0 )) || total=1
+
+  printf '%s\n' "${GRAY}\$${BLUE} java -jar cfr.jar $jar --outputdir $outdir${RESET}"
+
+  java -jar cfr.jar "$jar" --outputdir "$outdir" 2>&1 |
+  while IFS= read -r line; do
+    [[ $line == Processing\ * ]] || continue
+    count=$((count + 1))
+    percent=$((count * 100 / total))
+    (( percent > 100 )) && percent=100
+    filled=$((percent * width / 100))
+    printf '\r%s[%s%s]%s %3d%% (%d/%d)' \
+      "$GREEN" "${FULL:0:filled}" "${BLANK:0:width-filled}" "$RESET" \
+      "$percent" "$count" "$total"
+  done
+  printf '\n'
+}
+
 download() {
     local key="$1"
     local outfile="$2"
@@ -84,7 +112,7 @@ step "Decompiling ..."
 
 if [[ -f client.jar ]]; then
     log "Decompiling client ..."
-    run java -jar cfr.jar client.jar --outputdir client_src
+    decompile client.jar client_src
 fi
 
 step "Cleaning up ..."
