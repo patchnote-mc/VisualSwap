@@ -27,7 +27,18 @@ trap 'rm -f "$TMP_BODY"' EXIT
 # api METHOD PATH [JSON_BODY] -> HTTP status in $HTTP_CODE, response body in $TMP_BODY
 api() {
   local method="$1" path="$2" body="${3:-}"
-  local args=(-sS -o "$TMP_BODY" -w '%{http_code}' -X "$method"
+  # --http1.1 dodges intermittent "HTTP2 framing layer" errors (curl exit 16);
+  # --retry rides out transient network/5xx failures. Non-transient codes we
+  # handle ourselves (e.g. 422) aren't errors to curl, so they aren't retried.
+  local args=(
+    --http1.1
+    --retry 5
+    --retry-delay 2
+    --retry-all-errors
+    -sS
+    -o "$TMP_BODY"
+    -w '%{http_code}'
+    -X "$method"
     -H "Authorization: Bearer ${GH_TOKEN}"
     -H "Accept: application/vnd.github+json"
     -H "X-GitHub-Api-Version: 2022-11-28")
@@ -54,10 +65,27 @@ require jq   # json processor
 # config
 REPO="patchnote-mc/VisualSwap"
 # release line: <MC_VERSION>-staging -> <MC_VERSION>-main
-MC_VERSION="26.2"                          
+MC_VERSION="26.2"
 STAGING="${MC_VERSION}-staging"
 MAIN="${MC_VERSION}-main"
-PR_TITLE="Release ${MAIN}"
+
+# read a property from gradle.properties (script must be run from the repo root)
+prop() { grep -E "^$1[[:space:]]*=" gradle.properties 2>/dev/null | head -1 | cut -d= -f2- | tr -d '[:space:]'; }
+# Mod version string, matching build.gradle's format:
+#   version = "v${mod_version}+mc-${minecraft_version}"   (e.g. v1.1.4+mc-26.1)
+# Read from gradle.properties so the PR title, the release tag, and the
+# version-guard check all derive from the same source and stay in sync.
+MOD_VERSION="$(prop mod_version || true)"
+MC_VERSION_PROP="$(prop minecraft_version || true)"
+LOADER_VERSION="$(prop loader_version || true)"
+FABRIC_API_VERSION="$(prop fabric_api_version || true)"
+[ -n "$MOD_VERSION" ] && [ -n "$MC_VERSION_PROP" ] || { fail "Could not read mod_version / minecraft_version from gradle.properties - run this from the repo root."; exit 1; }
+FULL_VERSION="v${MOD_VERSION}+mc-${MC_VERSION_PROP}"
+PR_TITLE="$FULL_VERSION"
+
+# release build metadata, rendered into the PR body
+PR_META="$(printf '| Key | Info |\n|---|---|\n| Version | `%s` |\n| Minecraft | `%s` |\n| Fabric Loader | `%s` |\n| Fabric API | `%s` |\n| Merge | `%s` → `%s` |\n' \
+  "$FULL_VERSION" "$MC_VERSION_PROP" "${LOADER_VERSION:-?}" "${FABRIC_API_VERSION:-?}" "$STAGING" "$MAIN")"
 
 # variables
 REQUIRED_CHECK="block duplicate version"   
@@ -126,7 +154,8 @@ COMMIT_TITLE="$PR_TITLE"
 
 step "Step 1/6 - Release details"
 if [ "$SKIP_PUBLISH" = true ]; then
-  PR_BODY="Automated release PR: ${STAGING} -> ${MAIN}. No release will be published."
+  PR_BODY="$(printf 'Automated release PR — **no release will be published** (`[skip publish]`).\n\n## Build info\n\n%s\n| Sources | `%s` |\n' \
+    "$PR_META" "Not included")"
   log "skip-publish mode - no changelog or artifact selection needed"
 else
   [ -t 0 ] || { fail "No terminal on stdin - the changelog must be entered interactively (or pass --skip-publish)."; exit 1; }
@@ -159,8 +188,9 @@ else
     *"[skip publish]"*) fail "The changelog contains '[skip publish]', which would suppress the release. Remove it and re-run."; exit 1 ;;
   esac
 
-  PR_BODY="$(printf 'Automated release PR: %s -> %s.\n\nUploads the -sources jar: %s\n\n## Changelog\n\n%s\n' \
-    "$STAGING" "$MAIN" "$INCLUDE_SOURCES" "$CHANGELOG")"
+  if [ "$INCLUDE_SOURCES" = true ]; then SOURCES_LABEL="Included"; else SOURCES_LABEL="Not included"; fi
+  PR_BODY="$(printf '## Changelog\n\n%s\n\n## Build info\n\n%s\n| Sources | `%s` |\n' \
+    "$CHANGELOG" "$PR_META" "$SOURCES_LABEL")"
   printf '\n'
   success "changelog captured"
 fi
@@ -209,7 +239,12 @@ HEAD_SHA="$(jq -r '.head.sha' "$TMP_BODY")"
 log "polling '${REQUIRED_CHECK}' on ${HEAD_SHA:0:7} (every ${POLL_INTERVAL}s, up to $((POLL_INTERVAL * POLL_MAX))s)"
 attempt=0
 while :; do
-  api GET "/commits/${HEAD_SHA}/check-runs"
+  # A single failed poll shouldn't kill the release - just retry the loop.
+  if ! api GET "/commits/${HEAD_SHA}/check-runs"; then
+    warn "GitHub API temporarily unavailable - retrying…"
+    sleep 5
+    continue
+  fi
   cstatus="$(jq -r --arg c "$REQUIRED_CHECK" '[.check_runs[]? | select(.name==$c)] | last | .status // empty' "$TMP_BODY")"
   cconcl="$(jq -r --arg c "$REQUIRED_CHECK" '[.check_runs[]? | select(.name==$c)] | last | .conclusion // empty' "$TMP_BODY")"
   if [ "$cstatus" = "completed" ]; then
