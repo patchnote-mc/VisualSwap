@@ -26,6 +26,7 @@ public final class ItemFlash
     private final int[] slotsExpirationTick = new int[HOTBAR_SLOTS];
     private final int[] slotsTint = new int[HOTBAR_SLOTS];
     private int heldSlot;
+    private int lastTick;
 
     private ItemFlash() { reset(); }
 
@@ -33,6 +34,12 @@ public final class ItemFlash
     public void onTick(int tick, int currentSlot, ItemStack selectedStack, boolean attackDown, boolean useDown,
                        boolean attackPressed, boolean usePressed)
     {
+        // The timeline is keyed to the client player's tickCount, which snaps back to 0 whenever the LocalPlayer is
+        // recreated (respawn, dimension change). A backwards jump leaves every stored expiration a stale future tick,
+        // freezing slots lit — drop the whole timeline when the clock rewinds.
+        if (tick < this.lastTick) reset();
+        this.lastTick = tick;
+
         // Resolve attack and use independently so two rules for one item can each cover their own input (e.g. Attack +
         // Use both apply). A config-screen/load-time conflict block keeps two rules from ever claiming the same input.
         FlashRule attackRule = getRuleFor(selectedStack, true);
@@ -79,6 +86,7 @@ public final class ItemFlash
         Arrays.fill(this.slotsExpirationTick, NO_TICK);
         Arrays.fill(this.slotsTint, DEFAULT_ARGB);
         this.heldSlot = NO_SLOT;
+        this.lastTick = NO_TICK;
     }
 
     /* HELPERS */
