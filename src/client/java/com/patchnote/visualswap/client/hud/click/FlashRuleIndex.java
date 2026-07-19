@@ -26,6 +26,7 @@ final class FlashRuleIndex
     private final List<FlashRule> byOrder;  // {@link #source} sorted by precedence
     private final Map<Item, FlashRule> attackWinners = new HashMap<>();
     private final Map<Item, FlashRule> useWinners = new HashMap<>();
+    private final Map<Item, FlashRule> matchWinners = new HashMap<>();   // first-by-order match, ignoring input
 
     private FlashRuleIndex(List<FlashRule> source)
     {
@@ -70,6 +71,32 @@ final class FlashRuleIndex
             if (rule == null || rule.flashesAt() == null) continue;
             boolean covers = forAttack ? rule.flashesAt().flashesOnAttack() : rule.flashesAt().flashesOnUse();
             if (covers && rule.matches(id)) return rule;
+        }
+        return null;
+    }
+
+    /// The highest-precedence rule whose selector matches {@code item}, regardless of the input it flashes on, or null.
+    /// The swap indicators resolve per switched-to item this way (its {@link FlashRule#showSwapEffects()} gates the
+    /// glyph + hotbar highlight), so trigger is irrelevant here. Memoised, misses included.
+    @Nullable FlashRule matchingRule(Item item)
+    {
+        FlashRule winner = this.matchWinners.get(item);
+        if (winner != null) return winner;
+        if (this.matchWinners.containsKey(item)) return null;   // memoised miss
+
+        winner = resolveMatch(item);
+        this.matchWinners.put(item, winner);
+        return winner;
+    }
+
+    private @Nullable FlashRule resolveMatch(Item item)
+    {
+        Identifier key = BuiltInRegistries.ITEM.getKey(item);
+        if (key == null) return null;
+        String id = key.toString();
+        for (FlashRule rule : this.byOrder)
+        {
+            if (rule != null && rule.matches(id)) return rule;
         }
         return null;
     }

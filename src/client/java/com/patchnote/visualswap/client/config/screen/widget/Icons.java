@@ -22,6 +22,7 @@ public final class Icons
     public static final Identifier CLEAR = of("clear");
     public static final Identifier SEARCH = of("search");
     public static final Identifier DIRTY = of("dirty");
+    public static final Identifier CONFIG = of("config");
     public static final Identifier CHECK = of("check");
     public static final Identifier MOVE_UP = of("move_up");
     public static final Identifier MOVE_DOWN = of("move_down");

@@ -1,11 +1,11 @@
 package com.patchnote.visualswap.client.config.screen.widget;
 
-import com.patchnote.visualswap.client.config.models.FlashIntensity;
 import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.FlashTrigger;
 import com.patchnote.visualswap.client.config.models.PresetType;
 import com.patchnote.visualswap.client.screen.modal.ConfirmModal;
 import com.patchnote.visualswap.client.screen.modal.RegexPreviewModal;
+import com.patchnote.visualswap.client.screen.modal.RuleConfigModal;
 import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
 import com.patchnote.visualswap.client.utils.ItemIcons;
 import com.patchnote.visualswap.client.utils.ItemRegex;
@@ -28,8 +28,9 @@ import java.util.List;
 
 import static com.patchnote.visualswap.client.config.screen.widget.FlashRulesList.*;
 
-/// One rule's row: a clickable item-preview icon (opens the regex preview modal), the regex selector box, flash-input
-/// and intensity cyclers, a tint-colour swatch (click to open the picker), reorder up/down buttons, and duplicate +
+/// One rule's row: a clickable item-preview icon (opens the regex preview modal), the regex selector box, the
+/// flash-input cycler, a config (gear) button (opens the {@link RuleConfigModal} with the rule's strength + swap-effects
+/// settings), a tint-colour swatch (click to open the picker), reorder up/down buttons, and duplicate +
 /// delete buttons. It is a self-contained container widget — it positions and renders its own child widgets and routes
 /// events to them — so it can be stacked by a plain {@link net.minecraft.client.gui.layouts.Layout} (and scrolled by the
 /// page) instead of being an entry in a self-scrolling list.
@@ -46,7 +47,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
     private final ItemPreviewButton previewButton;
     private final EditBox itemBox;
     private final CycleButton<FlashTrigger> onButton;
-    private final CycleButton<FlashIntensity> intensityButton;
+    private final IconButton configButton;
     private final ColorSwatch colorSwatch;
     private final IconButton moveUpButton;
     private final IconButton moveDownButton;
@@ -78,7 +79,10 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.previewButton = new ItemPreviewButton(() -> this.previewItem, () -> this.matchCount, this::openPreviewModal);
         this.itemBox = createItemInput(rule);
         this.onButton = createTriggerSelector(rule);
-        this.intensityButton = createIntensitySelector(rule);
+        this.configButton = new IconButton(
+                CONFIG_WIDTH, Icons.CONFIG, Component.literal("Configure flash strength & swap effects"),
+                () -> RuleConfigModal.open(this.rule)
+        );
         this.colorSwatch = new ColorSwatch(
                 COLOR_SWATCH,
                 () -> 0xFF000000 | (this.rule.colorFor(this.list.preset()) & 0xFFFFFF)
@@ -109,7 +113,6 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.colorSwatch.setClickable(list.preset().isColorEditable());
 
         this.onButton.setTooltip(Tooltip.create(Component.literal("When this item flashes: on attack, on use, or both")));
-        this.intensityButton.setTooltip(Tooltip.create(Component.literal("Flash strength (Low = subtle, High = punchy)")));
 
         refreshMatches();
 
@@ -117,7 +120,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
                 this.previewButton,
                 this.itemBox,
                 this.onButton,
-                this.intensityButton,
+                this.configButton,
                 this.colorSwatch,
                 this.moveUpButton,
                 this.moveDownButton,
@@ -187,22 +190,6 @@ public final class FlashRuleRow extends AbstractContainerWidget
                 );
     }
 
-    private @NonNull CycleButton<FlashIntensity> createIntensitySelector(FlashRule rule)
-    {
-        FlashIntensity initial = rule.intensity() != null ? rule.intensity() : FlashIntensity.LOW;
-        return CycleButton.builder(FlashIntensity::getNameComponent, initial)
-                .withValues(FlashIntensity.values())
-                .displayOnlyValue()
-                .create(
-                        0,
-                        0,
-                        INTENSITY_WIDTH,
-                        WIDGET_HEIGHT,
-                        Component.empty(),
-                        (button, value) -> this.rule.setIntensity(value)
-                );
-    }
-
     /* GETTERS */
 
     public FlashRule getRule() { return this.rule; }
@@ -227,7 +214,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.previewButton.active = enabled;
         this.itemBox.setEditable(enabled);
         this.onButton.active = enabled;
-        this.intensityButton.active = enabled;
+        this.configButton.active = enabled;
         this.colorSwatch.setClickable(enabled && this.list.preset().isColorEditable());
         this.duplicateButton.active = enabled;
         this.deleteButton.active = enabled;
@@ -274,14 +261,14 @@ public final class FlashRuleRow extends AbstractContainerWidget
         // clickable item preview
         this.previewButton.setPosition(left, midY - ICON / 2);
 
-        // right-anchored columns: trigger | intensity | colour | up | down | duplicate | delete
+        // right-anchored columns: trigger | colour | config | up | down | duplicate | delete
         int deleteX = right - DELETE_WIDTH;
         int duplicateX = deleteX - ACTION_GAP - DUPLICATE_WIDTH;
         int downX = duplicateX - ACTION_GAP - MOVE_WIDTH;
         int upX = downX - ACTION_GAP - MOVE_WIDTH;
-        int colorX = upX - GAP - COLOR_SWATCH;
-        int intensityX = colorX - GAP - INTENSITY_WIDTH;
-        int onX = intensityX - GAP - ON_WIDTH;
+        int configX = upX - GAP - CONFIG_WIDTH;
+        int colorX = configX - GAP - COLOR_SWATCH;
+        int onX = colorX - GAP - ON_WIDTH;
 
         // A modified rule offers a revert (to its saved value); otherwise the delete button occupies the slot. Evaluated
         // live because in-row edits flip isModified() without a screen rebuild (same as the left-gutter marker below).
@@ -294,7 +281,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.duplicateButton.setPosition(duplicateX, widgetY);
         this.moveDownButton.setPosition(downX, widgetY);
         this.moveUpButton.setPosition(upX, widgetY);
-        this.intensityButton.setPosition(intensityX, widgetY);
+        this.configButton.setPosition(configX, widgetY);
         this.onButton.setPosition(onX, widgetY);
 
         // colour swatch (live), vertically centred in the row
@@ -310,7 +297,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.previewButton.extractRenderState(g, mouseX, mouseY, a);
         this.itemBox.extractRenderState(g, mouseX, mouseY, a);
         this.onButton.extractRenderState(g, mouseX, mouseY, a);
-        this.intensityButton.extractRenderState(g, mouseX, mouseY, a);
+        this.configButton.extractRenderState(g, mouseX, mouseY, a);
         this.colorSwatch.extractRenderState(g, mouseX, mouseY, a);
         this.moveUpButton.extractRenderState(g, mouseX, mouseY, a);
         this.moveDownButton.extractRenderState(g, mouseX, mouseY, a);
