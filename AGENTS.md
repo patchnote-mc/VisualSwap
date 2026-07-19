@@ -1,4 +1,4 @@
-<!-- last updated: 2026-07-11 -->
+<!-- last updated: 2026-07-19 -->
 
 # AGENTS.md — Visual Swap architecture & flows
 
@@ -81,8 +81,8 @@ there are two source sets, both registered as the `visual-swap` mod:
     `HeaderAndFooterLayout` (fixed title-only header, fixed **Discard/Cancel/Done**
     footer) plus a fixed **rules header** (`RuleColumnsHeader`, an
     `AbstractContainerWidget`) pinned just under the title — it hosts the **search box**
-    in the Item column (magnifier where the item icons sit), the Flash/Intensity column
-    captions, a **bulk tint swatch** in the colour column (above each row's own swatch;
+    in the Item column (magnifier where the item icons sit), the Trigger column
+    caption, a **bulk tint swatch** in the colour column (above each row's own swatch;
     click → a confirm, then the picker recolours **every** rule at once via
     `FlashRulesList.setColorForAll`, ignoring the filter), and the **Add / Clear / Reset**
     icon buttons on the right (aligned above each row's duplicate/delete icons), all off
@@ -95,9 +95,10 @@ there are two source sets, both registered as the `visual-swap` mod:
     `FlashRulesList`, a plain vertical `Layout` of `FlashRuleRow`s (each an
     `AbstractContainerWidget` with `NO_SCROLL`; the page owns all scrolling),
     one editable row per `ModConfig.FlashRule` (a **regex item selector** + a clickable
-    live-icon **preview** (`ItemPreviewButton`, `×N` badge; opens the `RegexPreviewModal`), flash-on /
-    intensity cycle chips, a tint-colour **swatch only** — click opens the picker, no
-    inline hex box — **up/down reorder** + **duplicate + delete** `IconButton`s). Row
+    live-icon **preview** (`ItemPreviewButton`, `×N` badge; opens the `RegexPreviewModal`), a flash-on
+    (Trigger) cycle chip, a **config (gear) `IconButton`** — opens the `RuleConfigModal` with the rule's
+    flash Strength cycler + Swap Effects On/Off (moved off the row 2026-07-19), a tint-colour **swatch only** — click
+    opens the picker, no inline hex box — **up/down reorder** + **duplicate + delete** `IconButton`s). Row
     add/remove/duplicate/reorder/clear/reset and every filter keystroke re-init via
     `rebuildWidgets()`. Each rebuild **preserves the scroll position** (captured/restored
     via the scroll container's `AbstractScrollArea` — `currentScroll`/`restoreScroll`) instead
@@ -106,7 +107,7 @@ there are two source sets, both registered as the `visual-swap` mod:
     row's item box and scrolls it in (`FlashRuleRow.focusItemInput` + `ensureRowVisible`);
     a **duplicated** row is flagged (`FlashRulesList.consumeRevealTarget`, resolved to an
     index like the preview target) and `revealRow`/`ensureRowVisible`'d into view.
-    **Icons:** the add / delete(X) / duplicate / reset / clear / search / dirty-dot glyphs
+    **Icons:** the add / delete(X) / duplicate / reset / clear / search / config (settings gear) / dirty-dot glyphs
     are Material Symbols SVGs rasterized to white 128² PNGs (+ a `blur` `.png.mcmeta` for
     smooth downscaling) by `.gen/gen_icons.py` (cairosvg) into
     `src/main/resources/assets/visual-swap/textures/gui/icons/`, tinted per state and
@@ -158,7 +159,14 @@ there are two source sets, both registered as the `visual-swap` mod:
     is `ItemFlash.getRuleFor(stack, forAttack)` → `hud/click/FlashRuleIndex.forCurrentConfig()`, a per-`Item` memoised
     winner cache (rules pre-sorted by `order`, patterns compiled once, rebuilt when the config's rule list is replaced),
     so the tick path is O(1) amortised. **Flash duration:** the global `ModConfig.flashVisibleTicks` (1–40, read live by
-    `ItemFlash`) is edited by a `TicksSlider` under the top grid. **Split resets:** **Reset rules** (rules
+    `ItemFlash`) is edited by a `TicksSlider` under the top grid. **Flash trigger mode (2026-07-19):** the global
+    `ModConfig.flashOnlyOnSwap` (default on) gates the item flash — when on, a press only lights a slot while a swap
+    window is open (`SwapHandler.isSwapWindowOpen` → `SwapWindowState.possible`, i.e. just switched to the item);
+    when off it fires on every matching attack/use. It does **not** affect the hotbar highlight (always swap-driven).
+    Surfaced as an "Only On Swap" sub-toggle under Item Flash in the Effects modal. **Per-rule swap effects (2026-07-19):**
+    each `FlashRule` carries a `showSwapEffects` flag (default off), edited — together with the flash Strength — in the
+    `RuleConfigModal` opened from each row's config (gear) button; one flag gates **both** the swap-hit glyph and the
+    hotbar highlight per switched-to item (see the Glyph / Hotbar highlight render bullets). **Split resets:** **Reset rules** (rules
     table → `FlashRule.defaultFlashRules()`) and **Reset colours** (Custom From/To + size
     → factory), each gated to when it would actually change something. **Search filter**
     (`FlashRulesList.setFilter`, view-only — `toRules()` still returns all), **duplicate**
@@ -200,6 +208,10 @@ there are two source sets, both registered as the `visual-swap` mod:
     each row a **checkbox** toggling the id in the rule's `excludedItems` set — so `minecraft:cod` can keep the fish but
     drop `cod_bucket` without touching the pattern. Edits land on the shared working rule; returning re-inits the config
     screen (which always re-`init`s on show), which picks them up. `utils/ItemIcons` builds the bind-safe item stacks.
+    `RuleConfigModal` (2026-07-19) hosts a rule's secondary settings — the flash Strength cycler and the Swap Effects
+    On/Off — opened from the row's config (gear) button; it mirrors the `EffectsModal` look (full-width rows, hovering a
+    row prints its help text in the panel's help area) and writes straight onto the shared working rule, same flow as
+    the `RegexPreviewModal`. `EffectsModal` (the master Toggles panel opened from the config header) shares that idiom.
 
 Mixins:
 
@@ -299,7 +311,13 @@ since `tickCount` increments between `handleKeybinds` and `END_CLIENT_TICK`.
 **Rendering** (particle + glyph ported from AttributeSwapFixes). `SwapHandler.updateAttackState`
 pushes render state each tick.
 - **Glyph** — `SwapHitGlyph` shows **while the window is active** (pushed via
-  `eventUpdate(visible, attacked, failed, consecutive, chainCount)`), rasterizing the
+  `eventUpdate(visible, attacked, failed, consecutive, chainCount)`), **gated per switched-to item**: `SwapHandler`
+  latches `effectsAllowed = ItemFlash.showsEffectsFor(mainHand)` on each swap (the switched-to item's highest-precedence
+  matching rule must opt in via `FlashRule.showSwapEffects`, default off; an item matching no rule never shows it). The
+  pre-click "possible" glyph tracks that live value; once a click starts the **attacked flash**, the glyph + hotbar
+  highlight instead read `flashEffectsAllowed` — the opt-in **latched when the flash began** (OR-extended across a chain)
+  — so switching away mid-flash keeps them on for the full window rather than cutting them short. The **same flag drives
+  both** the glyph and the highlight (below). It rasterizes the
   mask `rows`/`color` (shared, cached `SwapHitMasks`) to the HUD
   (`GuiGraphicsExtractor.fill`), registered `attachElementAfter(HOTBAR)` and drawn
   centred horizontally at screen-centre + `VERTICAL_OFFSET`. Mask priority is
@@ -317,7 +335,9 @@ pushes render state each tick.
 - **Hotbar highlight** — on the rising edge of `attacked`, `SwapHandler` freezes the
   swap's two hotbar slots (`swapFromSlot` recorded at swap time, plus the selected
   `swapToSlot`) and pushes them to `SwapHotbarHighlight.eventUpdate(active, trail, len,
-  chainCount)`. `HudHotbarHighlightMixin` then fills a box **behind each involved
+  chainCount)` with `active = attacked && flashEffectsAllowed` — so, like the glyph, it only
+  draws when the swap's item opted in (`FlashRule.showSwapEffects`), off the value latched when the flash began (so
+  switching away mid-flash doesn't hide it). `HudHotbarHighlightMixin` then fills a box **behind each involved
   item** — after the hotbar bar blits but before the item icon, so the item stays
   visible. Colours come live from `ModConfig.preset` via `Preset.getFromColor()/getToColor()`
   (`VANILLA` gray, `PRACTICE` red→green, `CUSTOM` the user pair). Slot geometry is

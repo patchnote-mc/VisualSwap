@@ -1,5 +1,6 @@
 package com.patchnote.visualswap.client.hud.click;
 
+import com.patchnote.visualswap.client.swap.SwapHandler;
 import com.patchnote.visualswap.client.tracker.ClickTickState;
 import com.patchnote.visualswap.client.tracker.ClickTickTracker;
 
@@ -23,6 +24,9 @@ public final class ItemFlashHandler
 
         boolean attackPressed = attackStarted || (swingStarted && !current.attackDown());
 
+        // SwapHandler.eventTick has already run this tick (see VisualSwapClient), so the swap window is up to date.
+        boolean swapWindowOpen = SwapHandler.INSTANCE.isSwapWindowOpen(current.tick());
+
         ItemFlash.INSTANCE.onTick(
                 current.tick(),
                 current.selectedSlot(),
@@ -30,7 +34,8 @@ public final class ItemFlashHandler
                 current.attackDown(),
                 current.useDown(),
                 attackPressed,
-                useStarted
+                useStarted,
+                swapWindowOpen
         );
     }
 }
