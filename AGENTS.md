@@ -217,8 +217,13 @@ Mixins:
 
 - `visual-swap.mixins.json` — package `com.patchnote.visualswap.mixin` (empty).
 - `visual-swap.client.mixins.json` — package
-  `com.patchnote.visualswap.client.mixin`, `"environment": "client"`. Three
-  active mixins, all render-only (swap-window *detection* still uses none):
+  `com.patchnote.visualswap.client.mixin`, `"environment": "client"`. Four
+  active mixins — three render-only, plus one that feeds swap *detection*:
+  - `HotbarSelectMixin` (`Inventory.setSelectedSlot` HEAD, local player only) —
+    the sole detection mixin: marks `HotbarSelectSignal` when the player selects a
+    hotbar slot (hotbar keys and scroll both route through `setSelectedSlot`), so a
+    switch is registered even when it lands on the slot already held or on an
+    identical item — cases the held-item comparison can't see.
   - `HudHotbarHighlightMixin` (`Hud.extractSlot` HEAD) — draws the swap
     highlight fill behind hotbar items, which the HUD-element API can't reach.
   - `HotbarItemGlowMixin` (`GuiRenderer.submitBlitFromItemAtlas` TAIL) —
@@ -279,8 +284,9 @@ the `*_decompiled/.index` / `.knowledge` dirs (see `.github/copilot-instructions
 ## Swap-window detection & rendering
 
 Revamped 2026-06-28 to a **switch/use-driven window** model (replacing the earlier
-attack-time attribute-discrepancy detection, now removed). No mixins — Fabric
-events + plain API cover everything.
+attack-time attribute-discrepancy detection, now removed). Fabric events + plain API
+cover most of it; the one detection mixin is `HotbarSelectMixin` (see Mixins), which
+supplies the slot-select signal the item comparison can't.
 
 **Detection (`SwapWindowState`, pure; driven by `SwapHandler.eventTick`).**
 `VisualSwapClient` wires the Fabric events and, in `END_CLIENT_TICK`, calls
@@ -289,14 +295,18 @@ events + plain API cover everything.
 snapshot as `tick()`), consistent across the tick handler and the interact handler
 since `tickCount` increments between `handleKeybinds` and `END_CLIENT_TICK`.
 
-- **Switch** — `SwapHandler.detectSwap` compares the current and previous
-  snapshots: if the main-hand item differs (`!ItemStack.isSameItem`),
-  `SwapWindowState.eventSwap(tick, failed)` arms the window for `WINDOW_TICKS`
-  (= **2**). Attribute swapping is a *same-tick* effect — held-item attributes lag
-  the slot by exactly one reconciliation (`detectEquipmentUpdates`, once/entity-tick),
-  and the client only observes the swap at end-of-tick — so 2 = 1-tick lag + 1-tick
-  observation is the tight, mechanically-grounded span. Switching to an empty hand
-  calls `clear()`. Watching the *item* covers hotbar keys and scroll; the first
+- **Switch** — `SwapHandler.detectSwap` arms the window when the current snapshot
+  shows a deliberate slot switch: either the main-hand item differs
+  (`!ItemStack.isSameItem`) **or** `ClickTickState.slotSelected` is set (a hotbar-key
+  / scroll selection this tick, captured via `HotbarSelectMixin` →
+  `HotbarSelectSignal`). `SwapWindowState.eventSwap(tick, failed)` arms it for
+  `WINDOW_TICKS` (= **2**). Attribute swapping is a *same-tick* effect — held-item
+  attributes lag the slot by exactly one reconciliation (`detectEquipmentUpdates`,
+  once/entity-tick), and the client only observes the swap at end-of-tick — so 2 =
+  1-tick lag + 1-tick observation is the tight, mechanically-grounded span. Switching
+  to an empty hand calls `clear()`. Adding the slot-select signal means re-selecting
+  the slot already held, or switching to a different slot holding an identical item,
+  now opens the window too (the item comparison alone misses both). The first
   post-spawn tick is skipped so empty→held isn't read as a swap.
 - **Click** — when `ClickTickTracker.attacked()` reports a rising edge (spear swing,
   or a left/right-click edge), `SwapHandler` calls `SwapWindowState.eventClick(tick)`,

@@ -105,11 +105,16 @@ public class SwapHandler
         // Skip the first post-spawn tick so the empty -> held transition isn't read as a swap.
         if (!previous.initialized()) return;
 
+        // A swap is a deliberate slot switch: either the held item changed, or the player selected a hotbar slot this
+        // tick (hotbar key / scroll). The slot-select signal catches switches the item comparison can't — re-selecting
+        // the slot already held, or switching to a different slot holding an identical item.
+        boolean itemChanged = !ItemStack.isSameItem(previous.mainHand(), current.mainHand());
+
         if (current.mainHand().isEmpty())
         {
             this.swapWindowState.clear();
         }
-        else if (!ItemStack.isSameItem(previous.mainHand(), current.mainHand()))
+        else if (itemChanged || current.slotSelected())
         {
             boolean piercingFail = current.hasPiercingComponent() && previous.cooldownAtTick() < 1.0f;
             this.swapWindowState.eventSwap(current.tick(), piercingFail);
