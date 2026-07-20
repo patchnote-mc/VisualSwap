@@ -24,6 +24,7 @@ public final class ClickTickTracker
     {
         this.current = ClickTickState.EMPTY;
         this.previous = ClickTickState.EMPTY;
+        HotbarSelectSignal.clear();
     }
 
     /* STATE & QUERIES */
@@ -46,6 +47,8 @@ public final class ClickTickTracker
 
     private static ClickTickState capture(Minecraft client)
     {
+        // Read-and-clear every tick so the latch never leaks into a later tick, even the tick we bail out as EMPTY.
+        boolean slotSelected = HotbarSelectSignal.consume();
         LocalPlayer player = client.player;
         if (player == null) return ClickTickState.EMPTY;
         // get item; prefer not copying the item
@@ -64,7 +67,8 @@ public final class ClickTickTracker
                 player.swingTime,
                 // get item cooldown
                 player.getAttackStrengthScale(0.0f), // param (0.0f) for exact last tick
-                mainHand.get(DataComponents.PIERCING_WEAPON) != null
+                mainHand.get(DataComponents.PIERCING_WEAPON) != null,
+                slotSelected
         );
     }
 }

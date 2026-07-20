@@ -26,21 +26,32 @@ public final class ItemFlash
     private final int[] slotsExpirationTick = new int[HOTBAR_SLOTS];
     private final int[] slotsTint = new int[HOTBAR_SLOTS];
     private int heldSlot;
+    private int lastTick;
 
     private ItemFlash() { reset(); }
 
-    /// Call on Client Tick
+    /// Call on Client Tick. {@code swapWindowOpen} reports whether a swap window is currently open (the item was just
+    /// switched to); under {@link ModConfig#flashOnlyOnSwap} a press only lights a slot while it is true.
     public void onTick(int tick, int currentSlot, ItemStack selectedStack, boolean attackDown, boolean useDown,
-                       boolean attackPressed, boolean usePressed)
+                       boolean attackPressed, boolean usePressed, boolean swapWindowOpen)
     {
+        // The timeline is keyed to the client player's tickCount, which snaps back to 0 whenever the LocalPlayer is
+        // recreated (respawn, dimension change). A backwards jump leaves every stored expiration a stale future tick,
+        // freezing slots lit — drop the whole timeline when the clock rewinds.
+        if (tick < this.lastTick) reset();
+        this.lastTick = tick;
+
         // Resolve attack and use independently so two rules for one item can each cover their own input (e.g. Attack +
         // Use both apply). A config-screen/load-time conflict block keeps two rules from ever claiming the same input.
         FlashRule attackRule = getRuleFor(selectedStack, true);
         FlashRule useRule = getRuleFor(selectedStack, false);
         boolean validSlot = currentSlot >= 0 && currentSlot < HOTBAR_SLOTS;
 
-        boolean attackPressedThisTick = validSlot && attackRule != null && attackPressed;
-        boolean usePressedThisTick = validSlot && useRule != null && usePressed;
+        // "Only on attribute swapping": a press lights the slot only when it lands inside a swap window (just switched).
+        boolean swapGate = !ModConfig.get().flashOnlyOnSwap || swapWindowOpen;
+
+        boolean attackPressedThisTick = validSlot && attackRule != null && attackPressed && swapGate;
+        boolean usePressedThisTick = validSlot && useRule != null && usePressed && swapGate;
         boolean keyHeldThisTick = (attackRule != null && attackDown) || (useRule != null && useDown);
 
         if (attackPressedThisTick || usePressedThisTick)
@@ -79,6 +90,7 @@ public final class ItemFlash
         Arrays.fill(this.slotsExpirationTick, NO_TICK);
         Arrays.fill(this.slotsTint, DEFAULT_ARGB);
         this.heldSlot = NO_SLOT;
+        this.lastTick = NO_TICK;
     }
 
     /* HELPERS */
@@ -105,5 +117,15 @@ public final class ItemFlash
     {
         if (stack == null || stack.isEmpty()) return null;
         return FlashRuleIndex.forCurrentConfig().rule(stack.getItem(), forAttack);
+    }
+
+    /// Whether switching to {@code stack} should show the swap-hit indicators (glyph + hotbar highlight) — true iff its
+    /// highest-precedence matching rule (regardless of input) opts in via {@link FlashRule#showSwapEffects()}. Used by
+    /// the swap driver to gate those effects per switched-to item; a stack that matches no rule never shows them.
+    public static boolean showsEffectsFor(ItemStack stack)
+    {
+        if (stack == null || stack.isEmpty()) return false;
+        FlashRule rule = FlashRuleIndex.forCurrentConfig().matchingRule(stack.getItem());
+        return rule != null && rule.showSwapEffects();
     }
 }

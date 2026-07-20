@@ -21,8 +21,8 @@ import java.util.function.IntSupplier;
 import static com.patchnote.visualswap.client.config.screen.widget.FlashRulesList.*;
 
 /// The fixed table header above the scrolling rules: a search box in the Item column (with a magnifier where the item
-/// icons sit), captions over the Flash/Intensity columns, a bulk tint swatch in the colour column (click to set every
-/// rule's colour at once), and the Add / Clear / Reset icon buttons on the right — aligned above each row's own
+/// icons sit), a caption over the Trigger column, a bulk tint swatch in the colour column (click to set every rule's
+/// colour at once), and the Add / Clear / Reset icon buttons on the right — aligned above each row's own
 /// duplicate/delete icons. It reuses {@link FlashRulesList}'s right-anchored column maths so everything lines up with
 /// the rows below. A container widget so it hosts and routes to its own children.
 public final class RuleColumnsHeader extends AbstractContainerWidget
@@ -47,9 +47,8 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
     private final IntSupplier tintColor;
     private final IntConsumer onSetAllColors;
 
-    public RuleColumnsHeader(int width, String initialSearch, Consumer<String> onSearch,
-                             Runnable onAdd, Runnable onClear, Runnable onReset,
-                             boolean clearEnabled, boolean resetEnabled,
+    public RuleColumnsHeader(int width, String initialSearch, Consumer<String> onSearch, Runnable onAdd,
+                             Runnable onClear, Runnable onReset, boolean clearEnabled, boolean resetEnabled,
                              IntSupplier tintColor, boolean colorEditable, Runnable onColorSwatchPressed,
                              IntConsumer onSetAllColors, OverlayManager overlays)
     {
@@ -88,8 +87,10 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         int swatchX = colorSwatchX();
         int swatchY = getY() + getHeight() / 2 - COLOR_SWATCH / 2;
         ColorPickerOverlay picker = new ColorPickerOverlay(
-                this.tintColor.getAsInt(), false,
-                argb -> this.onSetAllColors.accept(0xFF000000 | (argb & 0xFFFFFF))
+                this.tintColor.getAsInt(),
+                                                           false,
+                                                           argb -> this.onSetAllColors.accept(
+                                                                   0xFF000000 | (argb & 0xFFFFFF))
         );
         picker.position(swatchX - 8, swatchY + COLOR_SWATCH + 4);
         this.overlays.open(picker);
@@ -97,7 +98,8 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
 
     /// Grey out the whole rules toolbar — the screen calls this when the Item Flash effect is off (its rules can't be
     /// edited while disabled). Disables the search box, bulk swatch and Add/Clear/Reset icons, and puts {@code tip} on
-    /// the action icons so hovering explains why. One-way: the header is rebuilt fresh each init, so there is no restore.
+    /// the action icons so hovering explains why. One-way: the header is rebuilt fresh each init, so there is no
+    /// restore.
     public void disableWith(Tooltip tip)
     {
         this.searchBox.setEditable(false);
@@ -133,15 +135,13 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         int midY = getY() + getHeight() / 2;
         int widgetY = midY - WIDGET_HEIGHT / 2;
 
-        // right-anchored columns (mirror FlashRuleRow): trigger | intensity | colour | up | down | duplicate | delete
-        int colorX = colorSwatchX();
-        int intensityX = colorX - GAP - INTENSITY_WIDTH;
-        int onX = intensityX - GAP - ON_WIDTH;
+        // right-anchored columns (mirror FlashRuleRow): trigger | colour | config | up | down | duplicate | delete
+        int configX = configX();
+        int colorX = configX - GAP - COLOR_SWATCH;
+        int onX = colorX - GAP - ON_WIDTH;
 
-        // captions over the cycler columns
+        // caption over the trigger column; the config column's gear icons are self-describing
         g.centeredText(this.font, "Trigger", onX + ON_WIDTH / 2, midY - this.font.lineHeight / 2, CAPTION_ARGB);
-        g.centeredText(this.font, "Strength", intensityX + INTENSITY_WIDTH / 2, midY - this.font.lineHeight / 2,
-                       CAPTION_ARGB);
 
         // bulk tint swatch, centred in the colour column above each row's own swatch
         this.colorSwatch.setPosition(colorX, midY - COLOR_SWATCH / 2);
@@ -171,12 +171,17 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
     /// (the swatch's rendered position is only set during extract, i.e. one frame behind).
     private int colorSwatchX()
     {
+        return configX() - GAP - COLOR_SWATCH;
+    }
+
+    private int configX()
+    {
         int right = getX() + getWidth() - CONTENT_PAD;
         int deleteX = right - DELETE_WIDTH;
         int duplicateX = deleteX - ACTION_GAP - DUPLICATE_WIDTH;
         int downX = duplicateX - ACTION_GAP - MOVE_WIDTH;
         int upX = downX - ACTION_GAP - MOVE_WIDTH;
-        return upX - GAP - COLOR_SWATCH;
+        return upX - GAP - CONFIG_WIDTH;
     }
 
     @Override

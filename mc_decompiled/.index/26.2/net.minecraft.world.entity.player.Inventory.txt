@@ -1,0 +1,22 @@
+FQCN: net.minecraft.world.entity.player.Inventory
+
+Fields
+- public final Player player;   // owning player (client LocalPlayer vs server ServerPlayer distinguishes side)
+- private int selected;         // held hotbar slot, 0..8
+
+Methods
+- int getSelectedSlot()              // returns `selected`
+- void setSelectedSlot(int slot)     // throws IllegalArgumentException if !isHotbarSlot(slot); sets `selected`.
+                                      // Fires even when slot == current selected (no same-slot guard).
+- static boolean isHotbarSlot(int)
+- static int getSelectionSize()      // = 9
+
+setSelectedSlot is the SHARED routing point for ALL held-slot changes — verified callers:
+  - Minecraft.handleKeybinds (client_src Minecraft.java:1750) — hotbar number keys (keyHotbarSlots[i].consumeClick).
+  - MouseHandler.onScroll     (client_src MouseHandler.java:210) — scroll wheel (ScrollWheelHandler.getNextScrollWheelSelection).
+  - ClientPacketListener      (client_src ClientPacketListener.java:732) — server-forced held slot (SetHeldSlot packet).
+  - Player.readAdditionalSaveData (client_src Player.java:600) — load/respawn NBT "SelectedItemSlot".
+  - Inventory internal (replaceWith / pick helpers).
+=> Hooking setSelectedSlot catches BOTH hotbar keys and scroll from one place. In single-player the bytecode also
+   runs for the integrated-server ServerPlayer on another thread, so gate on `this.player == Minecraft.getInstance().player`
+   to keep only genuine client-side, user-driven selections. Used by VisualSwap HotbarSelectMixin.

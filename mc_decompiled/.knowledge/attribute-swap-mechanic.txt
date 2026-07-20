@@ -35,9 +35,13 @@ CLIENT TICK / INPUT ORDER (client_src/.../client/Minecraft.java)
    detectEquipmentUpdates reapplies ATTACK_DAMAGE only on the next entity tick; Player.tick's
    lastItemInMainHand/itemSwapTicker reset is likewise once/tick). The client observes the swap at
    end-of-tick, so SwapWindow.WINDOW_TICKS=2 (1-tick lag + 1-tick observation).
-   GLYPH STATE MACHINE (SwapWindow, recreated 2026-06-29):
-     - A main-hand item change opens the POSSIBLE window (WINDOW_TICKS=2). While open the HUD glyph
-       shows the "possible" mask (default). Glyph is only on screen while possible OR a flash runs.
+   GLYPH STATE MACHINE (SwapWindow, recreated 2026-06-29; slot-select signal added 2026-07-19):
+     - A main-hand item change OR a hotbar slot-select this tick opens the POSSIBLE window (WINDOW_TICKS=2).
+       Slot-select is captured by a mixin on Inventory.setSelectedSlot (local player only) -> HotbarSelectSignal ->
+       ClickTickState.slotSelected; both hotbar number keys and scroll route through setSelectedSlot. This makes
+       re-selecting the slot already held (same key re-press) and switching between two identical items open the
+       window too -- cases !ItemStack.isSameItem alone misses. While open the HUD glyph shows the "possible" mask
+       (default). Glyph is only on screen while possible OR a flash runs.
      - A click = ATTACK or USE key rising edge (client.options.keyAttack/keyUse.isDown()). On a click,
        SwapWindow.onClick fires the "attacked" mask IFF possibleLastTick (the window was open in the
        PREVIOUS tick — "clicked and isPossible was true last tick"). The attacked variant shows as a

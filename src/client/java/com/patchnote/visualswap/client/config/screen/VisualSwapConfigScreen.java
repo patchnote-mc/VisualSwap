@@ -85,6 +85,7 @@ public final class VisualSwapConfigScreen extends Screen
     private boolean workingHudEnabled;
     private boolean workingHotbarHighlightEnabled;
     private boolean workingItemFlashEnabled;
+    private boolean workingFlashOnlyOnSwap;
     private boolean workingParticlesEnabled;
 
     /// The saved config as captured on open — the baseline the working state is diffed against to detect unsaved edits,
@@ -96,6 +97,7 @@ public final class VisualSwapConfigScreen extends Screen
     private final boolean savedHudEnabled;
     private final boolean savedHotbarHighlightEnabled;
     private final boolean savedItemFlashEnabled;
+    private final boolean savedFlashOnlyOnSwap;
     private final boolean savedParticlesEnabled;
     private final List<FlashRule> savedRules;
 
@@ -153,6 +155,7 @@ public final class VisualSwapConfigScreen extends Screen
         this.workingHudEnabled = cfg.hudEnabled;
         this.workingHotbarHighlightEnabled = cfg.hotbarHighlightEnabled;
         this.workingItemFlashEnabled = cfg.itemFlashEnabled;
+        this.workingFlashOnlyOnSwap = cfg.flashOnlyOnSwap;
         this.workingParticlesEnabled = cfg.particlesEnabled;
 
         this.savedType = cfg.preset;
@@ -162,9 +165,9 @@ public final class VisualSwapConfigScreen extends Screen
         this.savedHudEnabled = cfg.hudEnabled;
         this.savedHotbarHighlightEnabled = cfg.hotbarHighlightEnabled;
         this.savedItemFlashEnabled = cfg.itemFlashEnabled;
+        this.savedFlashOnlyOnSwap = cfg.flashOnlyOnSwap;
         this.savedParticlesEnabled = cfg.particlesEnabled;
-        this.savedRules = cfg.clickFlashRules.stream()
-                .map(FlashRule::new).toList();
+        this.savedRules = cfg.clickFlashRules.stream().map(FlashRule::new).toList();
         // Each saved rule is its own baseline; working copies inherit the link (copy ctor) to drive per-row markers.
         for (FlashRule saved : this.savedRules) saved.setSavedOrigin(saved);
     }
@@ -270,10 +273,8 @@ public final class VisualSwapConfigScreen extends Screen
                 this.workingVisibleTicks, ticks -> this.workingVisibleTicks = ticks
         );
         ticksSlider.active = itemFlashOn;
-        ticksSlider.setTooltip(itemFlashOn
-                               ? Tooltip.create(Component.literal(
-                "How many ticks a clicked item's flash tint stays visible."))
-                               : offTooltip(itemFlashOffSwitch()));
+        ticksSlider.setTooltip(itemFlashOn ? Tooltip.create(Component.literal(
+                "How many ticks a clicked item's flash tint stays visible.")) : offTooltip(itemFlashOffSwitch()));
         content.addChild(ticksSlider, LayoutSettings::alignHorizontallyCenter);
 
         content.addChild(new SpacerElement(0, 8));
@@ -363,8 +364,10 @@ public final class VisualSwapConfigScreen extends Screen
         this.scrollArea.visitWidgets(w -> this.scrollContainer = w);   // capture the inner scroll widget for row focus
 
         // header button that opens the effect switches — always enabled, so a disabled config can always be re-enabled
-        this.effectsButton = Button.builder(Component.literal("Toggles"), b -> EffectsModal.open(effectToggles()))
-                .width(EFFECTS_BTN_W).build();
+        this.effectsButton = Button
+                .builder(Component.literal("Toggles"), b -> EffectsModal.open(effectToggles()))
+                .width(EFFECTS_BTN_W)
+                .build();
         this.effectsButton.setTooltip(Tooltip.create(Component.literal("Turn the mod's effects on or off.")));
         addRenderableWidget(this.effectsButton);
 
@@ -461,31 +464,57 @@ public final class VisualSwapConfigScreen extends Screen
     }
 
     /// The effect switches shown in the {@link EffectsModal}, each bound live to a working field. Sub-switches carry an
-    /// {@code enabled} predicate so they grey out under a parent that is off; the modal re-reads these on every rebuild,
-    /// and its changes flow straight back into this screen's working state (refreshed on the modal's close → re-init).
+    /// {@code enabled} predicate so they grey out under a parent that is off; the modal re-reads these on every
+    /// rebuild, and its changes flow straight back into this screen's working state (refreshed on the modal's close →
+    /// re-init).
     private List<EffectsModal.Toggle> effectToggles()
     {
         return List.of(
-                new EffectsModal.Toggle("Mod",
+                new EffectsModal.Toggle(
+                        "Mod",
                         "Master switch — turns the whole mod on or off.",
-                        () -> this.workingModEnabled, v -> this.workingModEnabled = v, () -> true, 0),
-                new EffectsModal.Toggle("HUD",
+                        () -> this.workingModEnabled,
+                        v -> this.workingModEnabled = v,
+                        () -> true,
+                        0
+                ), new EffectsModal.Toggle(
+                        "HUD",
                         "Umbrella for the on-screen effects: the swap-hit glyph, hotbar highlight and item flash.",
-                        () -> this.workingHudEnabled, v -> this.workingHudEnabled = v,
-                        () -> this.workingModEnabled, 0),
-                new EffectsModal.Toggle("Hotbar Highlight",
+                        () -> this.workingHudEnabled,
+                        v -> this.workingHudEnabled = v,
+                        () -> this.workingModEnabled,
+                        0
+                ), new EffectsModal.Toggle(
+                        "Hotbar Highlight",
                         "Highlights the swapped hotbar slots — the From/To colour swatches tint it. Part of the HUD.",
-                        () -> this.workingHotbarHighlightEnabled, v -> this.workingHotbarHighlightEnabled = v,
-                        () -> this.workingModEnabled && this.workingHudEnabled, 1),
-                new EffectsModal.Toggle("Item Flash",
-                        "Flashes the clicked hotbar item's tint — what the flash-duration slider and rules below "
-                                + "configure. Part of the HUD.",
-                        () -> this.workingItemFlashEnabled, v -> this.workingItemFlashEnabled = v,
-                        () -> this.workingModEnabled && this.workingHudEnabled, 1),
-                new EffectsModal.Toggle("Particles",
+                        () -> this.workingHotbarHighlightEnabled,
+                        v -> this.workingHotbarHighlightEnabled = v,
+                        () -> this.workingModEnabled && this.workingHudEnabled,
+                        1
+                ), new EffectsModal.Toggle(
+                        "Item Flash",
+                        "Flashes the clicked hotbar item's tint — what the flash-duration slider and rules below " +
+                                "configure. Part of the HUD.",
+                        () -> this.workingItemFlashEnabled,
+                        v -> this.workingItemFlashEnabled = v,
+                        () -> this.workingModEnabled && this.workingHudEnabled,
+                        1
+                ), new EffectsModal.Toggle(
+                        "Only On Swap",
+                        "When on, the item flash only fires when you attack/use right after switching to the item (an " +
+                                "attribute swap). When off, it fires on every matching attack/use.",
+                        () -> this.workingFlashOnlyOnSwap,
+                        v -> this.workingFlashOnlyOnSwap = v,
+                        () -> this.workingModEnabled && this.workingHudEnabled && this.workingItemFlashEnabled,
+                        2
+                ), new EffectsModal.Toggle(
+                        "Particles",
                         "The particle burst when a swap hit lands — the size slider scales it.",
-                        () -> this.workingParticlesEnabled, v -> this.workingParticlesEnabled = v,
-                        () -> this.workingModEnabled, 0)
+                        () -> this.workingParticlesEnabled,
+                        v -> this.workingParticlesEnabled = v,
+                        () -> this.workingModEnabled,
+                        0
+                )
         );
     }
 
@@ -687,6 +716,7 @@ public final class VisualSwapConfigScreen extends Screen
         this.workingHudEnabled = this.savedHudEnabled;
         this.workingHotbarHighlightEnabled = this.savedHotbarHighlightEnabled;
         this.workingItemFlashEnabled = this.savedItemFlashEnabled;
+        this.workingFlashOnlyOnSwap = this.savedFlashOnlyOnSwap;
         this.workingParticlesEnabled = this.savedParticlesEnabled;
         this.filterText = "";
         this.pendingRules = this.savedRules;
@@ -700,8 +730,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         ConfirmModal.open(
                 Component.literal(title),
-                lines.stream()
-                        .<Component>map(Component::literal).toList(),
+                lines.stream().<Component>map(Component::literal).toList(),
                 Component.literal(confirmLabel),
                 action
         );
@@ -721,6 +750,7 @@ public final class VisualSwapConfigScreen extends Screen
                 this.workingModEnabled != this.savedModEnabled || this.workingHudEnabled != this.savedHudEnabled ||
                 this.workingHotbarHighlightEnabled != this.savedHotbarHighlightEnabled ||
                 this.workingItemFlashEnabled != this.savedItemFlashEnabled ||
+                this.workingFlashOnlyOnSwap != this.savedFlashOnlyOnSwap ||
                 this.workingParticlesEnabled != this.savedParticlesEnabled ||
                 !this.workingCustom.sameValuesAs(this.savedCustom) || !FlashRule.listsSameValues(
                 currentRules,
@@ -752,6 +782,7 @@ public final class VisualSwapConfigScreen extends Screen
         cfg.hudEnabled = this.workingHudEnabled;
         cfg.hotbarHighlightEnabled = this.workingHotbarHighlightEnabled;
         cfg.itemFlashEnabled = this.workingItemFlashEnabled;
+        cfg.flashOnlyOnSwap = this.workingFlashOnlyOnSwap;
         cfg.particlesEnabled = this.workingParticlesEnabled;
         cfg.clickFlashRules = this.list.toRules();
         AutoConfig.getConfigHolder(ModConfig.class).save();
