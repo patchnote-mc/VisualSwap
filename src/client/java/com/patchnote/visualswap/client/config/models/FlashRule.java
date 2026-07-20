@@ -14,8 +14,12 @@ import java.util.regex.Pattern;
 public final class FlashRule
 {
     private String item;
-    private FlashTrigger flashesAt = FlashTrigger.BOTH;
-    private FlashIntensity intensity = FlashIntensity.LOW;
+    private FlashTrigger flashesAt;
+    private FlashIntensity intensity;
+
+    /// Whether switching to an item this rule selects shows the on-screen swap-hit indicators — the below-hotbar glyph
+    /// *and* the hotbar slot highlight, collapsed under this one flag.
+    private boolean showSwapEffects;
 
     /// Precedence key: the runtime resolves rules in ascending {@code order} and the first whose selector matches a
     /// held item (per input) wins. Stamped from the rule's list position when the config is committed/loaded.
@@ -40,11 +44,12 @@ public final class FlashRule
     private transient Pattern pattern;
     private transient boolean patternComputed;
 
-    public FlashRule(String item, FlashTrigger flashesAt, FlashIntensity intensity)
+    public FlashRule(String item, FlashTrigger flashesAt, FlashIntensity intensity, boolean showSwapEffects)
     {
         this.item = item;
         this.flashesAt = flashesAt;
         this.intensity = intensity;
+        this.showSwapEffects = showSwapEffects;
         this.colors = defaultColors();
     }
 
@@ -55,6 +60,7 @@ public final class FlashRule
         this.item = other.item;
         this.flashesAt = other.flashesAt;
         this.intensity = other.intensity;
+        this.showSwapEffects = other.showSwapEffects;
         this.order = other.order;
         this.excludedItems = new LinkedHashSet<>(other.excludedItems);
         this.colors = copyColors(other.colors);
@@ -68,6 +74,8 @@ public final class FlashRule
     public FlashTrigger flashesAt() { return flashesAt; }
 
     public FlashIntensity intensity() { return intensity; }
+
+    public boolean showSwapEffects() { return showSwapEffects; }
 
     public int order() { return order; }
 
@@ -97,6 +105,12 @@ public final class FlashRule
     public FlashRule setIntensity(FlashIntensity intensity)
     {
         this.intensity = intensity;
+        return this;
+    }
+
+    public FlashRule setShowSwapEffects(boolean showSwapEffects)
+    {
+        this.showSwapEffects = showSwapEffects;
         return this;
     }
 
@@ -208,6 +222,7 @@ public final class FlashRule
         if (!Objects.equals(this.item, other.item)) return false;
         if (this.flashesAt != other.flashesAt) return false;
         if (this.intensity != other.intensity) return false;
+        if (this.showSwapEffects != other.showSwapEffects) return false;
         if (!Objects.equals(this.excludedItems, other.excludedItems)) return false;
         for (PresetType p : PresetType.values())
             if (this.colorFor(p) != other.colorFor(p)) return false;
@@ -236,18 +251,18 @@ public final class FlashRule
     public static List<FlashRule> defaultFlashRules()
     {
         List<FlashRule> rules = new ArrayList<>();
-        addRule(rules, "_sword", FlashTrigger.ATTACK, FlashIntensity.HIGH);
-        addRule(rules, "_axe", FlashTrigger.ATTACK, FlashIntensity.HIGH);
-        addRule(rules, "_spear", FlashTrigger.ATTACK, FlashIntensity.HIGH);
-        addRule(rules, "minecraft:mace", FlashTrigger.ATTACK, FlashIntensity.HIGH);
-        addRule(rules, "minecraft:trident", FlashTrigger.ATTACK, FlashIntensity.LOW);
-        addRule(rules, "minecraft:ender_pearl", FlashTrigger.USE, FlashIntensity.LOW);
-        addRule(rules, "minecraft:wind_charge", FlashTrigger.USE, FlashIntensity.LOW);
+        addRule(rules, "_sword", FlashTrigger.ATTACK, FlashIntensity.HIGH, true);
+        addRule(rules, "_axe", FlashTrigger.ATTACK, FlashIntensity.HIGH, true);
+        addRule(rules, "_spear", FlashTrigger.ATTACK, FlashIntensity.HIGH, true);
+        addRule(rules, "minecraft:mace", FlashTrigger.ATTACK, FlashIntensity.HIGH, true);
+        addRule(rules, "minecraft:trident", FlashTrigger.ATTACK, FlashIntensity.LOW, true);
+        addRule(rules, "minecraft:ender_pearl", FlashTrigger.USE, FlashIntensity.LOW, true);
+        addRule(rules, "minecraft:wind_charge", FlashTrigger.USE, FlashIntensity.LOW, true);
         return rules;
     }
 
-    private static void addRule(List<FlashRule> list, String item, FlashTrigger flashesAt, FlashIntensity intensity)
+    private static void addRule(List<FlashRule> list, String item, FlashTrigger flashesAt, FlashIntensity intensity, boolean showSwapEffects)
     {
-        list.add(new FlashRule(item, flashesAt, intensity));
+        list.add(new FlashRule(item, flashesAt, intensity, showSwapEffects));
     }
 }

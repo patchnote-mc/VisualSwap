@@ -34,7 +34,8 @@ public final class FlashRulesList implements Layout
     static final int GAP = 6;
 
     static final int ON_WIDTH = 58;
-    static final int INTENSITY_WIDTH = 46;
+    static final int CONFIG_WIDTH = 18;  // per-rule config (gear) button — opens the RuleConfigModal (strength/effects)
+
     static final int COLOR_SWATCH = 14;  // the colour column is now just this swatch (click opens the picker)
     static final int MOVE_WIDTH = 18;    // up/down reorder buttons
     static final int DUPLICATE_WIDTH = 18;
@@ -215,7 +216,7 @@ public final class FlashRulesList implements Layout
     {
         this.rows.addFirst(new FlashRuleRow(
                 this, //
-                new FlashRule("", FlashTrigger.ATTACK, FlashIntensity.HIGH)
+                new FlashRule("", FlashTrigger.ATTACK, FlashIntensity.HIGH, true)
         ));
         if (this.onChanged != null) this.onChanged.run();
     }

@@ -27,6 +27,11 @@ public final class ModConfig implements ConfigData
     /// How many ticks a clicked item's flash tint stays visible.
     public int flashVisibleTicks = 5;
 
+    /// When true the item flash (and its per-rule hotbar effects) only fire when the click lands inside a swap window —
+    /// i.e. right after switching to the item (an actual attribute swap). When false the flash fires on every matching
+    /// attack/use, regardless of a recent switch. Does not affect the hotbar highlight, which is always swap-driven.
+    public boolean flashOnlyOnSwap = true;
+
     /* MASTER TOGGLES */
 
     /// Master switch: when false the mod does nothing at all — no swap detection, HUD effects, or particles.
