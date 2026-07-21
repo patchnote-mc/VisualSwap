@@ -17,10 +17,10 @@ public final class ItemFlash
 
     public static final int TINT_RGB = 0xFFFFFF;
 
-    /// The shade exponent (1/gamma; see {@link FlashIntensity}) rides in the tint int's alpha byte, {@code 0..1}
-    /// mapped onto {@code 0..255} — the silhouette shader reads it straight back as the exponent (the output alpha
-    /// comes from the texture mask, so that channel is free). Exponent {@code 0} is a flat fill: every opaque pixel
-    /// becomes the full tint colour.
+    /// The shade exponent (1/gamma; see {@link FlashIntensity}) rides in the tint int's alpha byte, {@code 0..1} mapped
+    /// onto {@code 0..255} — the silhouette shader reads it straight back as the exponent (the output alpha comes from
+    /// the texture mask, so that channel is free). Exponent {@code 0} is a flat fill: every opaque pixel becomes the
+    /// full tint colour.
     private static final int DEFAULT_ARGB = packTint(TINT_RGB, FlashIntensity.HIGH.getShadeExponent());
 
     private final int[] slotsExpirationTick = new int[HOTBAR_SLOTS];

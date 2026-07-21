@@ -58,8 +58,10 @@ public abstract class Overlay extends AbstractContainerWidget
     /// The panel chrome behind the content — the vanilla tooltip nine-slice by default; override for a solid panel.
     protected void extractBackground(GuiGraphicsExtractor g)
     {
-        TooltipRenderUtil.extractTooltipBackground(g, contentX(), contentY(), getWidth() - 2 * pad(),
-                                                   getHeight() - 2 * pad(), null);
+        TooltipRenderUtil.extractTooltipBackground(
+                g, contentX(), contentY(), getWidth() - 2 * pad(),
+                getHeight() - 2 * pad(), null
+        );
     }
 
     protected final int contentX() { return getX() + pad(); }

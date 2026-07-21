@@ -126,8 +126,8 @@ public class SwapHandler
         }
     }
 
-    /// Whether a swap window is currently open (the held item was switched to within the last couple of ticks) — read by
-    /// the item flash to honour {@link com.patchnote.visualswap.client.config.ModConfig#flashOnlyOnSwap}.
+    /// Whether a swap window is currently open (the held item was switched to within the last couple of ticks) — read
+    /// by the item flash to honour {@link com.patchnote.visualswap.client.config.ModConfig#flashOnlyOnSwap}.
     public boolean isSwapWindowOpen(int tick) { return this.swapWindowState.possible(tick); }
 
     private void updateAttackState()

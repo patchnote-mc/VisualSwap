@@ -13,8 +13,8 @@ import java.util.regex.PatternSyntaxException;
 
 /// Regex matching of item identifiers against the item registry. A flash rule's selector is a regex matched with
 /// {@link Matcher#find()} (substring), so {@code _sword} catches every sword while a full literal id catches only
-/// itself. All matching is pure string work over {@code BuiltInRegistries.ITEM.keySet()}, so it is safe even before item
-/// components bind (e.g. on the title screen).
+/// itself. All matching is pure string work over {@code BuiltInRegistries.ITEM.keySet()}, so it is safe even before
+/// item components bind (e.g. on the title screen).
 public final class ItemRegex
 {
     private ItemRegex() { }
@@ -33,10 +33,10 @@ public final class ItemRegex
         }
     }
 
-    /// How many item ids {@code pattern} matches plus a representative first match (registry-iteration order) — enough to
-    /// drive a rule row's validity and preview icon without allocating the full id list. A null pattern is empty. Item
-    /// exclusions are deliberately ignored here (they are a per-item refinement handled by the rule/modal); this reports
-    /// the raw reach of the pattern itself.
+    /// How many item ids {@code pattern} matches plus a representative first match (registry-iteration order) — enough
+    /// to drive a rule row's validity and preview icon without allocating the full id list. A null pattern is empty.
+    /// Item exclusions are deliberately ignored here (they are a per-item refinement handled by the rule/modal); this
+    /// reports the raw reach of the pattern itself.
     public static Summary summarize(@Nullable Pattern pattern)
     {
         if (pattern == null) return Summary.EMPTY;
@@ -66,8 +66,9 @@ public final class ItemRegex
         return ids;
     }
 
-    /// The non-overlapping, non-empty match runs of {@code pattern} within {@code id}, flattened as {@code [start,end,…]}
-    /// — the substrings the modal highlights as the reason the id was included. Empty when nothing matches.
+    /// The non-overlapping, non-empty match runs of {@code pattern} within {@code id}, flattened as
+    /// {@code [start,end,…]} — the substrings the modal highlights as the reason the id was included. Empty when
+    /// nothing matches.
     public static int[] spans(Pattern pattern, String id)
     {
         Matcher matcher = pattern.matcher(id);

@@ -72,7 +72,7 @@ public final class SwapHitMasks
                 throw new IllegalStateException("Missing swap-hit mask resource: " + RESOURCE);
             }
             root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))
-                    .getAsJsonObject();
+                             .getAsJsonObject();
         }
         catch (IOException e)
         {
@@ -99,21 +99,21 @@ public final class SwapHitMasks
         JsonObject color = mask.getAsJsonObject("color");
         JsonObject particleColor = mask.getAsJsonObject("particleColor");
         List<String> rows = mask.getAsJsonArray("rows")
-                .asList()
-                .stream()
-                .map(JsonElement::getAsString)
-                .toList();
+                                .asList()
+                                .stream()
+                                .map(JsonElement::getAsString)
+                                .toList();
         return new Mask(
                 name,
                 particle,
                 parseArgb(color.get("vanilla")
-                                  .getAsString()),
+                               .getAsString()),
                 parseArgb(color.get("practice")
-                                  .getAsString()),
+                               .getAsString()),
                 parseArgb(particleColor.get("vanilla")
-                                  .getAsString()),
+                                       .getAsString()),
                 parseArgb(particleColor.get("practice")
-                                  .getAsString()),
+                                       .getAsString()),
                 rows
         );
     }
@@ -153,7 +153,7 @@ public final class SwapHitMasks
             return rows.isEmpty()
                    ? 0
                    : rows.getFirst()
-                           .length();
+                         .length();
         }
 
         public int height() { return rows.size(); }
@@ -161,7 +161,7 @@ public final class SwapHitMasks
         public boolean filled(int col, int row)
         {
             return rows.get(row)
-                    .charAt(col) == '#';
+                       .charAt(col) == '#';
         }
 
         public boolean canDraw() { return this.height() != 0; }

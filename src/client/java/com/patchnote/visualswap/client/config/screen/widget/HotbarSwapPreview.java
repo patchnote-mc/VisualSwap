@@ -62,16 +62,14 @@ public final class HotbarSwapPreview extends AbstractWidget
 
     private static final int TITLE = 0xFFFFFFFF;
     private static final int BODY = 0xFFA8A8B2;
+    // Each tooltip is a white title line + a grey body whose value may carry \n line breaks (split by TooltipOverlay).
     private static final List<Component> ORIGIN_TOOLTIP = List.of(
-            Component.literal("Swap origin").withColor(TITLE),
-            Component.literal("A swapped-away hotbar slot,").withColor(BODY),
-            Component.literal("tinted with your From colour.").withColor(BODY)
+            Component.translatable("gui.visual-swap.preview.origin.title").withColor(TITLE),
+            Component.translatable("gui.visual-swap.preview.origin.body").withColor(BODY)
     );
     private static final List<Component> DESTINATION_TOOLTIP = List.of(
-            Component.literal("Swap destination").withColor(TITLE),
-            Component.literal("The swapped-to slot (selected). Its").withColor(BODY),
-            Component.literal("item flashes in the active rule's").withColor(BODY),
-            Component.literal("colour and intensity.").withColor(BODY)
+            Component.translatable("gui.visual-swap.preview.destination.title").withColor(TITLE),
+            Component.translatable("gui.visual-swap.preview.destination.body").withColor(BODY)
     );
 
     private final IntSupplier fromColor;
@@ -137,12 +135,13 @@ public final class HotbarSwapPreview extends AbstractWidget
         slotTooltip(DESTINATION_TOOLTIP, toX, itemY, mouseX, mouseY);
     }
 
-    /// Explain what the hovered slot represents (the preview is illustrative, so the tooltip is guidance, not an item).
+    /// Explain what the hovered slot represents (the preview is illustrative, so the tooltip is guidance, not an
+    /// item).
     private void slotTooltip(List<Component> lines, int x, int y, int mouseX, int mouseY)
     {
         if (mouseX < x || mouseX >= x + ITEM_SIZE || mouseY < y || mouseY >= y + ITEM_SIZE) return;
         this.overlays.showTooltip(
-                new TooltipOverlay(Minecraft.getInstance().font, lines).positionNear(mouseX, mouseY));
+                TooltipOverlay.of(Minecraft.getInstance().font, lines).positionNear(mouseX, mouseY));
     }
 
     /// Re-resolve the flashing item when the followed rule (or its item id) changes; while the id is mid-edit and
@@ -156,7 +155,8 @@ public final class HotbarSwapPreview extends AbstractWidget
         this.flashItemId = id;
         Item item = ItemIcons.resolveItem(id);
         if (item != Items.AIR) this.flashItem = ItemIcons.stackFor(item);
-        else if (this.flashItem.isEmpty()) this.flashItem = ItemIcons.stackFor(ItemIcons.resolveItem(DEFAULT_FLASH_ITEM));
+        else if (this.flashItem.isEmpty())
+            this.flashItem = ItemIcons.stackFor(ItemIcons.resolveItem(DEFAULT_FLASH_ITEM));
     }
 
     /// The packed tint the in-game flash would use: the rule's colour for the current preset + its intensity's shade

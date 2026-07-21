@@ -43,7 +43,7 @@ public final class ColorSwatch extends AbstractWidget
     public void setClickable(boolean clickable)
     {
         this.clickable = clickable;
-        if (clickable) this.setTooltip(Tooltip.create(Component.literal("Click to Edit ...")));
+        if (clickable) this.setTooltip(Tooltip.create(Component.translatable("gui.visual-swap.tooltip.click_to_edit")));
         refreshActive();
     }
 

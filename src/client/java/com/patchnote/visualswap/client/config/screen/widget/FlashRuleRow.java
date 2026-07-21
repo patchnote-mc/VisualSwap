@@ -11,12 +11,7 @@ import com.patchnote.visualswap.client.utils.ItemIcons;
 import com.patchnote.visualswap.client.utils.ItemRegex;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.AbstractContainerWidget;
-import net.minecraft.client.gui.components.AbstractScrollArea;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.CycleButton;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.components.*;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -30,11 +25,11 @@ import java.util.List;
 import static com.patchnote.visualswap.client.config.screen.widget.FlashRulesList.*;
 
 /// One rule's row: a clickable item-preview icon (opens the regex preview modal), the regex selector box, the
-/// flash-input cycler, a config (gear) button (opens the {@link RuleConfigModal} with the rule's strength + swap-effects
-/// settings), a tint-colour swatch (click to open the picker), reorder up/down buttons, and duplicate +
+/// flash-input cycler, a config (gear) button (opens the {@link RuleConfigModal} with the rule's strength +
+/// swap-effects settings), a tint-colour swatch (click to open the picker), reorder up/down buttons, and duplicate +
 /// delete buttons. It is a self-contained container widget — it positions and renders its own child widgets and routes
-/// events to them — so it can be stacked by a plain {@link net.minecraft.client.gui.layouts.Layout} (and scrolled by the
-/// page) instead of being an entry in a self-scrolling list.
+/// events to them — so it can be stacked by a plain {@link net.minecraft.client.gui.layouts.Layout} (and scrolled by
+/// the page) instead of being an entry in a self-scrolling list.
 public final class FlashRuleRow extends AbstractContainerWidget
 {
     /// Horizontal inset of the row content from its own edges — kept in step with the screen's column headers.
@@ -77,11 +72,15 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.rule = rule;
 
         // widgets
-        this.previewButton = new ItemPreviewButton(() -> this.previewItem, () -> this.matchCount, this::openPreviewModal);
+        this.previewButton = new ItemPreviewButton(
+                () -> this.previewItem,
+                () -> this.matchCount,
+                this::openPreviewModal
+        );
         this.itemBox = createItemInput(rule);
         this.onButton = createTriggerSelector(rule);
         this.configButton = new IconButton(
-                CONFIG_WIDTH, Icons.CONFIG, Component.literal("Configure flash strength & swap effects"),
+                CONFIG_WIDTH, Icons.CONFIG, Component.translatable("gui.visual-swap.tooltip.configure_rule"),
                 () -> RuleConfigModal.open(this.rule)
         );
         this.colorSwatch = new ColorSwatch(
@@ -89,23 +88,23 @@ public final class FlashRuleRow extends AbstractContainerWidget
                 () -> 0xFF000000 | (this.rule.colorFor(this.list.preset()) & 0xFFFFFF)
         );
         this.moveUpButton = new IconButton(
-                MOVE_WIDTH, Icons.MOVE_UP, Component.literal("Move up (higher priority)"),
+                MOVE_WIDTH, Icons.MOVE_UP, Component.translatable("gui.visual-swap.tooltip.move_up"),
                 () -> this.list.moveUp(this)
         );
         this.moveDownButton = new IconButton(
-                MOVE_WIDTH, Icons.MOVE_DOWN, Component.literal("Move down (lower priority)"),
+                MOVE_WIDTH, Icons.MOVE_DOWN, Component.translatable("gui.visual-swap.tooltip.move_down"),
                 () -> this.list.moveDown(this)
         );
         this.duplicateButton = new IconButton(
-                DUPLICATE_WIDTH, Icons.DUPLICATE, Component.literal("Duplicate this rule"),
+                DUPLICATE_WIDTH, Icons.DUPLICATE, Component.translatable("gui.visual-swap.tooltip.duplicate_rule"),
                 () -> this.list.duplicate(this)
         );
         this.deleteButton = new IconButton(
-                DELETE_WIDTH, Icons.DELETE, Component.literal("Delete this rule"),
+                DELETE_WIDTH, Icons.DELETE, Component.translatable("gui.visual-swap.tooltip.delete_rule"),
                 this::confirmDelete
         );
         this.revertButton = new IconButton(
-                DELETE_WIDTH, Icons.RESET, Component.literal("Revert this rule to its saved value"),
+                DELETE_WIDTH, Icons.RESET, Component.translatable("gui.visual-swap.tooltip.revert_rule"),
                 () -> this.list.revertRule(this)
         );
         this.revertButton.visible = false;   // delete is shown until the first extract flips this per the rule's state
@@ -113,7 +112,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.colorSwatch.setOnPress(this::openColorPicker);
         this.colorSwatch.setClickable(list.preset().isColorEditable());
 
-        this.onButton.setTooltip(Tooltip.create(Component.literal("When this item flashes: on attack, on use, or both")));
+        this.onButton.setTooltip(Tooltip.create(Component.translatable("gui.visual-swap.tooltip.trigger")));
 
         refreshMatches();
 
@@ -137,9 +136,9 @@ public final class FlashRuleRow extends AbstractContainerWidget
     private void confirmDelete()
     {
         ConfirmModal.open(
-                Component.literal("Delete this rule?"),
-                List.of(Component.literal("Remove this rule from the table?")),
-                Component.literal("Delete"),
+                Component.translatable("gui.visual-swap.confirm.delete_rule.title"),
+                List.of(Component.translatable("gui.visual-swap.confirm.delete_rule.body")),
+                Component.translatable("gui.visual-swap.button.delete"),
                 () -> this.list.removeRule(this)
         );
     }
@@ -165,10 +164,10 @@ public final class FlashRuleRow extends AbstractContainerWidget
     {
         EditBox input = new EditBox(
                 Minecraft.getInstance().font, //
-                0, 0, 100, WIDGET_HEIGHT, Component.literal("Item selector (regex)")
+                0, 0, 100, WIDGET_HEIGHT, Component.translatable("gui.visual-swap.rules.item.narration")
         );
         input.setMaxLength(256);
-        input.setHint(Component.literal("filter (e.g \".*\")"));
+        input.setHint(Component.translatable("gui.visual-swap.rules.item.hint"));
         input.setValue(rule.item() == null ? "" : rule.item());
         input.setResponder(this::onItemEdited);
         input.moveCursorToStart(false);
@@ -179,16 +178,16 @@ public final class FlashRuleRow extends AbstractContainerWidget
     {
         FlashTrigger initial = rule.flashesAt() != null ? rule.flashesAt() : FlashTrigger.BOTH;
         return CycleButton.builder(FlashTrigger::getNameComponent, initial)
-                .withValues(FlashTrigger.values())
-                .displayOnlyValue()
-                .create(
-                        0,
-                        0,
-                        ON_WIDTH,
-                        WIDGET_HEIGHT,
-                        Component.empty(),
-                        (button, value) -> this.rule.setFlashesAt(value)
-                );
+                          .withValues(FlashTrigger.values())
+                          .displayOnlyValue()
+                          .create(
+                                  0,
+                                  0,
+                                  ON_WIDTH,
+                                  WIDGET_HEIGHT,
+                                  Component.empty(),
+                                  (button, value) -> this.rule.setFlashesAt(value)
+                          );
     }
 
     /* GETTERS */
@@ -196,19 +195,29 @@ public final class FlashRuleRow extends AbstractContainerWidget
     public FlashRule getRule() { return this.rule; }
 
     /// Whether this row's selector is a valid regex that matches at least one registered item — a blank/unparseable
-    /// pattern, or one matching nothing, renders an empty slot and never flashes. The screen counts these to block Done.
+    /// pattern, or one matching nothing, renders an empty slot and never flashes. The screen counts these to block
+    /// Done.
     public boolean isItemValid() { return this.isValid; }
 
     /// Enable/disable the reorder buttons — the list calls these each layout pass so the top visible row can't move up
     /// and the bottom can't move down. Combined with {@link #enabled} so a disabled row's arrows stay greyed.
-    void setCanMoveUp(boolean can) { this.canMoveUp = can; this.moveUpButton.active = can && this.enabled; }
+    void setCanMoveUp(boolean can)
+    {
+        this.canMoveUp = can;
+        this.moveUpButton.active = can && this.enabled;
+    }
 
-    void setCanMoveDown(boolean can) { this.canMoveDown = can; this.moveDownButton.active = can && this.enabled; }
+    void setCanMoveDown(boolean can)
+    {
+        this.canMoveDown = can;
+        this.moveDownButton.active = can && this.enabled;
+    }
 
     /// Grey the whole row out (or restore it) — used when the Item Flash effect is off, so its rules can't be edited.
     /// Order-independent w.r.t. {@link #setCanMoveUp}/{@link #setCanMoveDown}: both recompute the reorder buttons from
     /// the stored can-move + enabled flags. While disabled, every cell's own tooltip is swapped for {@code disabledTip}
-    /// so hovering any part of the row explains why the table is locked (rows are rebuilt fresh, so there is no restore).
+    /// so hovering any part of the row explains why the table is locked (rows are rebuilt fresh, so there is no
+    /// restore).
     public void setEnabled(boolean enabled, @Nullable Tooltip disabledTip)
     {
         this.enabled = enabled;
