@@ -30,7 +30,7 @@ final class ItemPreviewButton extends AbstractWidget
 
     ItemPreviewButton(Supplier<ItemStack> stack, IntSupplier matchCount, Runnable onOpen)
     {
-        super(0, 0, ICON, ICON, Component.literal("Preview matched items"));
+        super(0, 0, ICON, ICON, Component.translatable("gui.visual-swap.rules.preview_button"));
         this.stack = stack;
         this.matchCount = matchCount;
         this.onOpen = onOpen;

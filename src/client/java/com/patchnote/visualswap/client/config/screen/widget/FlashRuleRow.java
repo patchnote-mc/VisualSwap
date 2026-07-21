@@ -80,7 +80,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.itemBox = createItemInput(rule);
         this.onButton = createTriggerSelector(rule);
         this.configButton = new IconButton(
-                CONFIG_WIDTH, Icons.CONFIG, Component.literal("Configure flash strength & swap effects"),
+                CONFIG_WIDTH, Icons.CONFIG, Component.translatable("gui.visual-swap.tooltip.configure_rule"),
                 () -> RuleConfigModal.open(this.rule)
         );
         this.colorSwatch = new ColorSwatch(
@@ -88,23 +88,23 @@ public final class FlashRuleRow extends AbstractContainerWidget
                 () -> 0xFF000000 | (this.rule.colorFor(this.list.preset()) & 0xFFFFFF)
         );
         this.moveUpButton = new IconButton(
-                MOVE_WIDTH, Icons.MOVE_UP, Component.literal("Move up (higher priority)"),
+                MOVE_WIDTH, Icons.MOVE_UP, Component.translatable("gui.visual-swap.tooltip.move_up"),
                 () -> this.list.moveUp(this)
         );
         this.moveDownButton = new IconButton(
-                MOVE_WIDTH, Icons.MOVE_DOWN, Component.literal("Move down (lower priority)"),
+                MOVE_WIDTH, Icons.MOVE_DOWN, Component.translatable("gui.visual-swap.tooltip.move_down"),
                 () -> this.list.moveDown(this)
         );
         this.duplicateButton = new IconButton(
-                DUPLICATE_WIDTH, Icons.DUPLICATE, Component.literal("Duplicate this rule"),
+                DUPLICATE_WIDTH, Icons.DUPLICATE, Component.translatable("gui.visual-swap.tooltip.duplicate_rule"),
                 () -> this.list.duplicate(this)
         );
         this.deleteButton = new IconButton(
-                DELETE_WIDTH, Icons.DELETE, Component.literal("Delete this rule"),
+                DELETE_WIDTH, Icons.DELETE, Component.translatable("gui.visual-swap.tooltip.delete_rule"),
                 this::confirmDelete
         );
         this.revertButton = new IconButton(
-                DELETE_WIDTH, Icons.RESET, Component.literal("Revert this rule to its saved value"),
+                DELETE_WIDTH, Icons.RESET, Component.translatable("gui.visual-swap.tooltip.revert_rule"),
                 () -> this.list.revertRule(this)
         );
         this.revertButton.visible = false;   // delete is shown until the first extract flips this per the rule's state
@@ -112,7 +112,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.colorSwatch.setOnPress(this::openColorPicker);
         this.colorSwatch.setClickable(list.preset().isColorEditable());
 
-        this.onButton.setTooltip(Tooltip.create(Component.literal("When this item flashes: on attack, on use, or both")));
+        this.onButton.setTooltip(Tooltip.create(Component.translatable("gui.visual-swap.tooltip.trigger")));
 
         refreshMatches();
 
@@ -136,9 +136,9 @@ public final class FlashRuleRow extends AbstractContainerWidget
     private void confirmDelete()
     {
         ConfirmModal.open(
-                Component.literal("Delete this rule?"),
-                List.of(Component.literal("Remove this rule from the table?")),
-                Component.literal("Delete"),
+                Component.translatable("gui.visual-swap.confirm.delete_rule.title"),
+                List.of(Component.translatable("gui.visual-swap.confirm.delete_rule.body")),
+                Component.translatable("gui.visual-swap.button.delete"),
                 () -> this.list.removeRule(this)
         );
     }
@@ -164,10 +164,10 @@ public final class FlashRuleRow extends AbstractContainerWidget
     {
         EditBox input = new EditBox(
                 Minecraft.getInstance().font, //
-                0, 0, 100, WIDGET_HEIGHT, Component.literal("Item selector (regex)")
+                0, 0, 100, WIDGET_HEIGHT, Component.translatable("gui.visual-swap.rules.item.narration")
         );
         input.setMaxLength(256);
-        input.setHint(Component.literal("filter (e.g \".*\")"));
+        input.setHint(Component.translatable("gui.visual-swap.rules.item.hint"));
         input.setValue(rule.item() == null ? "" : rule.item());
         input.setResponder(this::onItemEdited);
         input.moveCursorToStart(false);

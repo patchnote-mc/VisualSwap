@@ -63,15 +63,15 @@ public final class HotbarSwapPreview extends AbstractWidget
     private static final int TITLE = 0xFFFFFFFF;
     private static final int BODY = 0xFFA8A8B2;
     private static final List<Component> ORIGIN_TOOLTIP = List.of(
-            Component.literal("Swap origin").withColor(TITLE),
-            Component.literal("A swapped-away hotbar slot,").withColor(BODY),
-            Component.literal("tinted with your From colour.").withColor(BODY)
+            Component.translatable("gui.visual-swap.preview.origin.title").withColor(TITLE),
+            Component.translatable("gui.visual-swap.preview.origin.line1").withColor(BODY),
+            Component.translatable("gui.visual-swap.preview.origin.line2").withColor(BODY)
     );
     private static final List<Component> DESTINATION_TOOLTIP = List.of(
-            Component.literal("Swap destination").withColor(TITLE),
-            Component.literal("The swapped-to slot (selected). Its").withColor(BODY),
-            Component.literal("item flashes in the active rule's").withColor(BODY),
-            Component.literal("colour and intensity.").withColor(BODY)
+            Component.translatable("gui.visual-swap.preview.destination.title").withColor(TITLE),
+            Component.translatable("gui.visual-swap.preview.destination.line1").withColor(BODY),
+            Component.translatable("gui.visual-swap.preview.destination.line2").withColor(BODY),
+            Component.translatable("gui.visual-swap.preview.destination.line3").withColor(BODY)
     );
 
     private final IntSupplier fromColor;

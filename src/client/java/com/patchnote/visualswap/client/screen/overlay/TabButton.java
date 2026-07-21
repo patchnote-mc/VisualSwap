@@ -28,9 +28,9 @@ final class TabButton extends AbstractWidget
     private final BooleanSupplier selected;
     private final Runnable onPress;
 
-    TabButton(int x, int y, int w, int h, String label, BooleanSupplier selected, Runnable onPress)
+    TabButton(int x, int y, int w, int h, Component label, BooleanSupplier selected, Runnable onPress)
     {
-        super(x, y, w, h, Component.literal(label));
+        super(x, y, w, h, label);
         this.selected = selected;
         this.onPress = onPress;
     }
