@@ -26,15 +26,15 @@ public final class ItemFlashPipeline
 
     public static final RenderPipeline WHITE_SILHOUETTE = //
             RenderPipeline.builder() //
-                    .withLocation(Identifier.fromNamespaceAndPath(VisualSwap.MOD_ID, "pipeline/white_silhouette"))
-                    .withVertexShader(SHADER)
-                    .withFragmentShader(SHADER)
-                    .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-                    .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-                    .withSampler("Sampler0")
-                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-                    .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
-                    .build();
+                          .withLocation(Identifier.fromNamespaceAndPath(VisualSwap.MOD_ID, "pipeline/white_silhouette"))
+                          .withVertexShader(SHADER)
+                          .withFragmentShader(SHADER)
+                          .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+                          .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+                          .withSampler("Sampler0")
+                          .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                          .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+                          .build();
 
     private ItemFlashPipeline() { }
 

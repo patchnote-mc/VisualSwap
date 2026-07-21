@@ -59,8 +59,10 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         this.tintColor = tintColor;
         this.onSetAllColors = onSetAllColors;
 
-        this.searchBox = new EditBox(this.font, 0, 0, 100, WIDGET_HEIGHT,
-                                     Component.translatable("gui.visual-swap.rules.search.narration"));
+        this.searchBox = new EditBox(
+                this.font, 0, 0, 100, WIDGET_HEIGHT,
+                Component.translatable("gui.visual-swap.rules.search.narration")
+        );
         this.searchBox.setHint(Component.translatable("gui.visual-swap.rules.search.hint"));
         this.searchBox.setValue(initialSearch);   // set BEFORE the responder so it doesn't self-trigger a rebuild
         this.searchBox.setResponder(onSearch);
@@ -96,9 +98,9 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         int swatchY = getY() + getHeight() / 2 - COLOR_SWATCH / 2;
         ColorPickerOverlay picker = new ColorPickerOverlay(
                 this.tintColor.getAsInt(),
-                                                           false,
-                                                           argb -> this.onSetAllColors.accept(
-                                                                   0xFF000000 | (argb & 0xFFFFFF))
+                false,
+                argb -> this.onSetAllColors.accept(
+                        0xFF000000 | (argb & 0xFFFFFF))
         );
         picker.position(swatchX - 8, swatchY + COLOR_SWATCH + 4);
         this.overlays.open(picker);
@@ -149,8 +151,10 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         int onX = colorX - GAP - ON_WIDTH;
 
         // caption over the trigger column; the config column's gear icons are self-describing
-        g.centeredText(this.font, Component.translatable("gui.visual-swap.rules.column.trigger").getString(),
-                       onX + ON_WIDTH / 2, midY - this.font.lineHeight / 2, CAPTION_ARGB);
+        g.centeredText(
+                this.font, Component.translatable("gui.visual-swap.rules.column.trigger").getString(),
+                onX + ON_WIDTH / 2, midY - this.font.lineHeight / 2, CAPTION_ARGB
+        );
 
         // bulk tint swatch, centred in the colour column above each row's own swatch
         this.colorSwatch.setPosition(colorX, midY - COLOR_SWATCH / 2);

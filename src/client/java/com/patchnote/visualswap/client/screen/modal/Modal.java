@@ -36,7 +36,12 @@ public abstract class Modal extends Screen
         if (this.background != null)
         {
             g.nextStratum();
-            this.background.extractRenderState(g, -1, -1, a);   // backdrop, rendered with an off-screen mouse (no hover)
+            this.background.extractRenderState(
+                    g,
+                    -1,
+                    -1,
+                    a
+            );   // backdrop, rendered with an off-screen mouse (no hover)
         }
         g.nextStratum();
         g.fill(0, 0, this.width, this.height, SCRIM);

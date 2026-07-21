@@ -48,8 +48,8 @@ public final class Preset
 
     /* COMPARISON */
 
-    /// Value equality of the editable settings — used to detect unsaved edits without overriding {@code equals}
-    /// (which some callers rely on being identity-based).
+    /// Value equality of the editable settings — used to detect unsaved edits without overriding {@code equals} (which
+    /// some callers rely on being identity-based).
     public boolean sameValuesAs(Preset other)
     {
         return other != null

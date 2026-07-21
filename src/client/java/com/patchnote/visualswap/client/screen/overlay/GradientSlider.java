@@ -12,8 +12,8 @@ import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.DoubleToIntFunction;
 
-/// A horizontal 0..1 slider whose track is painted per-column from a fraction→ARGB function — one widget covers the
-/// hue rainbow, contextual saturation/value ramps, and (with {@code checker}) the alpha ramp over a checkerboard.
+/// A horizontal 0..1 slider whose track is painted per-column from a fraction→ARGB function — one widget covers the hue
+/// rainbow, contextual saturation/value ramps, and (with {@code checker}) the alpha ramp over a checkerboard.
 final class GradientSlider extends AbstractWidget
 {
     private static final int BORDER = 0xFF4A4A52;
@@ -66,8 +66,10 @@ final class GradientSlider extends AbstractWidget
             for (int cx = 0; cx < w; cx += CHECKER_CELL)
             {
                 int color = ((cx / CHECKER_CELL + cy / CHECKER_CELL) % 2 == 0) ? CHECKER_LIGHT : CHECKER_DARK;
-                g.fill(x + cx, y + cy, Math.min(x + cx + CHECKER_CELL, x + w), Math.min(y + cy + CHECKER_CELL, y + h),
-                       color);
+                g.fill(
+                        x + cx, y + cy, Math.min(x + cx + CHECKER_CELL, x + w), Math.min(y + cy + CHECKER_CELL, y + h),
+                        color
+                );
             }
         }
     }

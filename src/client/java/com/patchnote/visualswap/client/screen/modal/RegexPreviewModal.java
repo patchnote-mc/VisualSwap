@@ -91,7 +91,7 @@ public final class RegexPreviewModal extends Modal
 
         int btnY = this.panelY + this.panelH - PAD - BTN_H;
         addRenderableWidget(Button.builder(Component.translatable("gui.visual-swap.button.close"), b -> onClose())
-                                    .bounds(this.panelX + (this.panelW - BTN_W) / 2, btnY, BTN_W, BTN_H).build());
+                                  .bounds(this.panelX + (this.panelW - BTN_W) / 2, btnY, BTN_W, BTN_H).build());
     }
 
     @Override
@@ -122,9 +122,11 @@ public final class RegexPreviewModal extends Modal
         g.fill(this.panelX + PAD, this.listTop, this.panelX + this.panelW - PAD, this.listTop + this.listH, LIST_BG);
         if (this.rows.isEmpty())
         {
-            g.centeredText(this.font, Component.translatable("gui.visual-swap.preview.no_match").getString(),
-                           this.panelX + this.panelW / 2,
-                           this.listTop + this.listH / 2 - this.font.lineHeight / 2, EMPTY_ARGB);
+            g.centeredText(
+                    this.font, Component.translatable("gui.visual-swap.preview.no_match").getString(),
+                    this.panelX + this.panelW / 2,
+                    this.listTop + this.listH / 2 - this.font.lineHeight / 2, EMPTY_ARGB
+            );
         }
     }
 

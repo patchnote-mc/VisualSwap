@@ -12,8 +12,8 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.function.BooleanSupplier;
 
-/// A flat tab: a filled rounded-ish rect (no vanilla button 3-slice, which squishes below 20px), that reads as
-/// selected / hovered / idle. Used by {@link ColorPickerOverlay}.
+/// A flat tab: a filled rounded-ish rect (no vanilla button 3-slice, which squishes below 20px), that reads as selected
+/// / hovered / idle. Used by {@link ColorPickerOverlay}.
 final class TabButton extends AbstractWidget
 {
     private static final int BG_SELECTED = 0xFF3A3A48;

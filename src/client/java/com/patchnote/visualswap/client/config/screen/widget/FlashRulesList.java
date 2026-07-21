@@ -202,9 +202,9 @@ public final class FlashRulesList implements Layout
         return n;
     }
 
-    /// Grey out (or restore) every row — the screen calls this with {@code false} when the Item Flash effect is switched
-    /// off, so the rules can't be edited while their effect is disabled. {@code disabledTip} becomes every cell's
-    /// tooltip while disabled, so hovering any row explains which switch turned the table off.
+    /// Grey out (or restore) every row — the screen calls this with {@code false} when the Item Flash effect is
+    /// switched off, so the rules can't be edited while their effect is disabled. {@code disabledTip} becomes every
+    /// cell's tooltip while disabled, so hovering any row explains which switch turned the table off.
     public void setEnabled(boolean enabled, @Nullable Tooltip disabledTip)
     {
         for (FlashRuleRow row : this.rows) row.setEnabled(enabled, disabledTip);
@@ -221,7 +221,8 @@ public final class FlashRulesList implements Layout
         if (this.onChanged != null) this.onChanged.run();
     }
 
-    /// Move {@code row} one step up in precedence — swapping it with the previous visible row — then re-lay-out the page.
+    /// Move {@code row} one step up in precedence — swapping it with the previous visible row — then re-lay-out the
+    /// page.
     void moveUp(FlashRuleRow row)
     {
         List<FlashRuleRow> visible = visibleRows();
@@ -231,7 +232,8 @@ public final class FlashRulesList implements Layout
         if (this.onChanged != null) this.onChanged.run();
     }
 
-    /// Move {@code row} one step down in precedence — swapping it with the next visible row — then re-lay-out the page.
+    /// Move {@code row} one step down in precedence — swapping it with the next visible row — then re-lay-out the
+    /// page.
     void moveDown(FlashRuleRow row)
     {
         List<FlashRuleRow> visible = visibleRows();

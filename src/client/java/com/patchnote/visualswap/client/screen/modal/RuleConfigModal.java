@@ -77,12 +77,13 @@ public final class RuleConfigModal extends Modal
 
         FlashIntensity initial = this.rule.intensity() != null ? this.rule.intensity() : FlashIntensity.LOW;
         CycleButton<FlashIntensity> strength = CycleButton.builder(FlashIntensity::getNameComponent, initial)
-                .withValues(FlashIntensity.values())
-                .create(
-                        x, y, w, ROW_H, //
-                        Component.translatable("gui.visual-swap.rule_config.strength.label"),
-                        (b, value) -> this.rule.setIntensity(value)
-                );
+                                                          .withValues(FlashIntensity.values())
+                                                          .create(
+                                                                  x, y, w, ROW_H, //
+                                                                  Component.translatable(
+                                                                          "gui.visual-swap.rule_config.strength.label"),
+                                                                  (b, value) -> this.rule.setIntensity(value)
+                                                          );
         addRenderableWidget(strength);
         this.buttons.add(strength);
         y += ROW_H + ROW_GAP;
@@ -100,7 +101,7 @@ public final class RuleConfigModal extends Modal
 
         int btnY = this.panelY + this.panelH - PAD - BTN_H;
         addRenderableWidget(Button.builder(Component.translatable("gui.visual-swap.button.done"), b -> close())
-                                    .bounds(this.panelX + PAD, btnY, PANEL_W - 2 * PAD, BTN_H).build());
+                                  .bounds(this.panelX + PAD, btnY, PANEL_W - 2 * PAD, BTN_H).build());
     }
 
     @Override
@@ -131,8 +132,10 @@ public final class RuleConfigModal extends Modal
         g.fill(x1 - 1, this.panelY, x1, y1, PANEL_BORDER);
 
         int cx = this.width / 2;
-        g.text(this.font, getTitle().getVisualOrderText(), cx - this.font.width(getTitle()) / 2,
-               this.panelY + PAD, TITLE_ARGB, true);
+        g.text(
+                this.font, getTitle().getVisualOrderText(), cx - this.font.width(getTitle()) / 2,
+                this.panelY + PAD, TITLE_ARGB, true
+        );
 
         // divider above the help area
         g.fill(this.panelX + PAD, this.helpY - 4, x1 - PAD, this.helpY - 3, DIVIDER);

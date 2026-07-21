@@ -242,10 +242,18 @@ public final class VisualSwapConfigScreen extends Screen
         top.addChild(this.slider, 1, 0);
 
         // From/To highlight colours — a caption + a swatch that opens the colour picker (Custom only)
-        top.addChild(colorRow(Component.translatable("gui.visual-swap.color.from"), this::effectiveFrom,
-                              this.workingCustom::setFromColor), 0, 1);
-        top.addChild(colorRow(Component.translatable("gui.visual-swap.color.to"), this::effectiveTo,
-                              this.workingCustom::setToColor), 1, 1);
+        top.addChild(
+                colorRow(
+                        Component.translatable("gui.visual-swap.color.from"), this::effectiveFrom,
+                        this.workingCustom::setFromColor
+                ), 0, 1
+        );
+        top.addChild(
+                colorRow(
+                        Component.translatable("gui.visual-swap.color.to"), this::effectiveTo,
+                        this.workingCustom::setToColor
+                ), 1, 1
+        );
 
         top.addChild(
                 new HotbarSwapPreview(
@@ -354,15 +362,21 @@ public final class VisualSwapConfigScreen extends Screen
 
         // --- footer: revert / leave / save ---
         LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(8));
-        Button discardButton = Button.builder(Component.translatable("gui.visual-swap.button.discard"),
-                                              b -> confirmDiscard()).width(80).build();
+        Button discardButton = Button.builder(
+                Component.translatable("gui.visual-swap.button.discard"),
+                b -> confirmDiscard()
+        ).width(80).build();
         discardButton.active = this.isModified;
         discardButton.setTooltip(Tooltip.create(Component.translatable("gui.visual-swap.tooltip.discard")));
         footer.addChild(discardButton);
-        footer.addChild(Button.builder(Component.translatable("gui.visual-swap.button.cancel"),
-                                       b -> onClose()).width(80).build());
-        this.doneButton = Button.builder(Component.translatable("gui.visual-swap.button.done"),
-                                         b -> onDone()).width(80).build();
+        footer.addChild(Button.builder(
+                Component.translatable("gui.visual-swap.button.cancel"),
+                b -> onClose()
+        ).width(80).build());
+        this.doneButton = Button.builder(
+                Component.translatable("gui.visual-swap.button.done"),
+                b -> onDone()
+        ).width(80).build();
         applyDoneState(this.list.invalidCount() == 0 ? DoneButtonState.ENABLED : DoneButtonState.INVALID_RULE);
         footer.addChild(this.doneButton);
 
@@ -372,7 +386,10 @@ public final class VisualSwapConfigScreen extends Screen
 
         // header button that opens the effect switches — always enabled, so a disabled config can always be re-enabled
         this.effectsButton = Button
-                .builder(Component.translatable("gui.visual-swap.effects.title"), b -> EffectsModal.open(effectToggles()))
+                .builder(
+                        Component.translatable("gui.visual-swap.effects.title"),
+                        b -> EffectsModal.open(effectToggles())
+                )
                 .width(EFFECTS_BTN_W)
                 .build();
         this.effectsButton.setTooltip(Tooltip.create(Component.translatable("gui.visual-swap.tooltip.effects_button")));
@@ -534,7 +551,10 @@ public final class VisualSwapConfigScreen extends Screen
         return Component.translatable("gui.visual-swap.effects.hotbar_highlight.label");
     }
 
-    private static Component itemFlashSwitch() { return Component.translatable("gui.visual-swap.effects.item_flash.label"); }
+    private static Component itemFlashSwitch()
+    {
+        return Component.translatable("gui.visual-swap.effects.item_flash.label");
+    }
 
     private static Component particlesSwitch() { return Component.translatable("gui.visual-swap.effects.particles.label"); }
 
