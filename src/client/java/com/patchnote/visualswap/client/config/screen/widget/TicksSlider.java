@@ -30,7 +30,9 @@ public final class TicksSlider extends AbstractSliderButton
     protected void updateMessage()
     {
         int t = ticks();
-        setMessage(Component.literal("Flash duration: " + t + (t == 1 ? " tick" : " ticks")));
+        setMessage(t == 1
+                   ? Component.translatable("gui.visual-swap.slider.flash_duration_one", t)
+                   : Component.translatable("gui.visual-swap.slider.flash_duration", t));
     }
 
     @Override

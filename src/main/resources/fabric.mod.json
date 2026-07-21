@@ -4,14 +4,20 @@
   "version": "${version}",
   "name": "Visual Swap",
   "description": "Visualizes attribute swapping for better PVP",
-  "authors": ["patchnote-mc"],
+  "authors": [
+    "patchnote-mc"
+  ],
   "contact": {},
   "license": "All Rights Reserved",
   "icon": "assets/visual-swap/icon.png",
   "environment": "client",
   "entrypoints": {
-    "client": ["com.patchnote.visualswap.client.VisualSwapClient"],
-    "modmenu": ["com.patchnote.visualswap.client.config.ModMenuIntegration"]
+    "client": [
+      "com.patchnote.visualswap.client.VisualSwapClient"
+    ],
+    "modmenu": [
+      "com.patchnote.visualswap.client.config.ModMenuIntegration"
+    ]
   },
   "mixins": [
     "visual-swap.mixins.json",

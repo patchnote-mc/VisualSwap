@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /// A passive, vanilla-looking tooltip that can be spawned at ANY position — hover tooltips today (via
@@ -18,22 +19,42 @@ public final class TooltipOverlay extends Overlay
     private static final int LINE_HEIGHT = 10;
     private static final int TITLE_GAP = 2;
 
+    /// A width cap high enough that {@link Font#split} only breaks on explicit {@code \n}, never soft-wrapping — so a
+    /// (translated) value controls its own line breaks with the escape sequence.
+    private static final int NO_SOFT_WRAP = Integer.MAX_VALUE;
+
     private final Font font;
     private final List<FormattedCharSequence> lines;
 
-    public TooltipOverlay(Font font, List<Component> lines)
+    /// Build a tooltip from styled component lines. Each component is split on its own {@code \n} breaks (styles
+    /// preserved), so a single (translated) value can span several rendered lines. Line 0 is still the title — it gets
+    /// the extra gap below it.
+    public static TooltipOverlay of(Font font, List<Component> lines)
+    {
+        return new TooltipOverlay(font, split(font, lines));
+    }
+
+    private TooltipOverlay(Font font, List<FormattedCharSequence> lines)
     {
         super(width(font, lines), height(lines));
         this.font = font;
-        this.lines = lines.stream().map(Component::getVisualOrderText).toList();
+        this.lines = lines;
     }
 
-    /// The vanilla tooltip for {@code stack} — same lines a container slot would show (respects advanced tooltips;
-    /// safe with no world/player, e.g. a config screen opened from the title screen).
+    /// The vanilla tooltip for {@code stack} — same lines a container slot would show (respects advanced tooltips; safe
+    /// with no world/player, e.g. a config screen opened from the title screen).
     public static TooltipOverlay forItem(Font font, ItemStack stack)
     {
         Minecraft mc = Minecraft.getInstance();
-        return new TooltipOverlay(font, Screen.getTooltipFromItem(mc, stack));
+        return of(font, Screen.getTooltipFromItem(mc, stack));
+    }
+
+    /// Split each component on its {@code \n} breaks, flattening to one entry per rendered line (styles preserved).
+    private static List<FormattedCharSequence> split(Font font, List<Component> lines)
+    {
+        List<FormattedCharSequence> out = new ArrayList<>();
+        for (Component line : lines) out.addAll(font.split(line, NO_SOFT_WRAP));
+        return out;
     }
 
     /// Vanilla hover placement: right-below the cursor, flipped/clamped at the screen edges.
@@ -62,14 +83,14 @@ public final class TooltipOverlay extends Overlay
 
     /* SIZING */
 
-    private static int width(Font font, List<Component> lines)
+    private static int width(Font font, List<FormattedCharSequence> lines)
     {
         int max = 0;
-        for (Component line : lines) max = Math.max(max, font.width(line));
+        for (FormattedCharSequence line : lines) max = Math.max(max, font.width(line));
         return max + 2 * PAD;
     }
 
-    private static int height(List<Component> lines)
+    private static int height(List<FormattedCharSequence> lines)
     {
         int n = Math.max(1, lines.size());
         return n * LINE_HEIGHT + (n > 1 ? TITLE_GAP : -2) + 2 * PAD;

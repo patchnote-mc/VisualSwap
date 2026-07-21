@@ -26,17 +26,17 @@ public final class ItemFlashPipeline
 
     public static final RenderPipeline WHITE_SILHOUETTE = //
             RenderPipeline.builder() //
-                    .withLocation(Identifier.fromNamespaceAndPath(VisualSwap.MOD_ID, "pipeline/white_silhouette"))
-                    .withVertexShader(SHADER)
-                    .withFragmentShader(SHADER)
-                    .withBindGroupLayout(BindGroupLayouts.GLOBALS)
-                    .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
-                    .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
-                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-                    .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
-                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
-                    .withUsePipelineDrawModeForGui(true)
-                    .build();
+                          .withLocation(Identifier.fromNamespaceAndPath(VisualSwap.MOD_ID, "pipeline/white_silhouette"))
+                          .withVertexShader(SHADER)
+                          .withFragmentShader(SHADER)
+                          .withBindGroupLayout(BindGroupLayouts.GLOBALS)
+                          .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+                          .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                          .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                          .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
+                          .withPrimitiveTopology(PrimitiveTopology.QUADS)
+                          .withUsePipelineDrawModeForGui(true)
+                          .build();
 
     private ItemFlashPipeline() { }
 

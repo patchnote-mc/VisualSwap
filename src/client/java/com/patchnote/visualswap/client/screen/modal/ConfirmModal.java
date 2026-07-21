@@ -68,10 +68,10 @@ public final class ConfirmModal extends Modal
 
         int btnW = (contentW - BTN_GAP) / 2;
         int btnY = this.panelY + this.panelH - PAD - BTN_H;
-        addRenderableWidget(Button.builder(Component.literal("Cancel"), b -> close())
-                                    .bounds(this.panelX + PAD, btnY, btnW, BTN_H).build());
+        addRenderableWidget(Button.builder(Component.translatable("gui.visual-swap.button.cancel"), b -> close())
+                                  .bounds(this.panelX + PAD, btnY, btnW, BTN_H).build());
         addRenderableWidget(Button.builder(this.confirmLabel, b -> confirm())
-                                    .bounds(this.panelX + PAD + btnW + BTN_GAP, btnY, btnW, BTN_H).build());
+                                  .bounds(this.panelX + PAD + btnW + BTN_GAP, btnY, btnW, BTN_H).build());
     }
 
     private void confirm()

@@ -127,7 +127,7 @@ public final class OverlayManager
         }
     }
 
-    /// True while a modal overlay is capturing input — the owning screen renders the page beneath it with an
-    /// off-screen mouse so covered widgets don't show hover outlines or hijack the cursor through the overlay.
+    /// True while a modal overlay is capturing input — the owning screen renders the page beneath it with an off-screen
+    /// mouse so covered widgets don't show hover outlines or hijack the cursor through the overlay.
     public boolean isModalOpen() { return this.overlay != null && this.overlay.isModal(); }
 }

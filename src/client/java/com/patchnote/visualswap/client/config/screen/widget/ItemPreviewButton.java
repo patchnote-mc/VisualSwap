@@ -16,8 +16,8 @@ import java.util.function.Supplier;
 import static com.patchnote.visualswap.client.config.screen.widget.FlashRulesList.*;
 
 /// A rule row's item column: a live preview of the first item the rule's regex selector matches (or an empty-slot
-/// placeholder when the pattern is blank/invalid), with a small {@code ×N} badge when the selector matches more than one
-/// item. Clicking it opens the regex preview modal for the rule. A hover ring hints at the click affordance.
+/// placeholder when the pattern is blank/invalid), with a small {@code ×N} badge when the selector matches more than
+/// one item. Clicking it opens the regex preview modal for the rule. A hover ring hints at the click affordance.
 final class ItemPreviewButton extends AbstractWidget
 {
     private static final int HOVER_BG = 0x33FFFFFF;
@@ -30,7 +30,7 @@ final class ItemPreviewButton extends AbstractWidget
 
     ItemPreviewButton(Supplier<ItemStack> stack, IntSupplier matchCount, Runnable onOpen)
     {
-        super(0, 0, ICON, ICON, Component.literal("Preview matched items"));
+        super(0, 0, ICON, ICON, Component.translatable("gui.visual-swap.rules.preview_button"));
         this.stack = stack;
         this.matchCount = matchCount;
         this.onOpen = onOpen;
@@ -64,7 +64,14 @@ final class ItemPreviewButton extends AbstractWidget
         if (count > 1)
         {
             String badge = "×" + count;   // ×N
-            g.text(this.font, badge, x + ICON - this.font.width(badge), y + ICON - this.font.lineHeight, BADGE_ARGB, true);
+            g.text(
+                    this.font,
+                    badge,
+                    x + ICON - this.font.width(badge),
+                    y + ICON - this.font.lineHeight,
+                    BADGE_ARGB,
+                    true
+            );
         }
     }
 
