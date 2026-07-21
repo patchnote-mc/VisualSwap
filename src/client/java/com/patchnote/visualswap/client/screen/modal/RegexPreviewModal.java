@@ -45,7 +45,7 @@ public final class RegexPreviewModal extends Modal
 
     private RegexPreviewModal(FlashRule rule)
     {
-        super(Component.literal("Matched items"));
+        super(Component.translatable("gui.visual-swap.preview.title"));
         this.rule = rule;
         this.rows = buildRows(rule);
     }
@@ -90,7 +90,7 @@ public final class RegexPreviewModal extends Modal
         }
 
         int btnY = this.panelY + this.panelH - PAD - BTN_H;
-        addRenderableWidget(Button.builder(Component.literal("Close"), b -> onClose())
+        addRenderableWidget(Button.builder(Component.translatable("gui.visual-swap.button.close"), b -> onClose())
                                     .bounds(this.panelX + (this.panelW - BTN_W) / 2, btnY, BTN_W, BTN_H).build());
     }
 
@@ -107,17 +107,23 @@ public final class RegexPreviewModal extends Modal
 
         // header: the pattern, then an included/total count
         int y = this.panelY + PAD;
-        String pattern = (this.rule.item() == null || this.rule.item().isBlank()) ? "(empty pattern)" : this.rule.item();
+        String pattern = (this.rule.item() == null || this.rule.item().isBlank())
+                         ? Component.translatable("gui.visual-swap.preview.empty_pattern").getString()
+                         : this.rule.item();
         g.text(this.font, pattern, this.panelX + PAD, y, TITLE_ARGB, true);
         y += TITLE_LINE + 2;
-        String count = this.rows.isEmpty() ? "0 matches" : includedCount() + " of " + this.rows.size() + " included";
+        String count = this.rows.isEmpty()
+                       ? Component.translatable("gui.visual-swap.preview.no_matches").getString()
+                       : Component.translatable("gui.visual-swap.preview.count", includedCount(), this.rows.size())
+                                  .getString();
         g.text(this.font, count, this.panelX + PAD, y, COUNT_ARGB, false);
 
         // list backdrop + empty state (the list widget, if any, draws over this)
         g.fill(this.panelX + PAD, this.listTop, this.panelX + this.panelW - PAD, this.listTop + this.listH, LIST_BG);
         if (this.rows.isEmpty())
         {
-            g.centeredText(this.font, "No items match this pattern", this.panelX + this.panelW / 2,
+            g.centeredText(this.font, Component.translatable("gui.visual-swap.preview.no_match").getString(),
+                           this.panelX + this.panelW / 2,
                            this.listTop + this.listH / 2 - this.font.lineHeight / 2, EMPTY_ARGB);
         }
     }

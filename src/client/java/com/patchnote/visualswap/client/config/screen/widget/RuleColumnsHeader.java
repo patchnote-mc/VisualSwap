@@ -59,8 +59,9 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         this.tintColor = tintColor;
         this.onSetAllColors = onSetAllColors;
 
-        this.searchBox = new EditBox(this.font, 0, 0, 100, WIDGET_HEIGHT, Component.literal("Search rules"));
-        this.searchBox.setHint(Component.literal("Search item id…"));
+        this.searchBox = new EditBox(this.font, 0, 0, 100, WIDGET_HEIGHT,
+                                     Component.translatable("gui.visual-swap.rules.search.narration"));
+        this.searchBox.setHint(Component.translatable("gui.visual-swap.rules.search.hint"));
         this.searchBox.setValue(initialSearch);   // set BEFORE the responder so it doesn't self-trigger a rebuild
         this.searchBox.setResponder(onSearch);
         this.searchBox.moveCursorToEnd(false);
@@ -69,11 +70,17 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         this.colorSwatch = new ColorSwatch(COLOR_SWATCH, () -> 0xFF000000 | (tintColor.getAsInt() & 0xFFFFFF));
         this.colorSwatch.setOnPress(onColorSwatchPressed);
         this.colorSwatch.setClickable(colorEditable);
-        if (colorEditable) this.colorSwatch.setTooltip(Tooltip.create(Component.literal("Set the tint of all rules")));
+        if (colorEditable)
+        {
+            this.colorSwatch.setTooltip(Tooltip.create(Component.translatable("gui.visual-swap.tooltip.set_all_colors")));
+        }
 
-        this.addButton = new IconButton(ACTION_W, Icons.ADD, Component.literal("Add a new rule"), onAdd);
-        this.clearButton = new IconButton(ACTION_W, Icons.CLEAR, Component.literal("Clear all rules"), onClear);
-        this.resetButton = new IconButton(ACTION_W, Icons.RESET, Component.literal("Reset rules to defaults"), onReset);
+        this.addButton = new IconButton(
+                ACTION_W, Icons.ADD, Component.translatable("gui.visual-swap.tooltip.add_rule"), onAdd);
+        this.clearButton = new IconButton(
+                ACTION_W, Icons.CLEAR, Component.translatable("gui.visual-swap.tooltip.clear_rules"), onClear);
+        this.resetButton = new IconButton(
+                ACTION_W, Icons.RESET, Component.translatable("gui.visual-swap.tooltip.reset_rules"), onReset);
         this.clearButton.active = clearEnabled;
         this.resetButton.active = resetEnabled;
 
@@ -142,7 +149,8 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         int onX = colorX - GAP - ON_WIDTH;
 
         // caption over the trigger column; the config column's gear icons are self-describing
-        g.centeredText(this.font, "Trigger", onX + ON_WIDTH / 2, midY - this.font.lineHeight / 2, CAPTION_ARGB);
+        g.centeredText(this.font, Component.translatable("gui.visual-swap.rules.column.trigger").getString(),
+                       onX + ON_WIDTH / 2, midY - this.font.lineHeight / 2, CAPTION_ARGB);
 
         // bulk tint swatch, centred in the colour column above each row's own swatch
         this.colorSwatch.setPosition(colorX, midY - COLOR_SWATCH / 2);

@@ -2,6 +2,8 @@ package com.patchnote.visualswap.client.config.models;
 
 import net.minecraft.network.chat.Component;
 
+import java.util.Locale;
+
 /// How strongly a {@link FlashRule}'s item is tinted when it flashes.
 ///
 /// The value is the *shade exponent* the silhouette shader applies to each pixel's own luminance: it paints the tint
@@ -23,14 +25,8 @@ public enum FlashIntensity
 
     /* HELPERS */
 
-    public String getName()
+    public Component getNameComponent()
     {
-        return switch (this)
-        {
-            case LOW -> "Low";
-            case HIGH -> "High";
-        };
+        return Component.translatable("gui.visual-swap.intensity." + name().toLowerCase(Locale.ROOT));
     }
-
-    public Component getNameComponent() { return Component.literal(getName()); }
 }

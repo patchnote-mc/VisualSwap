@@ -36,9 +36,9 @@ public final class RuleConfigModal extends Modal
     private static final int TITLE_ARGB = 0xFFFFFFFF;
     private static final int HELP_ARGB = 0xFF97979E;
 
-    private static final List<String> HELP = List.of(
-            "How strongly the item is tinted when it flashes — Low keeps the item's own shading, High is a flat fill.",
-            "Show the swap-hit glyph and hotbar highlight when switching to this item."
+    private static final List<Component> HELP = List.of(
+            Component.translatable("gui.visual-swap.rule_config.strength.help"),
+            Component.translatable("gui.visual-swap.rule_config.effects.help")
     );
 
     private final FlashRule rule;
@@ -54,7 +54,7 @@ public final class RuleConfigModal extends Modal
 
     private RuleConfigModal(FlashRule rule)
     {
-        super(Component.literal("Rule Config"));
+        super(Component.translatable("gui.visual-swap.rule_config.title"));
         this.rule = rule;
     }
 
@@ -80,7 +80,8 @@ public final class RuleConfigModal extends Modal
                 .withValues(FlashIntensity.values())
                 .create(
                         x, y, w, ROW_H, //
-                        Component.literal("Strength"), (b, value) -> this.rule.setIntensity(value)
+                        Component.translatable("gui.visual-swap.rule_config.strength.label"),
+                        (b, value) -> this.rule.setIntensity(value)
                 );
         addRenderableWidget(strength);
         this.buttons.add(strength);
@@ -88,7 +89,8 @@ public final class RuleConfigModal extends Modal
 
         CycleButton<Boolean> effects = CycleButton.onOffBuilder(this.rule.showSwapEffects()).create(
                 x, y, w, ROW_H, //
-                Component.literal("Swap Effects"), (b, value) -> this.rule.setShowSwapEffects(value)
+                Component.translatable("gui.visual-swap.rule_config.effects.label"),
+                (b, value) -> this.rule.setShowSwapEffects(value)
         );
         addRenderableWidget(effects);
         this.buttons.add(effects);
@@ -97,7 +99,7 @@ public final class RuleConfigModal extends Modal
         this.helpY = y + HELP_GAP - ROW_GAP;
 
         int btnY = this.panelY + this.panelH - PAD - BTN_H;
-        addRenderableWidget(Button.builder(Component.literal("Done"), b -> close())
+        addRenderableWidget(Button.builder(Component.translatable("gui.visual-swap.button.done"), b -> close())
                                     .bounds(this.panelX + PAD, btnY, PANEL_W - 2 * PAD, BTN_H).build());
     }
 
@@ -135,8 +137,10 @@ public final class RuleConfigModal extends Modal
         // divider above the help area
         g.fill(this.panelX + PAD, this.helpY - 4, x1 - PAD, this.helpY - 3, DIVIDER);
 
-        String help = (this.hovered >= 0) ? HELP.get(this.hovered) : "Hover a setting to see what it controls.";
-        List<FormattedCharSequence> lines = this.font.split(Component.literal(help), PANEL_W - 2 * PAD);
+        Component help = (this.hovered >= 0)
+                         ? HELP.get(this.hovered)
+                         : Component.translatable("gui.visual-swap.rule_config.hint");
+        List<FormattedCharSequence> lines = this.font.split(help, PANEL_W - 2 * PAD);
         int hy = this.helpY;
         for (int i = 0; i < Math.min(lines.size(), HELP_LINES); i++)
         {

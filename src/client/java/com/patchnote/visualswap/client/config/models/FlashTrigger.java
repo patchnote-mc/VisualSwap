@@ -2,6 +2,8 @@ package com.patchnote.visualswap.client.config.models;
 
 import net.minecraft.network.chat.Component;
 
+import java.util.Locale;
+
 /// Which input(s) make a {@link FlashRule}'s item flash.
 public enum FlashTrigger
 {
@@ -15,23 +17,8 @@ public enum FlashTrigger
 
     /* HELPERS */
 
-    public String getName()
-    {
-        return switch (this)
-        {
-            case ATTACK -> "Attack";
-            case USE -> "Use";
-            case BOTH -> "Both";
-        };
-    }
-
     public Component getNameComponent()
     {
-        return switch (this)
-        {
-            case ATTACK -> Component.literal("Attack");
-            case USE -> Component.literal("Use");
-            case BOTH -> Component.literal("Both");
-        };
+        return Component.translatable("gui.visual-swap.trigger." + name().toLowerCase(Locale.ROOT));
     }
 }

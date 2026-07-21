@@ -22,7 +22,7 @@ public final class EffectsModal extends Modal
 {
     /// One switch: its label, the help shown while hovered, a live get/set of the backing working value, whether it can
     /// currently be toggled (greyed when a parent switch is off), and an indent level that nests sub-switches.
-    public record Toggle(String label, String help, BooleanSupplier value, Consumer<Boolean> onChange,
+    public record Toggle(Component label, Component help, BooleanSupplier value, Consumer<Boolean> onChange,
                          BooleanSupplier enabled, int indent) { }
 
     private static final int PANEL_W = 244;
@@ -56,7 +56,7 @@ public final class EffectsModal extends Modal
 
     private EffectsModal(List<Toggle> toggles)
     {
-        super(Component.literal("Toggles"));
+        super(Component.translatable("gui.visual-swap.effects.title"));
         this.toggles = toggles;
     }
 
@@ -80,7 +80,7 @@ public final class EffectsModal extends Modal
             int w = PANEL_W - 2 * PAD - t.indent() * INDENT;
             CycleButton<Boolean> button = CycleButton.onOffBuilder(t.value().getAsBoolean()).create(
                     x, y, w, ROW_H, //
-                    Component.literal(t.label()), (b, value) -> { t.onChange().accept(value); rebuildWidgets(); }
+                    t.label(), (b, value) -> { t.onChange().accept(value); rebuildWidgets(); }
             );
             button.active = t.enabled().getAsBoolean();
             addRenderableWidget(button);
@@ -91,7 +91,7 @@ public final class EffectsModal extends Modal
         this.helpY = y + HELP_GAP - ROW_GAP;
 
         int btnY = this.panelY + this.panelH - PAD - BTN_H;
-        addRenderableWidget(Button.builder(Component.literal("Done"), b -> close())
+        addRenderableWidget(Button.builder(Component.translatable("gui.visual-swap.button.done"), b -> close())
                                     .bounds(this.panelX + PAD, btnY, PANEL_W - 2 * PAD, BTN_H).build());
     }
 
@@ -129,10 +129,10 @@ public final class EffectsModal extends Modal
         // divider above the help area
         g.fill(this.panelX + PAD, this.helpY - 4, x1 - PAD, this.helpY - 3, DIVIDER);
 
-        String help = (this.hovered >= 0)
-                      ? this.toggles.get(this.hovered).help()
-                      : "Hover a switch to see what it controls.";
-        List<FormattedCharSequence> lines = this.font.split(Component.literal(help), PANEL_W - 2 * PAD);
+        Component help = (this.hovered >= 0)
+                         ? this.toggles.get(this.hovered).help()
+                         : Component.translatable("gui.visual-swap.effects.hint");
+        List<FormattedCharSequence> lines = this.font.split(help, PANEL_W - 2 * PAD);
         int hy = this.helpY;
         for (int i = 0; i < Math.min(lines.size(), HELP_LINES); i++)
         {
