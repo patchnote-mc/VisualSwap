@@ -16,8 +16,8 @@ import java.util.function.Consumer;
 /// master switch and each effect toggle as an ON/OFF row; a sub-switch greys out while its parent switch is off (the
 /// same umbrella relationship the effects gate through). The switches carry no tooltips — hovering a row instead prints
 /// its help text in the panel's help area. Every change writes straight to the config screen's working state (via the
-/// {@link Toggle} accessors) and rebuilds this modal so the greying tracks live; the config page re-reads that state and
-/// re-applies its own greying when this modal closes back to it.
+/// {@link Toggle} accessors) and rebuilds this modal so the greying tracks live; the config page re-reads that state
+/// and re-applies its own greying when this modal closes back to it.
 public final class EffectsModal extends Modal
 {
     /// One switch: its label, the help shown while hovered, a live get/set of the backing working value, whether it can
@@ -80,7 +80,10 @@ public final class EffectsModal extends Modal
             int w = PANEL_W - 2 * PAD - t.indent() * INDENT;
             CycleButton<Boolean> button = CycleButton.onOffBuilder(t.value().getAsBoolean()).create(
                     x, y, w, ROW_H, //
-                    t.label(), (b, value) -> { t.onChange().accept(value); rebuildWidgets(); }
+                    t.label(), (b, value) -> {
+                        t.onChange().accept(value);
+                        rebuildWidgets();
+                    }
             );
             button.active = t.enabled().getAsBoolean();
             addRenderableWidget(button);
@@ -92,7 +95,7 @@ public final class EffectsModal extends Modal
 
         int btnY = this.panelY + this.panelH - PAD - BTN_H;
         addRenderableWidget(Button.builder(Component.translatable("gui.visual-swap.button.done"), b -> close())
-                                    .bounds(this.panelX + PAD, btnY, PANEL_W - 2 * PAD, BTN_H).build());
+                                  .bounds(this.panelX + PAD, btnY, PANEL_W - 2 * PAD, BTN_H).build());
     }
 
     @Override
@@ -123,8 +126,10 @@ public final class EffectsModal extends Modal
         g.fill(x1 - 1, this.panelY, x1, y1, PANEL_BORDER);
 
         int cx = this.width / 2;
-        g.text(this.font, getTitle().getVisualOrderText(), cx - this.font.width(getTitle()) / 2,
-               this.panelY + PAD, TITLE_ARGB, true);
+        g.text(
+                this.font, getTitle().getVisualOrderText(), cx - this.font.width(getTitle()) / 2,
+                this.panelY + PAD, TITLE_ARGB, true
+        );
 
         // divider above the help area
         g.fill(this.panelX + PAD, this.helpY - 4, x1 - PAD, this.helpY - 3, DIVIDER);

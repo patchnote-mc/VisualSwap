@@ -102,8 +102,10 @@ public final class ParticlesHandler
             double vy = props.up();
             double vz = nz * props.outward();
 
-            spawnOne(level, client.particleEngine, tier, sprite, rgb, sizeScale,
-                     cx + ox, cy + oy, cz + oz, vx, vy, vz, props.rollLifetime(random), random);
+            spawnOne(
+                    level, client.particleEngine, tier, sprite, rgb, sizeScale,
+                    cx + ox, cy + oy, cz + oz, vx, vy, vz, props.rollLifetime(random), random
+            );
         }
     }
 
@@ -121,8 +123,10 @@ public final class ParticlesHandler
 
         float size = (float) (tier.baseSize * (0.85f + random.nextFloat() * 0.3f) * sizeScale);
 
-        SwapParticle particle = new SwapParticle(level, x, y, z, dx, dy, dz, sprite, rgb, size, lifetime,
-                                                 tier.gravity, tier.friction);
+        SwapParticle particle = new SwapParticle(
+                level, x, y, z, dx, dy, dz, sprite, rgb, size, lifetime,
+                tier.gravity, tier.friction
+        );
         particle.tick();
         engine.add(particle);
     }

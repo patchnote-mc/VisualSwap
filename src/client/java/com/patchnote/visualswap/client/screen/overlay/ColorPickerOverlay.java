@@ -88,30 +88,30 @@ public final class ColorPickerOverlay extends Overlay
         int tabW = (tabsW - 2 * TAB_GAP) / 3;
         addChild(new TabButton(
                 x,
-                               tabsY,
-                               tabW,
-                               TAB_H,
-                               Component.translatable("gui.visual-swap.picker.tab.wheel"),
-                               () -> this.mode == Mode.WHEEL,
-                               () -> setMode(Mode.WHEEL)
+                tabsY,
+                tabW,
+                TAB_H,
+                Component.translatable("gui.visual-swap.picker.tab.wheel"),
+                () -> this.mode == Mode.WHEEL,
+                () -> setMode(Mode.WHEEL)
         ));
         addChild(new TabButton(
                 x + tabW + TAB_GAP,
-                               tabsY,
-                               tabW,
-                               TAB_H,
-                               Component.translatable("gui.visual-swap.picker.tab.sliders"),
-                               () -> this.mode == Mode.SLIDERS,
-                               () -> setMode(Mode.SLIDERS)
+                tabsY,
+                tabW,
+                TAB_H,
+                Component.translatable("gui.visual-swap.picker.tab.sliders"),
+                () -> this.mode == Mode.SLIDERS,
+                () -> setMode(Mode.SLIDERS)
         ));
         addChild(new TabButton(
                 x + 2 * (tabW + TAB_GAP),
-                               tabsY,
-                               tabW,
-                               TAB_H,
-                               Component.translatable("gui.visual-swap.picker.tab.hex"),
-                               () -> this.mode == Mode.HEX,
-                               () -> setMode(Mode.HEX)
+                tabsY,
+                tabW,
+                TAB_H,
+                Component.translatable("gui.visual-swap.picker.tab.hex"),
+                () -> this.mode == Mode.HEX,
+                () -> setMode(Mode.HEX)
         ));
 
         buildWheelTab(x);
@@ -197,8 +197,10 @@ public final class ColorPickerOverlay extends Overlay
 
     private EditBox buildHexBox(int x)
     {
-        EditBox box = new EditBox(this.font, x + 2, bodyY() + 4, CONTENT_W - 4, HEX_BOX_H,
-                                  Component.translatable("gui.visual-swap.picker.hex.narration"));
+        EditBox box = new EditBox(
+                this.font, x + 2, bodyY() + 4, CONTENT_W - 4, HEX_BOX_H,
+                Component.translatable("gui.visual-swap.picker.hex.narration")
+        );
         box.setMaxLength(10);
         box.setHint(Component.translatable("gui.visual-swap.picker.hex.hint"));
         box.setResponder(this::onHexEdited);
@@ -237,8 +239,8 @@ public final class ColorPickerOverlay extends Overlay
         this.syncingHex = false;
     }
 
-    /// A hex-tab edit: adopt the parsed RGB as the new HSV state (without rewriting the box mid-typing). Alpha is
-    /// owned by the tab's alpha slider, so any alpha byte in the entry is ignored.
+    /// A hex-tab edit: adopt the parsed RGB as the new HSV state (without rewriting the box mid-typing). Alpha is owned
+    /// by the tab's alpha slider, so any alpha byte in the entry is ignored.
     private void onHexEdited(String text)
     {
         if (this.syncingHex) return;

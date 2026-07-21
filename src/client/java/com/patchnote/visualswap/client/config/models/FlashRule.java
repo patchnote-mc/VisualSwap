@@ -246,8 +246,8 @@ public final class FlashRule
         return map;
     }
 
-    /// Mutable — {@link com.patchnote.visualswap.client.config.ModConfig#validatePostLoad} sorts and re-stamps the
-    /// list in place.
+    /// Mutable — {@link com.patchnote.visualswap.client.config.ModConfig#validatePostLoad} sorts and re-stamps the list
+    /// in place.
     public static List<FlashRule> defaultFlashRules()
     {
         List<FlashRule> rules = new ArrayList<>();
@@ -261,7 +261,8 @@ public final class FlashRule
         return rules;
     }
 
-    private static void addRule(List<FlashRule> list, String item, FlashTrigger flashesAt, FlashIntensity intensity, boolean showSwapEffects)
+    private static void addRule(List<FlashRule> list, String item, FlashTrigger flashesAt, FlashIntensity intensity,
+                                boolean showSwapEffects)
     {
         list.add(new FlashRule(item, flashesAt, intensity, showSwapEffects));
     }

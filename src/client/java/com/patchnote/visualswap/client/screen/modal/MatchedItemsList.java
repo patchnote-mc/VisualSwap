@@ -47,8 +47,10 @@ final class MatchedItemsList extends AbstractScrollArea
 
     MatchedItemsList(int x, int y, int width, int height, FlashRule rule, List<Row> rows)
     {
-        super(x, y, width, height, Component.translatable("gui.visual-swap.preview.title"),
-              AbstractScrollArea.defaultSettings(SCROLL_RATE));
+        super(
+                x, y, width, height, Component.translatable("gui.visual-swap.preview.title"),
+                AbstractScrollArea.defaultSettings(SCROLL_RATE)
+        );
         this.rule = rule;
         this.rows = rows;
     }

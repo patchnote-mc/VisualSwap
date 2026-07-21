@@ -27,8 +27,9 @@ public final class Icons
     public static final Identifier MOVE_UP = of("move_up");
     public static final Identifier MOVE_DOWN = of("move_down");
 
-    /// Draw {@code icon} as a {@code size}×{@code size} square at ({@code x},{@code y}), multiply-tinted by {@code argb}
-    /// (the art is white, so the tint sets its colour). The 128px source is scaled down with linear filtering.
+    /// Draw {@code icon} as a {@code size}×{@code size} square at ({@code x},{@code y}), multiply-tinted by
+    /// {@code argb} (the art is white, so the tint sets its colour). The 128px source is scaled down with linear
+    /// filtering.
     public static void blit(GuiGraphicsExtractor g, Identifier icon, int x, int y, int size, int argb)
     {
         g.blit(RenderPipelines.GUI_TEXTURED, icon, x, y, 0.0f, 0.0f, size, size, TEX, TEX, TEX, TEX, argb);

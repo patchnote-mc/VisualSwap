@@ -7,15 +7,11 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /// Resolves which flash rule (if any) wins for a held item, per input, from the current config's rule list. Rules are
-/// considered in ascending precedence {@link FlashRule#order()}; the first whose selector matches the held item's id and
-/// that covers the input wins. Results are memoised per {@link Item} (misses included) so the tick path is O(1)
+/// considered in ascending precedence {@link FlashRule#order()}; the first whose selector matches the held item's id
+/// and that covers the input wins. Results are memoised per {@link Item} (misses included) so the tick path is O(1)
 /// amortised and never re-runs a regex for an item it has already seen. The cached index is rebuilt only when the
 /// config's rule list is replaced (a save/load assigns a fresh list). Render/client-thread use only.
 final class FlashRuleIndex

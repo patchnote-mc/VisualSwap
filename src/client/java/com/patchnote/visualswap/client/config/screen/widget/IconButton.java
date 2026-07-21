@@ -9,8 +9,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.NonNull;
 
-/// A borderless icon button: it blits a white {@link Icons} texture, tinted per state (normal / hover / disabled),
-/// over a faint hover backdrop. The icon is authored white so the tint sets its colour.
+/// A borderless icon button: it blits a white {@link Icons} texture, tinted per state (normal / hover / disabled), over
+/// a faint hover backdrop. The icon is authored white so the tint sets its colour.
 public final class IconButton extends AbstractWidget
 {
     private static final int HOVER_BG = 0x33FFFFFF;
