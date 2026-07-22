@@ -46,6 +46,96 @@ api() {
   HTTP_CODE="$(curl "${args[@]}" "${API}${path}")"
 }
 
+# gh_logs JOB_ID -> plain-text log of a single Actions job on stdout. The API
+# 302-redirects to a signed blob URL on a different host; curl -L follows it and
+# (by design) drops the Authorization header there, which is what the blob wants.
+# Diagnostics only, so any failure is swallowed.
+gh_logs() {
+  curl --http1.1 -sSL \
+    -H "Authorization: Bearer ${GH_TOKEN}" \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    "${API}/actions/jobs/$1/logs" 2>/dev/null || true
+}
+
+# show_job_log_tail SHA JOB_NAME -> print the tail of the failing job's log. Each
+# workflow's job name matches its check-run name, so we find the job by the same
+# name we polled the check under.
+show_job_log_tail() {
+  local sha="$1" name="$2" run_ids rid job_id=""
+  api GET "/actions/runs?head_sha=${sha}&per_page=100" || return 0
+  run_ids="$(jq -r '.workflow_runs[]?.id' "$TMP_BODY" 2>/dev/null)"
+  for rid in $run_ids; do
+    api GET "/actions/runs/${rid}/jobs?per_page=100" || continue
+    job_id="$(jq -r --arg n "$name" \
+      '[.jobs[]? | select(.name==$n) | select(.conclusion!=null and .conclusion!="success" and .conclusion!="skipped")] | last | .id // empty' \
+      "$TMP_BODY" 2>/dev/null)"
+    [ -n "$job_id" ] && break
+  done
+  [ -n "$job_id" ] || return 0
+  printf '%s\n' "${BOLD}  --- ${name}: last 60 log lines ---${RESET}"
+  gh_logs "$job_id" | tail -n 60 | sed 's/^/  /'
+}
+
+# show_check_failure SHA CHECK_NAME -> dump everything useful about a red check to
+# the console: its URL, the output summary, the ::error:: annotations, and the
+# failing job's log tail. This is the "show Actions errors in the console"
+# surface. Wrapped in a subshell with set +e / no ERR trap so a hiccup in any
+# diagnostic call can never abort the release script.
+show_check_failure() {
+  ( set +e
+    sha="$1"; name="$2"
+    if api GET "/commits/${sha}/check-runs?per_page=100"; then
+      crid="$(jq -r --arg c "$name"    '[.check_runs[]? | select(.name==$c)] | last | .id // empty'             "$TMP_BODY" 2>/dev/null)"
+      url="$(jq -r --arg c "$name"     '[.check_runs[]? | select(.name==$c)] | last | .html_url // empty'       "$TMP_BODY" 2>/dev/null)"
+      ctitle="$(jq -r --arg c "$name"  '[.check_runs[]? | select(.name==$c)] | last | .output.title // empty'   "$TMP_BODY" 2>/dev/null)"
+      summary="$(jq -r --arg c "$name" '[.check_runs[]? | select(.name==$c)] | last | .output.summary // empty' "$TMP_BODY" 2>/dev/null)"
+    fi
+    if [ -n "${url:-}" ];     then printf '%s\n' "  ${GRAY}${url}${RESET}"; fi
+    if [ -n "${ctitle:-}" ];  then printf '%s\n' "  ${YELLOW}${ctitle}${RESET}"; fi
+    if [ -n "${summary:-}" ]; then printf '%s\n' "$summary" | sed 's/^/  /'; fi
+    if [ -n "${crid:-}" ] && api GET "/check-runs/${crid}/annotations"; then
+      ann="$(jq -r '.[]? | "  [\(.annotation_level)] \(.path):\(.start_line) \(.title // "")\n      \(.message)"' "$TMP_BODY" 2>/dev/null)"
+      if [ -n "$ann" ]; then
+        printf '%s\n' "${BOLD}  annotations:${RESET}"
+        printf '%s\n' "$ann"
+      fi
+    fi
+    show_job_log_tail "$sha" "$name"
+  ) || true
+}
+
+# watch_publish MERGE_SHA -> poll publish.yml on the merge commit until it finishes.
+# Returns 0 on success (or a skipped run), 1 on failure/timeout after dumping the
+# Actions errors. Called from an if-condition so its internal non-zero returns
+# never trip set -e.
+watch_publish() {
+  local sha="$1" attempt=0 status concl
+  while :; do
+    if ! api GET "/commits/${sha}/check-runs?per_page=100"; then
+      warn "GitHub API temporarily unavailable - retrying…"
+      sleep 5
+      continue
+    fi
+    status="$(jq -r '[.check_runs[]? | select(.name=="publish")] | last | .status // empty'     "$TMP_BODY")"
+    concl="$(jq -r  '[.check_runs[]? | select(.name=="publish")] | last | .conclusion // empty' "$TMP_BODY")"
+    if [ "$status" = "completed" ]; then
+      if [ "$concl" = "success" ]; then success "'publish' passed - release published from ${MAIN}"; return 0; fi
+      if [ "$concl" = "skipped" ]; then warn "'publish' reported skipped - no release was cut"; return 0; fi
+      fail "'publish' concluded '${concl}' - the release did NOT (fully) publish."
+      show_check_failure "$sha" "publish"
+      return 1
+    fi
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge "$PUBLISH_POLL_MAX" ]; then
+      fail "Timed out waiting for 'publish'. Check the Actions tab for ${sha:0:7}."
+      return 1
+    fi
+    printf '%s\n' "${GRAY}  … publish ${status:-queued} (attempt ${attempt}/${PUBLISH_POLL_MAX})${RESET}"
+    sleep "$POLL_INTERVAL"
+  done
+}
+
 run() {
   log "${GRAY}\$ $*${RESET}"
   "$@"
@@ -88,10 +178,19 @@ PR_META="$(printf '| Key | Info |\n|---|---|\n| Version | `%s` |\n| Minecraft | 
   "$FULL_VERSION" "$MC_VERSION_PROP" "${LOADER_VERSION:-?}" "${FABRIC_API_VERSION:-?}" "$STAGING" "$MAIN")"
 
 # variables
-REQUIRED_CHECK="block duplicate version"   
-# polling config for required check
+# Every one of these must be green before the PR can merge - they are also the
+# required status checks on the *-main ruleset (.github/rulesets/protect-main-branches.json):
+#   build                   -> .github/workflows/build.yml         (project compiles)
+#   block duplicate version -> .github/workflows/version-guard.yml (git tag not taken)
+#   publish dry-run         -> .github/workflows/publish-dryrun.yml (release WILL publish)
+# The names must match each workflow's JOB name exactly.
+REQUIRED_CHECKS=("build" "block duplicate version" "publish dry-run")
+# polling config for the required checks
 POLL_INTERVAL=15
 POLL_MAX=40
+# publish.yml runs post-merge (build + upload to Modrinth/CurseForge/GitHub), so
+# give it a longer ceiling than the pre-merge checks.
+PUBLISH_POLL_MAX=80
 
 # arguments - CLI flags
 usage() {
@@ -152,7 +251,7 @@ CHANGELOG=""
 INCLUDE_SOURCES=false
 COMMIT_TITLE="$PR_TITLE"
 
-step "Step 1/6 - Release details"
+step "Step 1/7 - Release details"
 if [ "$SKIP_PUBLISH" = true ]; then
   PR_BODY="$(printf 'Automated release PR — **no release will be published** (`[skip publish]`).\n\n## Build info\n\n%s\n| Sources | `%s` |\n' \
     "$PR_META" "Not included")"
@@ -195,16 +294,16 @@ else
   success "changelog captured"
 fi
 
-step "Step 2/6 - Validate project"
+step "Step 2/7 - Validate project"
 run ./gradlew build
 success "project validated"
 
-step "Step 3/6 - Push ${STAGING} to remote"
+step "Step 3/7 - Push ${STAGING} to remote"
 run git switch "$STAGING"
 run git push origin "$STAGING"
 success "${STAGING} pushed"
 
-step "Step 4/6 - Open PR ${STAGING} → ${MAIN} and wait for '${REQUIRED_CHECK}'"
+step "Step 4/7 - Open PR ${STAGING} → ${MAIN} and wait for required checks"
 api POST "/pulls" "$(jq -n --arg t "$PR_TITLE" --arg b "$PR_BODY" --arg h "${OWNER}:${STAGING}" --arg base "$MAIN" \
   '{title:$t, body:$b, head:$h, base:$base}')"
 if [ "$HTTP_CODE" = "201" ]; then
@@ -232,52 +331,71 @@ else
   exit 1
 fi
 
-# wait for the required '${REQUIRED_CHECK}' check. On [skip publish] PRs the guard
-# step is skipped, so the job still reports green here and the merge proceeds.
+# Wait for every required check to go green. On [skip publish] PRs the version
+# guard and the publish dry-run's publish-specific steps are skipped, so those
+# jobs still report success here and the merge proceeds. Any check that concludes
+# non-success dumps its GitHub Actions errors (annotations + failing job log tail)
+# to the console before we bail.
 api GET "/pulls/${PR_NUMBER}"
 HEAD_SHA="$(jq -r '.head.sha' "$TMP_BODY")"
-log "polling '${REQUIRED_CHECK}' on ${HEAD_SHA:0:7} (every ${POLL_INTERVAL}s, up to $((POLL_INTERVAL * POLL_MAX))s)"
+CHECK_LIST="$(printf "'%s' " "${REQUIRED_CHECKS[@]}")"
+log "polling ${CHECK_LIST}on ${HEAD_SHA:0:7} (every ${POLL_INTERVAL}s, up to $((POLL_INTERVAL * POLL_MAX))s)"
 attempt=0
 while :; do
   # A single failed poll shouldn't kill the release - just retry the loop.
-  if ! api GET "/commits/${HEAD_SHA}/check-runs"; then
+  if ! api GET "/commits/${HEAD_SHA}/check-runs?per_page=100"; then
     warn "GitHub API temporarily unavailable - retrying…"
     sleep 5
     continue
   fi
-  cstatus="$(jq -r --arg c "$REQUIRED_CHECK" '[.check_runs[]? | select(.name==$c)] | last | .status // empty' "$TMP_BODY")"
-  cconcl="$(jq -r --arg c "$REQUIRED_CHECK" '[.check_runs[]? | select(.name==$c)] | last | .conclusion // empty' "$TMP_BODY")"
-  if [ "$cstatus" = "completed" ]; then
-    if [ "$cconcl" = "success" ]; then
-      success "'${REQUIRED_CHECK}' passed"
-      break
+  pending=""
+  failed=false
+  for chk in "${REQUIRED_CHECKS[@]}"; do
+    cstatus="$(jq -r --arg c "$chk" '[.check_runs[]? | select(.name==$c)] | last | .status // empty' "$TMP_BODY")"
+    cconcl="$(jq -r --arg c "$chk" '[.check_runs[]? | select(.name==$c)] | last | .conclusion // empty' "$TMP_BODY")"
+    if [ "$cstatus" != "completed" ]; then
+      pending="${pending}${chk} [${cstatus:-queued}]  "
+      continue
     fi
-    fail "'${REQUIRED_CHECK}' concluded '${cconcl}' - refusing to merge. See ${PR_URL}"
+    if [ "$cconcl" = "success" ]; then
+      continue
+    fi
+    fail "'${chk}' concluded '${cconcl}' - refusing to merge. See ${PR_URL}"
+    show_check_failure "$HEAD_SHA" "$chk"
+    failed=true
+  done
+  if [ "$failed" = true ]; then
     exit 1
+  fi
+  if [ -z "$pending" ]; then
+    success "all required checks passed: ${CHECK_LIST}"
+    break
   fi
   attempt=$((attempt + 1))
   if [ "$attempt" -ge "$POLL_MAX" ]; then
-    fail "Timed out waiting for '${REQUIRED_CHECK}'. Merge later from ${PR_URL}"
+    fail "Timed out waiting for required checks. Still pending: ${pending}. Merge later from ${PR_URL}"
     exit 1
   fi
-  printf '%s\n' "${GRAY}  … ${cstatus:-queued} (attempt ${attempt}/${POLL_MAX})${RESET}"
+  printf '%s\n' "${GRAY}  … waiting: ${pending}(attempt ${attempt}/${POLL_MAX})${RESET}"
   sleep "$POLL_INTERVAL"
 done
 
 if [ "$SKIP_PUBLISH" = true ]; then
-  step "Step 5/6 - Merge PR #${PR_NUMBER} into ${MAIN} (publish skipped)"
+  step "Step 5/7 - Merge PR #${PR_NUMBER} into ${MAIN} (publish skipped)"
   MERGE_BODY="$(jq -n --arg m merge --arg t "$PR_TITLE" '{merge_method:$m, commit_title:$t}')"
 else
-  step "Step 5/6 - Merge PR #${PR_NUMBER} into ${MAIN} (triggers publish)"
+  step "Step 5/7 - Merge PR #${PR_NUMBER} into ${MAIN} (triggers publish)"
   MERGE_BODY="$(jq -n --arg m merge --arg t "$COMMIT_TITLE" --arg b "$CHANGELOG" \
     '{merge_method:$m, commit_title:$t, commit_message:$b}')"
 fi
 api PUT "/pulls/${PR_NUMBER}/merge" "$MERGE_BODY"
 if [ "$HTTP_CODE" = "200" ]; then
+  # The merge commit SHA is what publish.yml runs against; we watch it below.
+  MERGE_SHA="$(jq -r '.sha // empty' "$TMP_BODY")"
   if [ "$SKIP_PUBLISH" = true ]; then
     success "merged - publish skipped ([skip publish] in merge commit); no release cut"
   else
-    success "merged - publish.yml will now build and release from ${MAIN}"
+    success "merged ${MERGE_SHA:0:7} - publish.yml will now build and release from ${MAIN}"
   fi
 else
   fail "Merge failed (HTTP ${HTTP_CODE}). See ${PR_URL}"
@@ -285,7 +403,27 @@ else
   exit 1
 fi
 
-step "Step 6/6 - Fast-forward ${STAGING} to ${MAIN}"
+# Publish runs post-merge (on push to ${MAIN}), so it can't gate the merge itself -
+# but we watch it here and surface its Actions errors so a failed release is loud,
+# not silent. The pre-merge 'publish dry-run' check already proved it should pass.
+PUBLISH_FAILED=false
+if [ "$SKIP_PUBLISH" = true ]; then
+  step "Step 6/7 - Publish (skipped)"
+  log "skip-publish mode - publish.yml will not run; nothing to watch"
+else
+  step "Step 6/7 - Watch publish.yml build & release from ${MAIN}"
+  if [ -z "${MERGE_SHA:-}" ]; then
+    warn "could not read the merge commit SHA from the merge response - watch the release manually at ${PR_URL}"
+    PUBLISH_FAILED=true
+  else
+    log "polling 'publish' on ${MERGE_SHA:0:7} (every ${POLL_INTERVAL}s, up to $((POLL_INTERVAL * PUBLISH_POLL_MAX))s)"
+    if ! watch_publish "$MERGE_SHA"; then
+      PUBLISH_FAILED=true
+    fi
+  fi
+fi
+
+step "Step 7/7 - Fast-forward ${STAGING} to ${MAIN}"
 run git fetch
 run git switch "$STAGING"
 run git merge "origin/${MAIN}" --ff-only
@@ -295,6 +433,9 @@ success "${STAGING} fast-forwarded to ${MAIN}"
 
 if [ "$SKIP_PUBLISH" = true ]; then
   printf '\n%s\n' "${GREEN}${BOLD}Done. ${STAGING} merged into ${MAIN}; publish was skipped (no release).${RESET}"
+elif [ "$PUBLISH_FAILED" = true ]; then
+  fail "Merged into ${MAIN}, but publish.yml did NOT succeed - the release was not (fully) published. See the Actions errors above and ${PR_URL}."
+  exit 1
 else
-  printf '\n%s\n' "${GREEN}${BOLD}Done. ${STAGING} merged into ${MAIN}; the release is publishing.${RESET}"
+  printf '\n%s\n' "${GREEN}${BOLD}Done. ${STAGING} merged into ${MAIN}; the release published.${RESET}"
 fi
