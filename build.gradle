@@ -17,7 +17,17 @@ repositories {
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
 	maven { url "https://maven.shedaniel.me/" }
-	maven { url "https://maven.terraformersmc.com/releases/" }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
 }
 
 loom {
@@ -44,7 +54,7 @@ dependencies {
 	// Loom 1.17 on MC 26.x no longer remaps mods (Mojang mappings ship deobfuscated),
 	// so mod deps use plain implementation — there is no modImplementation/modApi.
 	implementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
-	implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+	implementation "maven.modrinth:modmenu:${project.modmenu_version}"
 }
 
 // Rasterize the swap-hit glyph masks (the single source of truth in

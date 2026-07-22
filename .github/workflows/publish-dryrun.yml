@@ -1,0 +1,101 @@
+# Pre-merge dry run of publish.yml, enforced as a REQUIRED status check on the
+# *-main ruleset (.github/rulesets/protect-main-branches.json) so a release can
+# only merge if it WILL publish cleanly. Runs the same build + Modrinth
+# validation publish.yml does, but performs NO uploads. Last updated 2026-07-22.
+#
+# Why this exists: publish.yml only runs AFTER the staging->main merge (on push to
+# *-main), so a broken build, a bad/expired MODRINTH_TOKEN, or an already-published
+# version would only surface post-merge, once the release is half-cut. This job
+# surfaces all three BEFORE the merge. The real upload still lives in publish.yml -
+# keep the two in sync whenever the publish validation changes.
+#
+# Complements version-guard.yml: that guards the git TAG, this guards the Modrinth
+# listing AND proves the token has the 'Read projects' scope up front.
+#
+# Like version-guard.yml, the publish-specific checks are SKIPPED (job reports
+# green) when the PR title carries "[skip publish]" - the same escape hatch that
+# skips publish.yml. merge_main.sh --skip-publish sets it on the PR title.
+#
+# NOTE: the Modrinth check needs secrets.MODRINTH_TOKEN, which GitHub only exposes
+# to same-repo PRs. This release flow (merge_main.sh) always opens the PR from a
+# same-repo *-staging branch, so the secret is present.
+
+name: publish dry-run
+on:
+  pull_request:
+    branches:
+      - '*-main'
+    types: [opened, synchronize, reopened, edited]
+
+env:
+  MODRINTH_ID: nx3AGjVg
+  MODRINTH_API: https://api.modrinth.com/v2
+
+jobs:
+  dry-run:
+    name: publish dry-run
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: build
+        run: ./gradlew build
+
+      # Everything below is the publish-specific validation, skipped on
+      # [skip publish] exactly like version-guard's guard step - so the job still
+      # reports green and the required check is satisfied.
+
+      # Mirrors publish.yml: the version listing is fetched WITH the token because
+      # an unpublished (draft) project 404s for anonymous callers. This also proves
+      # the token has the 'Read projects' scope BEFORE the merge, not after.
+      - name: resolve version and check if it already exists
+        id: check
+        if: ${{ !contains(github.event.pull_request.title, '[skip publish]') }}
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          ver=$(grep '^mod_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          mc=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          full="v${ver}+mc-${mc}"
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+
+          code=$(curl -sS -o "$RUNNER_TEMP/versions.json" -w '%{http_code}' \
+            -H "Authorization: ${MODRINTH_TOKEN}" \
+            "${MODRINTH_API}/project/${MODRINTH_ID}/version")
+          if [ "$code" != "200" ]; then
+            echo "::error::Modrinth returned HTTP ${code} listing versions of ${MODRINTH_ID}. The token needs the 'Read projects' scope."
+            cat "$RUNNER_TEMP/versions.json"
+            exit 1
+          fi
+          if jq -e --arg v "$full" 'any(.[]; .version_number == $v)' "$RUNNER_TEMP/versions.json" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: fail if version already published
+        if: ${{ steps.check.outputs.exists == 'true' }}
+        run: |
+          echo "::error::${{ steps.check.outputs.full }} is already published on Modrinth - refusing to publish a duplicate. Bump mod_version in gradle.properties before merging to main."
+          exit 1
+
+      # The jar name mirrors build.gradle's `version` (v<mod>+mc-<mc>). Confirms the
+      # artifact publish.yml uploads actually exists under the expected name.
+      - name: verify release artifact
+        if: ${{ !contains(github.event.pull_request.title, '[skip publish]') }}
+        run: |
+          ver=$(grep '^mod_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          mc=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          full="v${ver}+mc-${mc}"
+          jar="build/libs/visual-swap-${full}.jar"
+          [ -f "$jar" ] || { echo "::error::expected jar not found after build: ${jar}"; exit 1; }
+          echo "ok: ${jar} will publish"
