@@ -1,6 +1,6 @@
 # Git & Release Guide
 
-_Last updated 2026-07-10._
+_Last updated 2026-07-22._
 
 How this repository is branched, versioned, and released. Read this before
 pushing or cutting a release.
@@ -54,8 +54,15 @@ A ruleset targeting `*-main` enforces (checked-in copy:
 - **Pull request required** — no direct pushes/commits; everything lands via a
   merged PR.
 - **No deletions** and **no force-pushes**.
-- **A required status check** (`block duplicate version`) that must pass before
-  the merge is allowed (see Duplicate protection).
+- **Three required status checks** that must all be green before the merge is
+  allowed:
+  - **`build`** — [`build.yml`](.github/workflows/build.yml); the project compiles.
+  - **`block duplicate version`** — [`version-guard.yml`](.github/workflows/version-guard.yml);
+    the version's git tag is not already taken (see Duplicate protection).
+  - **`publish dry-run`** — [`publish-dryrun.yml`](.github/workflows/publish-dryrun.yml);
+    the release _will_ publish (same build + Modrinth checks as `publish.yml`, no
+    upload), so a broken build or bad/expired `MODRINTH_TOKEN` fails **before** the
+    merge instead of after.
 
 These apply to everyone, including admins (no bypass).
 
@@ -83,13 +90,18 @@ release.** Publishing the same version twice is blocked (see below).
 1. On the `-staging` branch, bump `mod_version` in `gradle.properties` (and make
    your other changes).
 2. Commit and push `-staging`.
-3. Open a PR: `…-staging → …-main`. Wait for the **`block duplicate version`**
-   check to pass. If it fails, the version already exists — bump `mod_version`.
+3. Open a PR: `…-staging → …-main`. Wait for the **`build`**, **`block duplicate
+   version`**, and **`publish dry-run`** checks to pass. If `block duplicate
+   version` fails, the version already exists — bump `mod_version`.
 4. Merge the PR. The push to `…-main` runs
    [`publish.yml`](.github/workflows/publish.yml), which builds and publishes to
    **Modrinth + CurseForge + a GitHub Release** (tag = the full version string).
 
-In practice, run [`merge_main.sh`](merge_main.sh) — it does steps 2-4 and first
+In practice, run [`merge_main.sh`](merge_main.sh) — it does steps 2-4, waits for
+every required check (dumping the failing job's GitHub Actions errors to the
+console if any goes red), and, after merging, **watches `publish.yml`** and
+surfaces its errors too (publish runs post-merge, so it can't gate the merge, but
+a failed release is reported loudly and the script exits non-zero). It first
 prompts for the two per-release inputs:
 
 - **the `-sources` jar** — `[y/N]`, default **no**. Only the main jar is uploaded
@@ -128,23 +140,30 @@ It stamps `[skip publish]` into **both** the PR title and the merge commit, whic
 
 - makes [`version-guard.yml`](.github/workflows/version-guard.yml) skip its
   duplicate-version check and report **green** — so the required status check still
-  passes and the PR can merge even if the version already exists, and
+  passes and the PR can merge even if the version already exists,
+- makes [`publish-dryrun.yml`](.github/workflows/publish-dryrun.yml) skip its
+  publish-specific steps (it still builds) and report **green**, and
 - makes [`publish.yml`](.github/workflows/publish.yml) skip entirely — nothing goes
   to Modrinth, CurseForge or GitHub Releases.
+
+`build` is **not** skipped by the marker — the project must still compile.
 
 To do it by hand instead: put `[skip publish]` anywhere in the **PR title** (for the
 guard) and in the **merge commit message** (for publish).
 
 ## Duplicate protection
 
-Two layers stop an accidental double-publish:
+Three layers stop an accidental double-publish:
 
 1. **`version-guard.yml`** runs on every PR into `*-main` and fails if a git tag
    for the version already exists — this blocks the merge.
-2. **`publish.yml`** independently hard-fails if the version is already on
+2. **`publish-dryrun.yml`** runs on the same PR and fails if the version is
+   already on Modrinth — this also blocks the merge (catches a duplicate even if
+   the git tag is missing, and validates `MODRINTH_TOKEN` up front).
+3. **`publish.yml`** independently hard-fails if the version is already on
    Modrinth (it never overwrites/replaces).
 
-Both layers are intentionally skipped when the merge carries the `[skip publish]`
+All three are intentionally skipped when the merge carries the `[skip publish]`
 marker (see _Merging without publishing_ above) — there is no release to protect.
 
 The consequence: **you must bump `mod_version` for each release.**
@@ -162,7 +181,7 @@ git push -u origin 26.2-main
 ```
 
 Then set `26.2-main` (or `*-main`) protection via the ruleset above, and make
-`block duplicate version` a required status check.
+`build`, `block duplicate version`, and `publish dry-run` required status checks.
 
 ## Adding a new Minecraft version
 
@@ -182,8 +201,9 @@ Then set `26.2-main` (or `*-main`) protection via the ruleset above, and make
 
 | File                                                       | Trigger                  | Does                                                                             |
 | ---------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------- |
-| [`build.yml`](.github/workflows/build.yml)                 | push / PR (all branches) | builds + uploads artifacts (CI)                                                  |
-| [`version-guard.yml`](.github/workflows/version-guard.yml) | PR into `*-main`         | blocks merging a duplicate version (skipped for `[skip publish]` PRs)            |
+| [`build.yml`](.github/workflows/build.yml)                 | push / PR (all branches) | builds + uploads artifacts (CI); **required check** `build`                       |
+| [`version-guard.yml`](.github/workflows/version-guard.yml) | PR into `*-main`         | blocks merging a duplicate version (skipped for `[skip publish]` PRs); **required check** `block duplicate version` |
+| [`publish-dryrun.yml`](.github/workflows/publish-dryrun.yml) | PR into `*-main`       | dry-runs the publish build + Modrinth checks, no upload (publish steps skipped for `[skip publish]` PRs); **required check** `publish dry-run` |
 | [`publish.yml`](.github/workflows/publish.yml)             | push to `*-main`         | publishes to Modrinth, CurseForge, GitHub (skipped for `[skip publish]` commits) |
 
 ## Maintainer configuration
