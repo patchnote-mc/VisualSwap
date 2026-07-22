@@ -24,7 +24,11 @@
       "type": "required_status_checks",
       "parameters": {
         "strict_required_status_checks_policy": false,
-        "required_status_checks": [{ "context": "block duplicate version" }]
+        "required_status_checks": [
+          { "context": "block duplicate version" },
+          { "context": "build" },
+          { "context": "publish dry-run" }
+        ]
       }
     }
   ]
