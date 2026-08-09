@@ -55,7 +55,17 @@ dependencies {
 	// so mod deps use plain implementation — there is no modImplementation/modApi.
 	implementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
 	implementation "maven.modrinth:modmenu:${project.modmenu_version}"
+
+	testImplementation "org.junit.jupiter:junit-jupiter:5.10.0"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.10.0"
 }
+
+sourceSets.test {
+	compileClasspath += sourceSets.client.output
+	runtimeClasspath += sourceSets.client.output
+}
+
+tasks.named("test") { useJUnitPlatform() }
 
 // Rasterize the swap-hit glyph masks (the single source of truth in
 // src/main/resources/assets/.../swap_hit_masks.json — also read at runtime by SwapHitGlyph)
@@ -77,7 +87,9 @@ tasks.register("bakeParticleSprites") {
 	inputs.property "cellPx", cellPx
 	outputs.dir generatedParticleDir
 	doLast {
-		def outDir = generatedParticleDir.get().dir("assets/visual-swap/textures/particle").asFile
+		def outputRoot = generatedParticleDir.get().asFile
+		project.delete(outputRoot)
+		def outDir = new File(outputRoot, "assets/visual-swap/textures/particle")
 		outDir.mkdirs()
 		def root = new JsonSlurper().parse(maskSource)
 		root.masks.each { name, mask ->

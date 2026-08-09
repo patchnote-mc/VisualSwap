@@ -186,7 +186,10 @@ public final class FlashRuleRow extends AbstractContainerWidget
                                   ON_WIDTH,
                                   WIDGET_HEIGHT,
                                   Component.empty(),
-                                  (button, value) -> this.rule.setFlashesAt(value)
+                                  (button, value) -> {
+                                      this.rule.setFlashesAt(value);
+                                      this.list.notifyValueEdited();
+                                  }
                           );
     }
 
@@ -332,7 +335,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
     {
         this.rule.setItem(value);
         refreshMatches();
-        this.list.notifyTextChanged(value);
+        this.list.notifyValueEdited();
     }
 
     /// Recompute the selector's reach: validity, match count, and the preview icon (the first matched item). Called on

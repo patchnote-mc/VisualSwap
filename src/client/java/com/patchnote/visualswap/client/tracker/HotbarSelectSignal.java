@@ -16,6 +16,9 @@ public final class HotbarSelectSignal
 
     public static void mark() { selected = true; }
 
+    /// @return whether a hotbar selection is waiting to be captured at tick end, without consuming it.
+    public static boolean pending() { return selected; }
+
     /// @return whether a hotbar selection happened since the last consume, then clears the latch.
     public static boolean consume()
     {

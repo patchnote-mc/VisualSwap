@@ -8,6 +8,7 @@ import com.patchnote.visualswap.client.particles.AttackParticleProps;
 import com.patchnote.visualswap.client.particles.ParticlesHandler;
 import com.patchnote.visualswap.client.tracker.ClickTickState;
 import com.patchnote.visualswap.client.tracker.ClickTickTracker;
+import com.patchnote.visualswap.client.tracker.HotbarSelectSignal;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -86,15 +87,14 @@ public class SwapHandler
         if (player == client.player)
         {
             // fires before END_CLIENT_TICK, check again
-            boolean itemSwitched = !ItemStack.isSameItem(
-                    ClickTickTracker.getPreviousState().mainHand(),
-                    player.getMainHandItem()
-            );
-            if (itemSwitched || this.swapWindowState.possible(player.tickCount) // check if possible
-            )
+            ClickTickState previous = ClickTickTracker.getPreviousState();
+            ItemStack mainHand = player.getMainHandItem();
+            boolean itemChanged = !ItemStack.isSameItem(previous.mainHand(), mainHand);
+            boolean pendingSwap = SwapDetection.isDeliberateSwap(
+                    previous.initialized(), mainHand.isEmpty(), itemChanged, HotbarSelectSignal.pending());
+            if (pendingSwap || this.swapWindowState.possible(player.tickCount))
             {
-                // the hit isn't added to the chain until END_CLIENT_TICK, + 1 to include it
-                int chainHits = this.swapWindowState.chainCount(player.tickCount) + 1;
+                int chainHits = this.swapWindowState.anticipatedChainCount(player.tickCount, pendingSwap);
                 AttackParticleProps props = AttackParticleProps.detectAttackType(player, entity);
                 ParticlesHandler.spawnParticles(client, entity, chainHits, props);
             }
@@ -109,9 +109,6 @@ public class SwapHandler
         ClickTickState current = ClickTickTracker.getCurrentState();
         ClickTickState previous = ClickTickTracker.getPreviousState();
 
-        // Skip the first post-spawn tick so the empty -> held transition isn't read as a swap.
-        if (!previous.initialized()) return;
-
         // A swap is a deliberate slot switch: either the held item changed, or the player selected a hotbar slot this
         // tick (hotbar key / scroll). The slot-select signal catches switches the item comparison can't — re-selecting
         // the slot already held, or switching to a different slot holding an identical item.
@@ -121,7 +118,8 @@ public class SwapHandler
         {
             this.swapWindowState.clear();
         }
-        else if (itemChanged || current.slotSelected())
+        else if (SwapDetection.isDeliberateSwap(
+                previous.initialized(), false, itemChanged, current.slotSelected()))
         {
             boolean piercingFail = current.hasPiercingComponent() && previous.cooldownAtTick() < 1.0f;
             this.swapWindowState.eventSwap(current.tick(), piercingFail);
