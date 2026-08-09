@@ -64,10 +64,10 @@ public final class SwapWindowState
         this.failed = failed;
     }
 
-    /// Call when mouse clicked
+    /// Call when mouse clicked.
     public void eventClick(int tick)
     {
-        if (possible(tick) || this.possibleLastTick)
+        if (acceptsClick(tick))
         {
             // Credit each swap once. A new swap-hit while the previous hit's flash is still
             // on-screen chains the count; otherwise it starts a fresh chain at 1.
@@ -94,6 +94,10 @@ public final class SwapWindowState
         int elapsed = tick - this.lastSwapTick;
         return elapsed >= 0 && elapsed < WINDOW_TICKS;
     }
+
+    /// Whether an input observed at {@code tick} belongs to the two-tick attribute-swap window. The previous-tick
+    /// sample bridges the second valid input tick to the end-of-tick snapshot where the client can observe it.
+    public boolean acceptsClick(int tick) { return possible(tick) || this.possibleLastTick; }
 
     /** Whether the attacked flash is currently running at {@code tick}. */
     public boolean attacked(int tick) { return this.flashUntilTick != NO_TICK && tick < this.flashUntilTick; }

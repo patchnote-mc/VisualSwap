@@ -30,10 +30,10 @@ public final class ItemFlash
 
     private ItemFlash() { reset(); }
 
-    /// Call on Client Tick. {@code swapWindowOpen} reports whether a swap window is currently open (the item was just
-    /// switched to); under {@link ModConfig#flashOnlyOnSwap} a press only lights a slot while it is true.
+    /// Call on Client Tick. {@code attributeSwap} reports whether this tick's input landed inside the two-tick
+    /// attribute-swap window; under {@link ModConfig#flashOnlyOnSwap} only that qualifying input lights a slot.
     public void onTick(int tick, int currentSlot, ItemStack selectedStack, boolean attackDown, boolean useDown,
-                       boolean attackPressed, boolean usePressed, boolean swapWindowOpen)
+                       boolean attackPressed, boolean usePressed, boolean attributeSwap)
     {
         // The timeline is keyed to the client player's tickCount, which snaps back to 0 whenever the LocalPlayer is
         // recreated (respawn, dimension change). A backwards jump leaves every stored expiration a stale future tick,
@@ -47,8 +47,8 @@ public final class ItemFlash
         FlashRule useRule = getRuleFor(selectedStack, false);
         boolean validSlot = currentSlot >= 0 && currentSlot < HOTBAR_SLOTS;
 
-        // "Only on attribute swapping": a press lights the slot only when it lands inside a swap window (just switched).
-        boolean swapGate = !ModConfig.get().flashOnlyOnSwap || swapWindowOpen;
+        // "Only on attribute swapping": accept only input inside the strict two-tick attribute-swap window.
+        boolean swapGate = !ModConfig.get().flashOnlyOnSwap || attributeSwap;
 
         boolean attackPressedThisTick = validSlot && attackRule != null && attackPressed && swapGate;
         boolean usePressedThisTick = validSlot && useRule != null && usePressed && swapGate;
