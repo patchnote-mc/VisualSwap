@@ -56,7 +56,7 @@ public final class FlashRulesList implements Layout
     private final int rowWidth;
     private final Runnable onChanged;
     private final Consumer<FlashRule> onColorEdited;
-    private final Consumer<String> onTextChanged;
+    private final Runnable onValueEdited;
     private final OverlayManager overlays;
     private final List<FlashRuleRow> rows = new ArrayList<>();
     private final LinearLayout layout = LinearLayout.vertical().spacing(ROW_SPACING);
@@ -72,13 +72,13 @@ public final class FlashRulesList implements Layout
     private @Nullable FlashRule revealTarget;
 
     public FlashRulesList(int rowWidth, PresetType preset, List<FlashRule> rules, Runnable onChanged,
-                          Consumer<FlashRule> onColorEdited, Consumer<String> onTextChanged, OverlayManager overlays)
+                          Consumer<FlashRule> onColorEdited, Runnable onValueEdited, OverlayManager overlays)
     {
         this.rowWidth = rowWidth;
         this.preset = preset;
         this.onChanged = onChanged;
         this.onColorEdited = onColorEdited;
-        this.onTextChanged = onTextChanged;
+        this.onValueEdited = onValueEdited;
         this.overlays = overlays;
         for (FlashRule rule : rules)
         {
@@ -150,6 +150,7 @@ public final class FlashRulesList implements Layout
     public void setColorForAll(int color)
     {
         for (FlashRuleRow row : this.rows) row.getRule().setColorFor(this.preset, color);
+        notifyValueEdited();
     }
 
     /// Filter the visible rows to those whose item id contains {@code text} (case-insensitive). View-only — the
@@ -303,9 +304,13 @@ public final class FlashRulesList implements Layout
     }
 
     /// A user edit of {@code rule}'s colour — forwarded to the screen so the swap preview can follow that rule.
-    void notifyColorEdited(FlashRule rule) { if (this.onColorEdited != null) this.onColorEdited.accept(rule); }
+    void notifyColorEdited(FlashRule rule)
+    {
+        if (this.onColorEdited != null) this.onColorEdited.accept(rule);
+        notifyValueEdited();
+    }
 
-    void notifyTextChanged(String text) { if (this.onTextChanged != null) this.onTextChanged.accept(text); }
+    void notifyValueEdited() { if (this.onValueEdited != null) this.onValueEdited.run(); }
 
     /// The rule at row {@code index}, or — when the index is out of range — the first row whose item is
     /// {@code fallbackItem}, else the first row, else null (empty table). Used to retarget the swap preview across

@@ -121,6 +121,7 @@ public final class VisualSwapConfigScreen extends Screen
     private boolean isModified;
 
     private @Nullable Button doneButton;   // held so the live invalid-rule check can toggle whether saving is allowed
+    private @Nullable Button discardButton;   // held so in-place edits can refresh its dirty-state gate
 
     private @Nullable Button effectsButton;   // header button opening the EffectsModal; positioned in arrangeContents
 
@@ -233,7 +234,10 @@ public final class VisualSwapConfigScreen extends Screen
 
         this.slider = new SizeSlider(
                 0, 0, colW, CHIP_H, //
-                this.workingType.getNameComponent(), effectiveSize(), this.workingCustom::setSizeMultiplier
+                this.workingType.getNameComponent(), effectiveSize(), size -> {
+            this.workingCustom.setSizeMultiplier(size);
+            refreshDirtyState();
+        }
         );
         this.slider.active = particlesOn && this.workingType.isColorEditable();
         this.slider.setTooltip(particlesOn
@@ -281,7 +285,10 @@ public final class VisualSwapConfigScreen extends Screen
                 HotbarSwapPreview.WIDTH;
         TicksSlider ticksSlider = new TicksSlider(
                 0, 0, topWidth, CHIP_H, //
-                this.workingVisibleTicks, ticks -> this.workingVisibleTicks = ticks
+                this.workingVisibleTicks, ticks -> {
+            this.workingVisibleTicks = ticks;
+            refreshDirtyState();
+        }
         );
         ticksSlider.active = itemFlashOn;
         ticksSlider.setTooltip(itemFlashOn
@@ -298,8 +305,7 @@ public final class VisualSwapConfigScreen extends Screen
                 rules,
                 this::rebuildWidgets,
                 rule -> this.previewRule = rule,
-                _ -> applyDoneState(
-                        this.list.invalidCount() == 0 ? DoneButtonState.ENABLED : DoneButtonState.INVALID_RULE),
+                this::onRuleValueEdited,
                 this.overlays
         );
         this.list.setFilter(this.filterText);
@@ -362,13 +368,13 @@ public final class VisualSwapConfigScreen extends Screen
 
         // --- footer: revert / leave / save ---
         LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(8));
-        Button discardButton = Button.builder(
+        this.discardButton = Button.builder(
                 Component.translatable("gui.visual-swap.button.discard"),
                 b -> confirmDiscard()
         ).width(80).build();
-        discardButton.active = this.isModified;
-        discardButton.setTooltip(Tooltip.create(Component.translatable("gui.visual-swap.tooltip.discard")));
-        footer.addChild(discardButton);
+        this.discardButton.active = this.isModified;
+        this.discardButton.setTooltip(Tooltip.create(Component.translatable("gui.visual-swap.tooltip.discard")));
+        footer.addChild(this.discardButton);
         footer.addChild(Button.builder(
                 Component.translatable("gui.visual-swap.button.cancel"),
                 b -> onClose()
@@ -607,7 +613,10 @@ public final class VisualSwapConfigScreen extends Screen
     /// Open the colour picker (with alpha — From/To colours are AARRGGBB) anchored under {@code anchor}.
     private void openPicker(ColorSwatch anchor, int current, IntConsumer apply)
     {
-        ColorPickerOverlay picker = new ColorPickerOverlay(current, true, apply);
+        ColorPickerOverlay picker = new ColorPickerOverlay(current, true, color -> {
+            apply.accept(color);
+            refreshDirtyState();
+        });
         picker.position(anchor.getX() - 8, anchor.getY() + anchor.getHeight() + 4);
         this.overlays.open(picker);
     }
@@ -790,6 +799,20 @@ public final class VisualSwapConfigScreen extends Screen
                 currentRules,
                 this.savedRules
         );
+    }
+
+    private void onRuleValueEdited()
+    {
+        applyDoneState(this.list.invalidCount() == 0 ? DoneButtonState.ENABLED : DoneButtonState.INVALID_RULE);
+        refreshDirtyState();
+    }
+
+    /// Refresh the cached state used while widgets edit their backing values without rebuilding the screen.
+    private void refreshDirtyState()
+    {
+        if (this.list == null) return;
+        this.isModified = isModified(this.list.toRules());
+        if (this.discardButton != null) this.discardButton.active = this.isModified;
     }
 
     /// Enable/disable the Done button and set the matching tooltip — an invalid config can never be saved.

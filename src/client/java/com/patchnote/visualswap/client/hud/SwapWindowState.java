@@ -111,6 +111,17 @@ public final class SwapWindowState
     /** Number of swap-hits chained into the active flash (1 = single, 0 when no flash is running). */
     public int chainCount(int tick) { return attacked(tick) ? this.chainCount : 0; }
 
+    /// Chain depth to render for an entity interaction that arrives before the end-of-tick click observation. A newly
+    /// pending swap extends the active chain; an observed but not-yet-credited swap starts at one; repeated interactions
+    /// against an already-credited swap keep the existing depth.
+    public int anticipatedChainCount(int tick, boolean newSwapPending)
+    {
+        int current = chainCount(tick);
+        boolean uncreditedSwap = newSwapPending ||
+                this.lastSwapTick != NO_TICK && this.lastCreditedSwapTick != this.lastSwapTick;
+        return current + ((uncreditedSwap || current == 0) ? 1 : 0);
+    }
+
     /** Whether the active flash is a stun slam: two or more swap-hits chained in a row. */
     public boolean consecutive(int tick) { return chainCount(tick) >= 2; }
 
