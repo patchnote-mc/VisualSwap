@@ -160,8 +160,9 @@ there are two source sets, both registered as the `visual-swap` mod:
     winner cache (rules pre-sorted by `order`, patterns compiled once, rebuilt when the config's rule list is replaced),
     so the tick path is O(1) amortised. **Flash duration:** the global `ModConfig.flashVisibleTicks` (1–40, read live by
     `ItemFlash`) is edited by a `TicksSlider` under the top grid. **Flash trigger mode (2026-07-19):** the global
-    `ModConfig.flashOnlyOnSwap` (default on) gates the item flash — when on, a press only lights a slot while a swap
-    window is open (`SwapHandler.isSwapWindowOpen` → `SwapWindowState.possible`, i.e. just switched to the item);
+    `ModConfig.flashOnlyOnSwap` (default on) gates the item flash — when on, a press only lights a slot when
+    `SwapHandler.attributeSwapThisTick` reports that the same input belongs to `SwapWindowState.acceptsClick`'s
+    two-tick attribute-swap window, including the end-of-tick observation bridge for its second valid input tick;
     when off it fires on every matching attack/use. It does **not** affect the hotbar highlight (always swap-driven).
     Surfaced as an "Only On Swap" sub-toggle under Item Flash in the Effects modal. **Per-rule swap effects (2026-07-19):**
     each `FlashRule` carries a `showSwapEffects` flag (default off), edited — together with the flash Strength — in the

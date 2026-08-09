@@ -40,6 +40,9 @@ public class SwapHandler
     private int chainTrailLen;
     private boolean attackedLastTick;
     private int lastChainCount;
+    /// Whether the input observed this tick belongs to the two-tick attribute-swap window, including its end-of-tick
+    /// observation bridge.
+    private boolean attributeSwapThisTick;
 
     /* EVENTS */
 
@@ -47,14 +50,17 @@ public class SwapHandler
     {
         detectSwap();
 
-        if (ClickTickTracker.INSTANCE.attacked())
+        int tick = ClickTickTracker.getCurrentState().tick();
+        boolean attacked = ClickTickTracker.INSTANCE.attacked();
+        this.attributeSwapThisTick = attacked && this.swapWindowState.acceptsClick(tick);
+        if (attacked)
         {
-            this.swapWindowState.eventClick(ClickTickTracker.getCurrentState().tick());
+            this.swapWindowState.eventClick(tick);
         }
 
         updateAttackState();
 
-        this.swapWindowState.eventTickEnd(ClickTickTracker.getCurrentState().tick());
+        this.swapWindowState.eventTickEnd(tick);
     }
 
     public void eventReset()
@@ -67,6 +73,7 @@ public class SwapHandler
         this.chainTrailLen = 0;
         this.attackedLastTick = false;
         this.lastChainCount = 0;
+        this.attributeSwapThisTick = false;
 
         HUDHandler.GLYPH.eventReset();
         SwapHotbarHighlight.INSTANCE.eventReset();
@@ -126,9 +133,9 @@ public class SwapHandler
         }
     }
 
-    /// Whether a swap window is currently open (the held item was switched to within the last couple of ticks) — read
-    /// by the item flash to honour {@link com.patchnote.visualswap.client.config.ModConfig#flashOnlyOnSwap}.
-    public boolean isSwapWindowOpen(int tick) { return this.swapWindowState.possible(tick); }
+    /// Whether this tick's input belongs to the two-tick attribute-swap window. Read after {@link #eventTick()} by the
+    /// item flash.
+    public boolean attributeSwapThisTick() { return this.attributeSwapThisTick; }
 
     private void updateAttackState()
     {
