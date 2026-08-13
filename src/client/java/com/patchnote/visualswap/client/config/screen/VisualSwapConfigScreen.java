@@ -656,9 +656,9 @@ public final class VisualSwapConfigScreen extends Screen
         return hotbarHighlightSwitch();
     }
 
-    /// The first switch that is off along the particle gate chain (mod → particles).
     private Component glyphOffSwitch() { return this.workingModEnabled ? hudSwitch() : modSwitch(); }
 
+    /// The first switch that is off along the particle gate chain (mod → particles).
     private Component particlesOffSwitch() { return this.workingModEnabled ? particlesSwitch() : modSwitch(); }
 
     /// One From/To colour row: a caption and a swatch that opens the picker (Custom preset only). The picker writes the
@@ -774,7 +774,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         openConfirm(
                 Component.translatable("gui.visual-swap.confirm.reset_rules.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.reset_rules.body")),
+                Component.translatable("gui.visual-swap.confirm.reset_rules.body"),
                 Component.translatable("gui.visual-swap.button.reset"),
                 this::doResetRules
         );
@@ -784,7 +784,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         openConfirm(
                 Component.translatable("gui.visual-swap.confirm.reset_colors.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.reset_colors.body")),
+                Component.translatable("gui.visual-swap.confirm.reset_colors.body"),
                 Component.translatable("gui.visual-swap.button.reset"),
                 this::doResetColors
         );
@@ -794,7 +794,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         openConfirm(
                 Component.translatable("gui.visual-swap.confirm.clear.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.clear.body")),
+                Component.translatable("gui.visual-swap.confirm.clear.body"),
                 Component.translatable("gui.visual-swap.button.clear_all"),
                 () -> this.list.clear()
         );
@@ -808,7 +808,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         openConfirm(
                 Component.translatable("gui.visual-swap.confirm.set_all_colors.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.set_all_colors.body")),
+                Component.translatable("gui.visual-swap.confirm.set_all_colors.body"),
                 Component.translatable("gui.visual-swap.button.set_all"),
                 () -> this.openBulkColorPicker = true
         );
@@ -818,7 +818,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         openConfirm(
                 Component.translatable("gui.visual-swap.confirm.discard.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.discard.body")),
+                Component.translatable("gui.visual-swap.confirm.discard.body"),
                 Component.translatable("gui.visual-swap.button.discard"),
                 this::doDiscard
         );
@@ -879,9 +879,9 @@ public final class VisualSwapConfigScreen extends Screen
     }
 
     /// Open a modal confirmation (its own screen) for a destructive action; only Confirm runs {@code action}.
-    private void openConfirm(Component title, List<Component> lines, Component confirmLabel, Runnable action)
+    private void openConfirm(Component title, Component body, Component confirmLabel, Runnable action)
     {
-        ConfirmModal.open(title, lines, confirmLabel, action);
+        ConfirmModal.open(title, body, confirmLabel, action);
     }
 
     /// The rule-count line above the table: "N of M shown" while a filter is active.
@@ -917,12 +917,20 @@ public final class VisualSwapConfigScreen extends Screen
     private void refreshDirtyState()
     {
         if (this.list == null) return;
-        this.isModified = isModified(this.list.toRules());
+        List<FlashRule> rules = this.list.toRules();
+        this.isModified = isModified(rules);
         if (this.discardButton != null) this.discardButton.active = this.isModified;
         if (this.resetColorsButton != null)
         {
             this.resetColorsButton.active = this.workingModEnabled && this.workingType.isCustom() &&
                     !this.workingCustom.sameValuesAs(PresetType.CUSTOM.createDefault());
+        }
+        if (this.tableHeader != null)
+        {
+            boolean itemFlashOn = this.workingModEnabled && this.workingHudEnabled && this.workingItemFlashEnabled;
+            this.tableHeader.setResetEnabled(
+                    itemFlashOn && !FlashRule.listsSameValues(rules, FlashRule.defaultFlashRules())
+            );
         }
     }
 
@@ -966,7 +974,7 @@ public final class VisualSwapConfigScreen extends Screen
         {
             openConfirm(
                     Component.translatable("gui.visual-swap.confirm.leave.title"),
-                    List.of(Component.translatable("gui.visual-swap.confirm.leave.body")),
+                    Component.translatable("gui.visual-swap.confirm.leave.body"),
                     Component.translatable("gui.visual-swap.button.discard"),
                     () -> this.minecraft.setScreenAndShow(this.parent)
             );

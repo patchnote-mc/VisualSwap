@@ -308,8 +308,14 @@ public final class FlashRulesList implements Layout
         return out;
     }
 
-    /// A user edit of {@code rule}'s colour — forwarded to the screen so the swap preview can follow that rule.
+    /// A user edit of {@code rule} — forwarded to the screen so the swap preview follows that rule.
     void notifyColorEdited(FlashRule rule)
+    {
+        if (this.onColorEdited != null) this.onColorEdited.accept(rule);
+        notifyValueEdited();
+    }
+
+    void notifyValueEdited(FlashRule rule)
     {
         if (this.onColorEdited != null) this.onColorEdited.accept(rule);
         notifyValueEdited();

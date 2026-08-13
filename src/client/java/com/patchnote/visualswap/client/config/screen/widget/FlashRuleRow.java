@@ -81,7 +81,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.onButton = createTriggerSelector(rule);
         this.configButton = new IconButton(
                 CONFIG_WIDTH, Icons.CONFIG, Component.translatable("gui.visual-swap.tooltip.configure_rule"),
-                () -> RuleConfigModal.open(this.rule)
+                this::openConfigModal
         );
         this.colorSwatch = new ColorSwatch(
                 COLOR_SWATCH,
@@ -130,14 +130,24 @@ public final class FlashRuleRow extends AbstractContainerWidget
         );
     }
 
-    private void openPreviewModal() { RegexPreviewModal.open(this.rule); }
+    private void openPreviewModal()
+    {
+        this.list.notifyValueEdited(this.rule);
+        RegexPreviewModal.open(this.rule);
+    }
+
+    private void openConfigModal()
+    {
+        this.list.notifyValueEdited(this.rule);
+        RuleConfigModal.open(this.rule);
+    }
 
     /// Gate deleting this rule behind a confirmation modal — only Confirm removes it.
     private void confirmDelete()
     {
         ConfirmModal.open(
                 Component.translatable("gui.visual-swap.confirm.delete_rule.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.delete_rule.body")),
+                Component.translatable("gui.visual-swap.confirm.delete_rule.body"),
                 Component.translatable("gui.visual-swap.button.delete"),
                 () -> this.list.removeRule(this)
         );
@@ -188,7 +198,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
                                   Component.empty(),
                                   (button, value) -> {
                                       this.rule.setFlashesAt(value);
-                                      this.list.notifyValueEdited();
+                                      this.list.notifyValueEdited(this.rule);
                                   }
                           );
     }
@@ -335,7 +345,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
     {
         this.rule.setItem(value);
         refreshMatches();
-        this.list.notifyValueEdited();
+        this.list.notifyValueEdited(this.rule);
     }
 
     /// Recompute the selector's reach: validity, match count, and the preview icon (the first matched item). Called on

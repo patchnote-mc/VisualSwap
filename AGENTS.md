@@ -121,7 +121,8 @@ there are two source sets, both registered as the `visual-swap` mod:
     item's coords+tint in `ItemFlashPreview` each frame and
     `GuiItemFlashPreviewMixin` re-blits it from the item atlas
     (`ItemFlashPipeline.silhouetteBlit`). The flashing slot follows the rule
-    whose colour box was last user-edited (row → list → screen callback;
+    whose row was last edited (selector, trigger, colour, preview exclusions, or secondary settings;
+    row → list → screen callback;
     retargeted across rebuilds by its position in the rebuild seed, falling
     back to the mace rule), live-tracking that rule's item/colour/intensity
     under the working preset. **Preset model:** `PresetType` is
@@ -209,8 +210,9 @@ there are two source sets, both registered as the `visual-swap` mod:
     screen was open as its **backdrop**, renders it dimmed behind a centred panel (via a
     scrim + the backdrop's `extractRenderState` with an off-screen mouse), and returns to
     it on close — so it owns all screen routing and can be opened from anywhere with
-    `open()`. `ConfirmModal` is the yes/no dialog (title + body + Cancel/Confirm) that
-    gates the reset/clear/discard/leave-unsaved actions; after Confirm runs the action it
+    `open()`. `ConfirmModal` is the yes/no dialog (title + wrapped body + Cancel/Confirm); its panel height follows
+    the rendered title/body line count so translated copy cannot overflow. It gates the
+    reset/clear/discard/leave-unsaved actions; after Confirm runs the action it
     returns to the backdrop **only if the action didn't itself navigate away** (checked
     via `Minecraft.gui.screen()`). `RegexPreviewModal` (+ `MatchedItemsList`, an `AbstractScrollArea`) previews a rule's
     regex: a scrollable table of every matched item (icon + id, the matched substring highlighted via `ItemRegex.spans`),
