@@ -45,14 +45,14 @@ Whenever you DO refer to the decompilation, record **just enough** information s
 the same research never has to be repeated. Persisted in plain text files:
 
 * **Class index:** `*_decompiled/.index/{version}/{fully.qualified.ClassName}.txt`
-  - One flat file per inspected class, named by its fully-qualified class name
-    (no package subdirectories under the version segment).
-  - `{version}` is `26.2` for Minecraft, `0.153.0+26.2` for Fabric.
-  - Record only verified facts: FQ class name, the exact Mojang method/field
-    signatures you used, and a one-line behavior note when non-obvious.
+    - One flat file per inspected class, named by its fully-qualified class name
+      (no package subdirectories under the version segment).
+    - `{version}` is `26.2` for Minecraft, `0.153.0+26.2` for Fabric.
+    - Record only verified facts: FQ class name, the exact Mojang method/field
+      signatures you used, and a one-line behavior note when non-obvious.
 * **Cross-cutting knowledge:** `*_decompiled/.knowledge/{topic}.txt`
-  - For findings not tied to a single class (rendering pipeline, codecs, mixin
-    patterns, version quirks). One topic per file.
+    - For findings not tied to a single class (rendering pipeline, codecs, mixin
+      patterns, version quirks). One topic per file.
 
 Rules for these files: add a line only after verifying it in the source; keep
 entries terse; **plain text only, not markdown**. See each directory's
@@ -64,7 +64,8 @@ Where docs live (don't scatter new instruction files in the repo root):
 
 * **This file** (`.github/copilot-instructions.md`) — working strategy. Stays in `.github`.
 * **`AGENTS.md`** (repo root) — architecture/flows guide. Stays at root (auto-discovered convention).
-* **`.llm/`** — other agent/design docs. New instruction-style docs go under an appropriately-named `.llm/<name>/` subdir.
+* **`.llm/`** — other agent/design docs. New instruction-style docs go under an appropriately-named `.llm/<name>/`
+  subdir.
 
 **Keep docs from going stale:** every doc that tracks the codebase (`AGENTS.md`,
 `.llm/**`, entries, and this file) carries a date. When you change

@@ -13,11 +13,11 @@ import org.jspecify.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.List;
 
-/// A rule's secondary settings — the flash Strength and the swap-hit Effects opt-in — moved off the table row into a
-/// {@link Modal} opened from the row's config (gear) button. Mirrors the {@link EffectsModal} look: each setting is a
-/// full-width button row, and hovering a row prints its help text in the panel's help area (the rows carry no
-/// tooltips). Every change writes straight onto the shared working rule; returning re-inits the config screen, which
-/// picks the edits up (same flow as the {@link RegexPreviewModal}).
+/// A rule's secondary settings — flash Strength plus independent Glyph and Hotbar Highlight opt-ins — moved off the
+/// table row into a {@link Modal} opened from the row's config (gear) button. Mirrors the {@link EffectsModal} look:
+/// each setting is a full-width button row, and hovering a row prints its help text in the panel's help area (the rows
+/// carry no tooltips). Every change writes straight onto the shared working rule; returning re-inits the config screen,
+/// which picks the edits up (same flow as the {@link RegexPreviewModal}).
 public final class RuleConfigModal extends Modal
 {
     private static final int PANEL_W = 244;
@@ -38,7 +38,8 @@ public final class RuleConfigModal extends Modal
 
     private static final List<Component> HELP = List.of(
             Component.translatable("gui.visual-swap.rule_config.strength.help"),
-            Component.translatable("gui.visual-swap.rule_config.effects.help")
+            Component.translatable("gui.visual-swap.rule_config.glyph.help"),
+            Component.translatable("gui.visual-swap.rule_config.hotbar_highlight.help")
     );
 
     private final FlashRule rule;
@@ -88,13 +89,22 @@ public final class RuleConfigModal extends Modal
         this.buttons.add(strength);
         y += ROW_H + ROW_GAP;
 
-        CycleButton<Boolean> effects = CycleButton.onOffBuilder(this.rule.showSwapEffects()).create(
+        CycleButton<Boolean> glyph = CycleButton.onOffBuilder(this.rule.showGlyph()).create(
                 x, y, w, ROW_H, //
-                Component.translatable("gui.visual-swap.rule_config.effects.label"),
-                (b, value) -> this.rule.setShowSwapEffects(value)
+                Component.translatable("gui.visual-swap.rule_config.glyph.label"),
+                (b, value) -> this.rule.setShowGlyph(value)
         );
-        addRenderableWidget(effects);
-        this.buttons.add(effects);
+        addRenderableWidget(glyph);
+        this.buttons.add(glyph);
+        y += ROW_H + ROW_GAP;
+
+        CycleButton<Boolean> hotbarHighlight = CycleButton.onOffBuilder(this.rule.showHotbarHighlight()).create(
+                x, y, w, ROW_H, //
+                Component.translatable("gui.visual-swap.rule_config.hotbar_highlight.label"),
+                (b, value) -> this.rule.setShowHotbarHighlight(value)
+        );
+        addRenderableWidget(hotbarHighlight);
+        this.buttons.add(hotbarHighlight);
         y += ROW_H + ROW_GAP;
 
         this.helpY = y + HELP_GAP - ROW_GAP;

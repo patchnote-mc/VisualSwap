@@ -16,8 +16,8 @@ import java.util.Objects;
 public final class ModConfig implements ConfigData
 {
     /// Inclusive range the clicked-item flash duration is clamped to (whole ticks).
-    public static final int MIN_VISIBLE_TICKS = 1;
-    public static final int MAX_VISIBLE_TICKS = 40;
+    public static final int MIN_VISIBLE_TICKS = 2;
+    public static final int MAX_VISIBLE_TICKS = 10;
 
     /* CONFIG */
 
@@ -31,6 +31,9 @@ public final class ModConfig implements ConfigData
     /// i.e. right after switching to the item (an actual attribute swap). When false the flash fires on every matching
     /// attack/use, regardless of a recent switch. Does not affect the hotbar highlight, which is always swap-driven.
     public boolean flashOnlyOnSwap = true;
+
+    /// Clear lingering item flashes when a qualifying attribute swap starts a fresh, non-consecutive hit.
+    public boolean clearPreviousFlashOnSwap = true;
 
     /* MASTER TOGGLES */
 
@@ -76,6 +79,13 @@ public final class ModConfig implements ConfigData
 
     public int getToColor() { return preset.isCustom() ? customPresetData.getToColor() : preset.getToColor(); }
 
+    public int getGlyphColor() { return preset.isCustom() ? customPresetData.getGlyphColor() : preset.getGlyphColor(); }
+
+    public int getGlyphColor(String glyph)
+    {
+        return preset.isCustom() ? customPresetData.getGlyphColor(glyph) : preset.getGlyphColor(glyph);
+    }
+
     public double getSize() { return preset.isCustom() ? customPresetData.getSizeMultiplier() : preset.getSize(); }
 
     /* VALIDATION */
@@ -85,6 +95,8 @@ public final class ModConfig implements ConfigData
     {
         if (this.preset == null) this.preset = PresetType.VANILLA;
         if (this.customPresetData == null) this.customPresetData = PresetType.CUSTOM.createDefault();
+        // Old configs carried one shared glyph colour. Copy it into any newly introduced per-state fields.
+        this.customPresetData.migrateGlyphColors(PresetType.CUSTOM.getGlyphColor());
         this.customPresetData.setSizeMultiplier(Math.clamp(this.customPresetData.getSizeMultiplier(), 0.10, 2.00));
         this.flashVisibleTicks = Math.clamp(this.flashVisibleTicks, MIN_VISIBLE_TICKS, MAX_VISIBLE_TICKS);
 

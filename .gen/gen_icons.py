@@ -33,6 +33,7 @@ MAP = {
     "check":     "check_24dp_E3E3E3_FILL1_wght400_GRAD0_opsz24.svg",
     "move_up":   "keyboard_arrow_up_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
     "move_down": "keyboard_arrow_down_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
+    "background": "background_replace_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg"
 }
 
 MCMETA = '{\n  "texture": {\n    "blur": true,\n    "clamp": true\n  }\n}\n'

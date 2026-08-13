@@ -4,11 +4,20 @@
   "enforcement": "active",
   "bypass_actors": [],
   "conditions": {
-    "ref_name": { "include": ["refs/heads/*-main"], "exclude": [] }
+    "ref_name": {
+      "include": [
+        "refs/heads/*-main"
+      ],
+      "exclude": []
+    }
   },
   "rules": [
-    { "type": "deletion" },
-    { "type": "non_fast_forward" },
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
     {
       "type": "pull_request",
       "parameters": {
@@ -17,7 +26,11 @@
         "require_code_owner_review": false,
         "require_last_push_approval": false,
         "required_review_thread_resolution": false,
-        "allowed_merge_methods": ["merge", "squash", "rebase"]
+        "allowed_merge_methods": [
+          "merge",
+          "squash",
+          "rebase"
+        ]
       }
     },
     {
@@ -25,9 +38,15 @@
       "parameters": {
         "strict_required_status_checks_policy": false,
         "required_status_checks": [
-          { "context": "block duplicate version" },
-          { "context": "build" },
-          { "context": "publish dry-run" }
+          {
+            "context": "block duplicate version"
+          },
+          {
+            "context": "build"
+          },
+          {
+            "context": "publish dry-run"
+          }
         ]
       }
     }

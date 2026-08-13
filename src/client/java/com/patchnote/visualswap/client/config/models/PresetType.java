@@ -9,21 +9,32 @@ import java.util.Locale;
 /// Custom preset is user-editable; Vanilla/Practice always show these defaults.
 public enum PresetType
 {
-    VANILLA(0.8, 0x35FFFFFF, 0x95FFFFFF, 0xFFFFFFFF),
-    PRACTICE(1.5, 0xFFFEA82F, 0xFFFF2E00, 0xFFFCFFF7),
-    CUSTOM(1.5, 0xFF0B0014, 0xFFF5E9E2, 0xFF0B0014);
+    VANILLA(
+            0.8, 0x35FFFFFF, 0x95FFFFFF, 0xFFFFFFFF, //
+            new GlyphColors(0xFFFFFFFF, 0xFFFFFFFF, 0xFFF85A5A, 0xFFFFFFFF)
+    ),
+    PRACTICE(
+            1.5, 0xFFFEA82F, 0xFFFF2E00, 0xFFFCFFF7, //
+            new GlyphColors(0xFF6767FF, 0xFF00FF00, 0xFFFF0000, 0xFFFFAA00)
+    ),
+    CUSTOM(
+            1.5, 0xA6DBDAEA, 0xA6DDC3D0, 0xFF9B2915, //
+            new GlyphColors(0xFFC77DFF, 0xFF42E8E0, 0xFFFF4567, 0xFFFFC857)
+    );
 
     private final double size;
     private final int fromColor;
     private final int toColor;
     private final int flashTint;
+    private final GlyphColors glyphColors;
 
-    PresetType(double size, int fromColor, int toColor, int flashTint)
+    PresetType(double size, int fromColor, int toColor, int flashTint, GlyphColors glyphColors)
     {
         this.size = size;
         this.fromColor = fromColor;
         this.toColor = toColor;
         this.flashTint = flashTint;
+        this.glyphColors = glyphColors;
     }
 
     public boolean isVanilla() { return this == VANILLA; }
@@ -45,6 +56,19 @@ public enum PresetType
 
     public int getFlashTint() { return this.flashTint; }
 
+    public int getGlyphColor() { return this.glyphColors.possible(); }
+
+    public int getGlyphColor(String glyph)
+    {
+        return switch (glyph)
+        {
+            case "attacked" -> this.glyphColors.attacked();
+            case "failed" -> this.glyphColors.failed();
+            case "consecutive" -> this.glyphColors.consecutive();
+            default -> this.glyphColors.possible();
+        };
+    }
+
     /* HELPERS */
 
     public Component getNameComponent()
@@ -52,5 +76,18 @@ public enum PresetType
         return Component.translatable("gui.visual-swap.preset." + name().toLowerCase(Locale.ROOT));
     }
 
-    public Preset createDefault() { return new Preset(this.size, this.fromColor, this.toColor); }
+    public Preset createDefault()
+    {
+        return new Preset(
+                this.size,
+                this.fromColor,
+                this.toColor,
+                this.glyphColors.possible(),
+                this.glyphColors.attacked(),
+                this.glyphColors.failed(),
+                this.glyphColors.consecutive()
+        );
+    }
+
+    private record GlyphColors(int possible, int attacked, int failed, int consecutive) { }
 }

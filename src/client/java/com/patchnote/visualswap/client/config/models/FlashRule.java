@@ -17,9 +17,12 @@ public final class FlashRule
     private FlashTrigger flashesAt;
     private FlashIntensity intensity;
 
-    /// Whether switching to an item this rule selects shows the on-screen swap-hit indicators — the below-hotbar glyph
-    /// *and* the hotbar slot highlight, collapsed under this one flag.
+    /// Legacy combined setting retained so configs written before the split can migrate without losing their opt-in.
     private boolean showSwapEffects;
+
+    /// Nullable so an absent value can be distinguished from an explicit false during migration.
+    private Boolean showGlyph;
+    private Boolean showHotbarHighlight;
 
     /// Precedence key: the runtime resolves rules in ascending {@code order} and the first whose selector matches a
     /// held item (per input) wins. Stamped from the rule's list position when the config is committed/loaded.
@@ -50,6 +53,8 @@ public final class FlashRule
         this.flashesAt = flashesAt;
         this.intensity = intensity;
         this.showSwapEffects = showSwapEffects;
+        this.showGlyph = showSwapEffects;
+        this.showHotbarHighlight = showSwapEffects;
         this.colors = defaultColors();
     }
 
@@ -61,6 +66,8 @@ public final class FlashRule
         this.flashesAt = other.flashesAt;
         this.intensity = other.intensity;
         this.showSwapEffects = other.showSwapEffects;
+        this.showGlyph = other.showGlyph;
+        this.showHotbarHighlight = other.showHotbarHighlight;
         this.order = other.order;
         this.excludedItems = new LinkedHashSet<>(other.excludedItems);
         this.colors = copyColors(other.colors);
@@ -75,7 +82,9 @@ public final class FlashRule
 
     public FlashIntensity intensity() { return intensity; }
 
-    public boolean showSwapEffects() { return showSwapEffects; }
+    public boolean showGlyph() { return showGlyph != null ? showGlyph : showSwapEffects; }
+
+    public boolean showHotbarHighlight() { return showHotbarHighlight != null ? showHotbarHighlight : showSwapEffects; }
 
     public int order() { return order; }
 
@@ -108,9 +117,15 @@ public final class FlashRule
         return this;
     }
 
-    public FlashRule setShowSwapEffects(boolean showSwapEffects)
+    public FlashRule setShowGlyph(boolean showGlyph)
     {
-        this.showSwapEffects = showSwapEffects;
+        this.showGlyph = showGlyph;
+        return this;
+    }
+
+    public FlashRule setShowHotbarHighlight(boolean showHotbarHighlight)
+    {
+        this.showHotbarHighlight = showHotbarHighlight;
         return this;
     }
 
@@ -185,6 +200,8 @@ public final class FlashRule
     {
         if (this.flashesAt == null) this.flashesAt = FlashTrigger.BOTH;
         if (this.intensity == null) this.intensity = FlashIntensity.LOW;
+        if (this.showGlyph == null) this.showGlyph = this.showSwapEffects;
+        if (this.showHotbarHighlight == null) this.showHotbarHighlight = this.showSwapEffects;
         if (this.excludedItems == null) this.excludedItems = new LinkedHashSet<>();
         ensureColors();
     }
@@ -222,7 +239,8 @@ public final class FlashRule
         if (!Objects.equals(this.item, other.item)) return false;
         if (this.flashesAt != other.flashesAt) return false;
         if (this.intensity != other.intensity) return false;
-        if (this.showSwapEffects != other.showSwapEffects) return false;
+        if (this.showGlyph() != other.showGlyph()) return false;
+        if (this.showHotbarHighlight() != other.showHotbarHighlight()) return false;
         if (!Objects.equals(this.excludedItems, other.excludedItems)) return false;
         for (PresetType p : PresetType.values())
             if (this.colorFor(p) != other.colorFor(p)) return false;
