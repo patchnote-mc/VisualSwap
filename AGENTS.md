@@ -158,8 +158,11 @@ there are two source sets, both registered as the `visual-swap` mod:
     rules (blank / uncompilable / zero-match pattern) block **Done** (`FlashRulesList.invalidCount`). Runtime resolution
     is `ItemFlash.getRuleFor(stack, forAttack)` → `hud/click/FlashRuleIndex.forCurrentConfig()`, a per-`Item` memoised
     winner cache (rules pre-sorted by `order`, patterns compiled once, rebuilt when the config's rule list is replaced),
-    so the tick path is O(1) amortised. **Flash duration:** the global `ModConfig.flashVisibleTicks` (1–40, read live by
-    `ItemFlash`) is edited by a `TicksSlider` under the top grid. **Flash trigger mode (2026-07-19):** the global
+    so the tick path is O(1) amortised. **Flash duration:** the global `ModConfig.flashVisibleTicks` (2–10, read live by
+    `ItemFlash` and `SwapWindowState`) is edited by a `TicksSlider` under the top grid and controls item flashes,
+    attacked glyphs, and hotbar highlights together. A consecutive hit re-times all active chain item flashes to the
+    latest hit's expiration. Chain credit itself uses a separate fixed two-tick click clock, so changing render
+    duration never changes which attribute swaps count as consecutive. **Flash trigger mode (2026-07-19):** the global
     `ModConfig.flashOnlyOnSwap` (default on) gates the item flash — when on, a press only lights a slot when
     `SwapHandler.attributeSwapThisTick` reports that the same input belongs to `SwapWindowState.acceptsClick`'s
     two-tick attribute-swap window, including the end-of-tick observation bridge for its second valid input tick;
@@ -310,8 +313,8 @@ since `tickCount` increments between `handleKeybinds` and `END_CLIENT_TICK`.
   now opens the window too (the item comparison alone misses both). The first
   post-spawn tick is skipped so empty→held isn't read as a swap.
 - **Click** — when `ClickTickTracker.attacked()` reports a rising edge (spear swing,
-  or a left/right-click edge), `SwapHandler` calls `SwapWindowState.eventClick(tick)`,
-  which flashes the `attacked` glyph for `GLYPH_VISIBLE_TICKS` (= 5) and credits the
+  or a left/right-click edge), `SwapHandler` calls `SwapWindowState.eventClick(tick, flashVisibleTicks)`,
+  which flashes the `attacked` glyph for the configured duration (default 5) and credits the
   chain (below). `eventTickEnd(tick)` then records whether the possible window was
   open this tick.
 - **Use (sub-condition)** — `AttackEntityCallback`/`UseEntityCallback` on an entity,
@@ -385,6 +388,6 @@ particles client-side keeps the effect purely local with zero server-visible
 footprint. **Do not reintroduce a `ParticleType`/`ParticleOptions`.** See
 `.llm/implementation/client-only-setup.md`.
 
-Tunable constants: `SwapWindowState.WINDOW_TICKS`/`GLYPH_VISIBLE_TICKS`,
+Tunable constants: `SwapWindowState.WINDOW_TICKS`,
 `SwapHitGlyph.SCALE`/`VERTICAL_OFFSET`, `ParticlesHandler.PARTICLES_PER_HIT`/`MAX_CHAIN_HITS`,
 the `SwapParticleOptions` per-tier presets, and the `AttackParticleProps` style params.

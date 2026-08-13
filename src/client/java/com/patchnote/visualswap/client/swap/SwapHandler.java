@@ -1,5 +1,6 @@
 package com.patchnote.visualswap.client.swap;
 
+import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.hud.HUDHandler;
 import com.patchnote.visualswap.client.hud.SwapHotbarHighlight;
 import com.patchnote.visualswap.client.hud.SwapWindowState;
@@ -39,8 +40,13 @@ public class SwapHandler
     /// Ordered hotbar slots touched by the active chain (origin first, latest hit last).
     private final int[] chainTrail = new int[HOTBAR_SLOTS];
     private int chainTrailLen;
+    /// Switched-to slots whose item flashes belong to the current chain (unlike chainTrail, excludes origins).
+    private final int[] itemFlashChainSlots = new int[HOTBAR_SLOTS];
+    private int itemFlashChainLen;
     private boolean attackedLastTick;
     private int lastChainCount;
+    /// A newly credited hit can begin a fresh chain while an older long-duration flash is still visible.
+    private boolean freshChainThisTick;
     /// Whether the input observed this tick belongs to the two-tick attribute-swap window, including its end-of-tick
     /// observation bridge.
     private boolean attributeSwapThisTick;
@@ -56,7 +62,13 @@ public class SwapHandler
         this.attributeSwapThisTick = attacked && this.swapWindowState.acceptsClick(tick);
         if (attacked)
         {
-            this.swapWindowState.eventClick(tick);
+            int duration = ModConfig.get().flashVisibleTicks;
+            boolean extendingChain = this.swapWindowState.willChain(tick);
+            boolean credited = this.swapWindowState.eventClick(tick, duration);
+            this.freshChainThisTick = credited && !extendingChain;
+            if (credited && extendingChain)
+                ItemFlash.INSTANCE.synchronizeSlotsUntil(
+                        this.itemFlashChainSlots, this.itemFlashChainLen, tick + duration);
         }
 
         updateAttackState();
@@ -72,8 +84,10 @@ public class SwapHandler
         this.effectsAllowed = false;
         this.flashEffectsAllowed = false;
         this.chainTrailLen = 0;
+        this.itemFlashChainLen = 0;
         this.attackedLastTick = false;
         this.lastChainCount = 0;
+        this.freshChainThisTick = false;
         this.attributeSwapThisTick = false;
 
         HUDHandler.GLYPH.eventReset();
@@ -157,24 +171,28 @@ public class SwapHandler
 
         this.attackedLastTick = attacked;
         this.lastChainCount = chainCount;
+        this.freshChainThisTick = false;
     }
 
 
     private void highlightSlot(boolean attacked, int chainCount)
     {
-        if (attacked && !this.attackedLastTick)
+        if (attacked && (!this.attackedLastTick || this.freshChainThisTick))
         {
             // Fresh chain: latch this swap's opt-in for the whole flash, and seed the trail with its origin+destination.
             this.flashEffectsAllowed = this.effectsAllowed;
             this.chainTrailLen = 0;
             addTrailSlot(this.swapFromSlot);
             addTrailSlot(this.swapToSlot);
+            this.itemFlashChainLen = 0;
+            addItemFlashChainSlot(this.swapToSlot);
         }
         else if (attacked && chainCount > this.lastChainCount)
         {
             // Chain extended this tick: append the latest swap's destination; opt the flash in if this hit did.
             this.flashEffectsAllowed |= this.effectsAllowed;
             addTrailSlot(this.swapToSlot);
+            addItemFlashChainSlot(this.swapToSlot);
         }
         // Gated like the glyph, but off the value latched when the flash began — so switching away mid-flash keeps the
         // highlight on for the flash's full duration instead of hiding it.
@@ -188,5 +206,12 @@ public class SwapHandler
         // dedup consecutive
         if (this.chainTrailLen > 0 && this.chainTrail[this.chainTrailLen - 1] == slot) return;
         this.chainTrail[this.chainTrailLen++] = slot;
+    }
+
+    private void addItemFlashChainSlot(int slot)
+    {
+        if (slot < 0 || this.itemFlashChainLen >= this.itemFlashChainSlots.length) return;
+        if (this.itemFlashChainLen > 0 && this.itemFlashChainSlots[this.itemFlashChainLen - 1] == slot) return;
+        this.itemFlashChainSlots[this.itemFlashChainLen++] = slot;
     }
 }
