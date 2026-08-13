@@ -71,8 +71,8 @@ there are two source sets, both registered as the `visual-swap` mod:
     SwapHitMasks}` — `ParticlesHandler` builds the in-world particle burst and
     hands each `SwapParticle` (a `SingleQuadParticle`) straight to the vanilla
     `ParticleEngine` (**no** custom `ParticleType` — see the particle burst note),
-    and `SwapHitMasks` reads `swap_hit_masks.json` (glyph shapes/colours) for both
-    the HUD glyph and the particle tint. Ported from AttributeSwapFixes.
+    and `SwapHitMasks` reads `swap_hit_masks.json` for glyph shapes and particle tints; HUD glyph colours are
+    centralized per preset in `PresetType`. Ported from AttributeSwapFixes.
   - `com.patchnote.visualswap.client.hud.SwapHitGlyph` — the below-the-hotbar
     glyph HUD element.
   - `com.patchnote.visualswap.client.config.screen.*` — the hand-built config
@@ -90,7 +90,9 @@ there are two source sets, both registered as the `visual-swap` mod:
     vanilla list panel (`menu_list_background` + header/footer separators drawn
     in the screen's `extractRenderState` override). Content: a 2×3 `GridLayout`
     on top — preset selector & size slider | From/To colour **swatches** |
-    `HotbarSwapPreview` + a **Reset colours** icon button in the bottom-right cell —
+    `HotbarSwapPreview` + a **Reset colours** icon button in the bottom-right cell — followed by a Custom-only glyph
+    colour swatch with a live `GlyphPreview`, the shared feedback-duration slider, and the configurable
+    **Clear Previous Flash** toggle —
     then a rule-count line over
     `FlashRulesList`, a plain vertical `Layout` of `FlashRuleRow`s (each an
     `AbstractContainerWidget` with `NO_SCROLL`; the page owns all scrolling),
@@ -124,12 +126,14 @@ there are two source sets, both registered as the `visual-swap` mod:
     back to the mace rule), live-tracking that rule's item/colour/intensity
     under the working preset. **Preset model:** `PresetType` is
     an enum (VANILLA/PRACTICE/CUSTOM identity + each type's *fixed defaults*); `Preset`
-    is a plain **data class** (`sizeMultiplier`, `fromColor`, `toColor`) so its fields
-    serialise — an enum would persist only its name, which is why the Custom size/From/To
+    is a plain **data class** (`sizeMultiplier`, `fromColor`, `toColor`, plus per-state glyph colours) so its fields
+    serialise — an enum would persist only its name, which is why the Custom size/From/To/Glyph
     now survive restarts. `ModConfig` holds `preset` (active `PresetType`) + `customPresetData`
-    (the Custom `Preset` data object); `ModConfig.getFromColor/getToColor/getSize()` resolve
+    (the Custom `Preset` data object); `ModConfig.getFromColor/getToColor/getGlyphColor/getSize()` resolve
     to `customPresetData` under Custom else the type's default, and the render consumers
-    (`SwapHotbarHighlight`, `SwapHitMasks`, `SwapParticleProvider`) read those. **Per-preset
+    (`SwapHotbarHighlight`, `SwapHitMasks`, `SwapParticleProvider`) read those. The glyph preview renders all four masks
+    at their in-game pixel scale on switchable grass/sky crops; clicking selects a Custom colour target and Shift-click
+    selects multiple targets, while Vanilla/Practice retain the mask JSON colours. **Per-preset
     per-item colours:** each `FlashRule` stores a `Map<PresetType,Integer>` tint (see
     `PresetType.getFlashTint`). The size slider, From/To swatches, and every row's
     colour swatch show the *active preset's* effective value and are **editable only under
@@ -172,7 +176,7 @@ there are two source sets, both registered as the `visual-swap` mod:
     Surfaced as an "Only On Swap" sub-toggle under Item Flash in the Effects modal. **Per-rule swap effects:** each
     `FlashRule` independently carries `showGlyph` and `showHotbarHighlight` (migrated from the legacy combined flag),
     edited with flash Strength in `RuleConfigModal`. **Split resets:** **Reset rules** (rules
-    table → `FlashRule.defaultFlashRules()`) and **Reset colours** (Custom From/To + size
+    table → `FlashRule.defaultFlashRules()`) and **Reset colours** (Custom From/To/Glyph + size
     → factory), each gated to when it would actually change something. **Search filter**
     (`FlashRulesList.setFilter`, view-only — `toRules()` still returns all), **duplicate**
     / **clear-all** rows, a live rule count + **empty state**, an invalid-item warning on
@@ -246,14 +250,13 @@ Both target `compatibilityLevel: JAVA_25` and require annotations
 Standard Loom build (`./gradlew build`) with one project-specific wrinkle: the
 **particle sprite bake**.
 
-- Single source of truth: `src/main/resources/assets/visual-swap/swap_hit_masks.json`.
-  Each entry is a 7×7 (`#` = filled) glyph with an optional `particle` name, a HUD
-  `color` (ARGB) and a `particleColor` (ARGB) runtime tint. `color` and
-  `particleColor` are each objects carrying a `vanilla` and a `practice` variant,
-  selected at runtime by `ModConfig.preset` (`PresetType.{VANILLA,PRACTICE,CUSTOM}`,
-  read live by `SwapHitMasks.Mask.color()`/`particleColor()`; under `CUSTOM` the
+- Shape/particle source of truth: `src/main/resources/assets/visual-swap/swap_hit_masks.json`.
+  Each entry is a 7×7 (`#` = filled) glyph with an optional `particle` name and a `particleColor` (ARGB) runtime tint
+  carrying `vanilla` and `practice` variants. HUD glyph defaults for all four states live centrally in
+  `PresetType.{VANILLA,PRACTICE,CUSTOM}` and are read live by `SwapHitMasks.Mask.color()`; under `CUSTOM`, persisted
+  per-state colours override those defaults. For particles under `CUSTOM`, the
   `failed` mask takes the user `from` colour and every other mask the `to`
-  colour, via `ModConfig.getFromColor()`/`getToColor()`). Four masks today: `possible` (→ `swap_possible`), `attacked`
+  colour, via `ModConfig.getFromColor()`/`getToColor()`. Four masks today: `possible` (→ `swap_possible`), `attacked`
   (→ `swap_attacked`) and `consecutive` (→ `swap_consecutive`) each have a
   `particle` and bake a sprite; `failed` is **HUD glyph only** — it omits
   `particle`, so the bake skips it (no unused sprite ships). `possible` bakes a
@@ -329,10 +332,11 @@ pushes render state each tick.
   `eventUpdate(visible, attacked, failed, consecutive, chainCount)`), **gated per switched-to item**: before a click,
   `SwapHandler` resolves the current rule's independent glyph opt-in; an attacked flash reads the glyph opt-in latched
   when that flash began (OR-extended across a chain), so switching away mid-flash does not cut it short. It rasterizes the
-  mask `rows`/`color` (shared, cached `SwapHitMasks`) to the HUD
+  mask `rows` (shared, cached `SwapHitMasks`) with the active `PresetType`/Custom per-state colour to the HUD
   (`GuiGraphicsExtractor.fill`), registered `attachElementAfter(HOTBAR)` and drawn
   centred horizontally at screen-centre + `VERTICAL_OFFSET`. Mask priority is
-  `consecutive > failed > attacked > possible`. When `chainCount >= 2` an `xN`
+  `consecutive > failed > attacked > possible`. Under Custom each HUD mask uses its own persisted glyph colour
+  (particles remain tied to From/To). When `chainCount >= 2` an `xN`
   counter (`GuiGraphicsExtractor.text`, `Minecraft.font`) is drawn to the right of
   the glyph in the mask's colour.
 - **Failed glyph** — *not* a separate state; it is the **`attacked` flash rendered

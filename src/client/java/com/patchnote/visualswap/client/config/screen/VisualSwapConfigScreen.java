@@ -27,7 +27,9 @@ import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
@@ -124,6 +126,7 @@ public final class VisualSwapConfigScreen extends Screen
 
     private @Nullable Button doneButton;   // held so the live invalid-rule check can toggle whether saving is allowed
     private @Nullable Button discardButton;   // held so in-place edits can refresh its dirty-state gate
+    private @Nullable IconButton resetColorsButton;   // held so live Custom edits can refresh the reset gate
 
     private @Nullable Button effectsButton;   // header button opening the EffectsModal; positioned in arrangeContents
 
@@ -145,6 +148,12 @@ public final class VisualSwapConfigScreen extends Screen
     /// rebuilds (where every rule instance is recreated) the target is re-resolved by its position in the rebuild seed,
     /// which maps 1:1 onto the new rows — item ids can be duplicated or mid-edit, so they are no identity.
     private @Nullable FlashRule previewRule;
+
+    /// Preview-only backdrop selection for the glyph tiles; retained across widget rebuilds, never persisted.
+    private boolean glyphPreviewSky;
+
+    /// Glyph colour targets in click order. A normal click replaces the set; Shift-click adds/removes targets.
+    private final Set<String> selectedGlyphs = new LinkedHashSet<>(List.of("possible"));
 
     public VisualSwapConfigScreen(Screen parent)
     {
@@ -217,6 +226,7 @@ public final class VisualSwapConfigScreen extends Screen
         // which config controls below are greyed: a control is disabled whenever the effect it feeds isn't active. The
         // colours + preset feed several effects at once, so they only grey when the whole mod is off.
         boolean modOn = this.workingModEnabled;
+        boolean glyphOn = this.workingModEnabled && this.workingHudEnabled;
         boolean itemFlashOn = this.workingModEnabled && this.workingHudEnabled && this.workingItemFlashEnabled;
         boolean durationOn = this.workingModEnabled && this.workingHudEnabled;
         boolean particlesOn = this.workingModEnabled && this.workingParticlesEnabled;
@@ -274,15 +284,53 @@ public final class VisualSwapConfigScreen extends Screen
                 ), 0, 2
         );
 
-        IconButton resetColorsButton = new IconButton(
+        this.resetColorsButton = new IconButton(
                 CHIP_H, Icons.RESET, //
                 Component.translatable("gui.visual-swap.tooltip.reset_colors"), this::confirmResetColors
         );
-        resetColorsButton.active = modOn && resetColorsEnabled;
-        if (!modOn) resetColorsButton.setTooltip(offTooltip(modSwitch()));
-        top.addChild(resetColorsButton, 1, 2, LayoutSettings::alignHorizontallyLeft);
+        this.resetColorsButton.active = modOn && resetColorsEnabled;
+        if (!modOn) this.resetColorsButton.setTooltip(offTooltip(modSwitch()));
+        top.addChild(this.resetColorsButton, 1, 2, LayoutSettings::alignHorizontallyLeft);
 
         content.addChild(top, LayoutSettings::alignHorizontallyCenter);
+
+        content.addChild(new SpacerElement(0, 8));
+
+        LinearLayout glyphRow = LinearLayout.horizontal().spacing(COLOR_GAP);
+        glyphRow.addChild(
+                new StringWidget(COLOR_LABEL_W, CHIP_H,
+                        Component.translatable("gui.visual-swap.color.glyph").withColor(LABEL_RGB), this.font),
+                LayoutSettings::alignVerticallyMiddle
+        );
+        ColorSwatch glyphSwatch = new ColorSwatch(COLOR_SWATCH_SIZE, this::effectiveGlyph);
+        glyphSwatch.setOnPress(() -> openPicker(
+                glyphSwatch, effectiveGlyph(), this::setSelectedGlyphColors));
+        glyphSwatch.setClickable(glyphOn && this.workingType.isColorEditable());
+        if (!glyphOn) glyphSwatch.setTooltip(offTooltip(glyphOffSwitch()));
+        else if (this.workingType.isCustom()) glyphSwatch.setTooltip(Tooltip.create(
+                Component.translatable("gui.visual-swap.glyph.selection_help")));
+        glyphRow.addChild(glyphSwatch, LayoutSettings::alignVerticallyMiddle);
+        glyphRow.addChild(
+                new GlyphPreview(
+                        () -> this.workingType,
+                        glyph -> effectiveGlyph(glyph),
+                        this.selectedGlyphs::contains,
+                        this::selectGlyph,
+                        () -> this.glyphPreviewSky,
+                        this.overlays
+                ),
+                LayoutSettings::alignVerticallyMiddle
+        );
+        glyphRow.addChild(
+                new IconButton(
+                        CHIP_H,
+                        Icons.BACKGROUND,
+                        Component.translatable("gui.visual-swap.tooltip.toggle_glyph_background"),
+                        () -> this.glyphPreviewSky = !this.glyphPreviewSky
+                ),
+                LayoutSettings::alignVerticallyMiddle
+        );
+        content.addChild(glyphRow, LayoutSettings::alignHorizontallyCenter);
 
         content.addChild(new SpacerElement(0, 8));
 
@@ -609,6 +657,8 @@ public final class VisualSwapConfigScreen extends Screen
     }
 
     /// The first switch that is off along the particle gate chain (mod → particles).
+    private Component glyphOffSwitch() { return this.workingModEnabled ? hudSwitch() : modSwitch(); }
+
     private Component particlesOffSwitch() { return this.workingModEnabled ? particlesSwitch() : modSwitch(); }
 
     /// One From/To colour row: a caption and a swatch that opens the picker (Custom preset only). The picker writes the
@@ -666,6 +716,38 @@ public final class VisualSwapConfigScreen extends Screen
     private int effectiveTo()
     {
         return this.workingType.isCustom() ? this.workingCustom.getToColor() : this.workingType.getToColor();
+    }
+
+    private int effectiveGlyph()
+    {
+        return effectiveGlyph(this.selectedGlyphs.iterator().next());
+    }
+
+    private int effectiveGlyph(String glyph)
+    {
+        if (this.workingType.isCustom()) return this.workingCustom.getGlyphColor(glyph);
+        return this.workingType.getGlyphColor(glyph);
+    }
+
+    private void setSelectedGlyphColors(int color)
+    {
+        for (String glyph : this.selectedGlyphs) this.workingCustom.setGlyphColor(glyph, color);
+    }
+
+    private void selectGlyph(String glyph, boolean addToSelection)
+    {
+        if (!addToSelection)
+        {
+            this.selectedGlyphs.clear();
+            this.selectedGlyphs.add(glyph);
+            return;
+        }
+
+        if (this.selectedGlyphs.contains(glyph))
+        {
+            if (this.selectedGlyphs.size() > 1) this.selectedGlyphs.remove(glyph);
+        }
+        else this.selectedGlyphs.add(glyph);
     }
 
     /* RULES HEADER / ACTIONS */
@@ -837,6 +919,11 @@ public final class VisualSwapConfigScreen extends Screen
         if (this.list == null) return;
         this.isModified = isModified(this.list.toRules());
         if (this.discardButton != null) this.discardButton.active = this.isModified;
+        if (this.resetColorsButton != null)
+        {
+            this.resetColorsButton.active = this.workingModEnabled && this.workingType.isCustom() &&
+                    !this.workingCustom.sameValuesAs(PresetType.CUSTOM.createDefault());
+        }
     }
 
     /// Enable/disable the Done button and set the matching tooltip — an invalid config can never be saved.

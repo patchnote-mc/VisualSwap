@@ -79,6 +79,13 @@ public final class ModConfig implements ConfigData
 
     public int getToColor() { return preset.isCustom() ? customPresetData.getToColor() : preset.getToColor(); }
 
+    public int getGlyphColor() { return preset.isCustom() ? customPresetData.getGlyphColor() : preset.getGlyphColor(); }
+
+    public int getGlyphColor(String glyph)
+    {
+        return preset.isCustom() ? customPresetData.getGlyphColor(glyph) : preset.getGlyphColor(glyph);
+    }
+
     public double getSize() { return preset.isCustom() ? customPresetData.getSizeMultiplier() : preset.getSize(); }
 
     /* VALIDATION */
@@ -88,6 +95,8 @@ public final class ModConfig implements ConfigData
     {
         if (this.preset == null) this.preset = PresetType.VANILLA;
         if (this.customPresetData == null) this.customPresetData = PresetType.CUSTOM.createDefault();
+        // Old configs carried one shared glyph colour. Copy it into any newly introduced per-state fields.
+        this.customPresetData.migrateGlyphColors(PresetType.CUSTOM.getGlyphColor());
         this.customPresetData.setSizeMultiplier(Math.clamp(this.customPresetData.getSizeMultiplier(), 0.10, 2.00));
         this.flashVisibleTicks = Math.clamp(this.flashVisibleTicks, MIN_VISIBLE_TICKS, MAX_VISIBLE_TICKS);
 

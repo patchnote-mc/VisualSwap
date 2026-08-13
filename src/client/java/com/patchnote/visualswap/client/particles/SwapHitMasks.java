@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.patchnote.visualswap.VisualSwap;
 import com.patchnote.visualswap.client.config.ModConfig;
-import com.patchnote.visualswap.client.config.models.Preset;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -22,9 +21,8 @@ public final class SwapHitMasks
 
     public static final String RESOURCE = "/assets/" + VisualSwap.MOD_ID + "/swap_hit_masks.json";
 
-    /// Parsed masks, loaded once from {@link #RESOURCE}. Each {@link Mask} stores every colour variant and picks one
-    /// per active {@link Preset} at call time, so a single cached snapshot serves all presets — the HUD glyph and the
-    /// (up to 36-per-hit) particles no longer re-open and re-parse the JSON on every read.
+    /// Parsed masks, loaded once from {@link #RESOURCE}. HUD colours resolve through the active preset; masks retain
+    /// only their geometry and particle colour variants.
     private static Map<String, Mask> cache;
 
     /* MASKS */
@@ -97,7 +95,6 @@ public final class SwapHitMasks
     {
         // HUD-only masks (e.g. 'failed') omit 'particle' — no particle type is registered for them.
         String particle = mask.has("particle") ? mask.get("particle").getAsString() : null;
-        JsonObject color = mask.getAsJsonObject("color");
         JsonObject particleColor = mask.getAsJsonObject("particleColor");
         List<String> rows = mask.getAsJsonArray("rows")
                                 .asList()
@@ -107,10 +104,6 @@ public final class SwapHitMasks
         return new Mask(
                 name,
                 particle,
-                parseArgb(color.get("vanilla")
-                               .getAsString()),
-                parseArgb(color.get("practice")
-                               .getAsString()),
                 parseArgb(particleColor.get("vanilla")
                                        .getAsString()),
                 parseArgb(particleColor.get("practice")
@@ -127,26 +120,18 @@ public final class SwapHitMasks
 
     /* RECORDS */
 
-    public record Mask(String name, @Nullable String particle, int colorVanilla, int colorPractice,
-                       int particleColorVanilla, int particleColorPractice, List<String> rows)
+    public record Mask(String name, @Nullable String particle, int particleColorVanilla, int particleColorPractice,
+                       List<String> rows)
     {
-        /// @return the ARGB HUD tint for the active {@link Preset}.
-        public int color() { return selectColor(this.colorVanilla, this.colorPractice); }
+        /// @return the ARGB HUD tint for the active preset.
+        public int color() { return ModConfig.get().getGlyphColor(this.name); }
 
-        /// @return the ARGB particle tint for the active {@link Preset}.
-        public int particleColor() { return selectColor(this.particleColorVanilla, this.particleColorPractice); }
-
-        /// Under {@link Preset#CUSTOM} the failure glyph takes the custom {@code from} color and every other glyph the
-        /// custom {@code to} color, so a single pair of user colors spans all masks.
-        private int selectColor(int vanilla, int practice)
+        /// @return the ARGB particle tint for the active preset.
+        public int particleColor()
         {
             ModConfig cfg = ModConfig.get();
-            return switch (cfg.preset)
-            {
-                case PRACTICE -> practice;
-                case CUSTOM -> "failed".equals(this.name) ? cfg.getFromColor() : cfg.getToColor();
-                default -> vanilla;
-            };
+            if (cfg.preset.isCustom()) return "failed".equals(this.name) ? cfg.getFromColor() : cfg.getToColor();
+            return cfg.preset.isPractice() ? this.particleColorPractice : this.particleColorVanilla;
         }
 
         public int width()
