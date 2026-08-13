@@ -32,11 +32,13 @@ public class SwapHandler
     private int swapToSlot = NO_SLOT;
     /// Whether the item most recently switched to opts its rule into the swap-hit indicators — recomputed on every
     /// switch. Gates the pre-click "possible" glyph (which tracks the live switched-to item).
-    private boolean effectsAllowed;
+    private boolean glyphAllowed;
+    private boolean hotbarHighlightAllowed;
     /// The opt-in latched when the current attacked flash *began*, held for its whole duration (OR-extended as a chain
-    /// grows). The glyph's attacked flash and the hotbar highlight read this, not {@link #effectsAllowed}, so switching
-    /// away mid-flash keeps them on for the full window instead of cutting them short.
-    private boolean flashEffectsAllowed;
+    /// grows). The attacked glyph and hotbar highlight read these latched values, so switching away mid-flash keeps
+    /// each opted-in effect on for the full window instead of cutting it short.
+    private boolean flashGlyphAllowed;
+    private boolean flashHotbarHighlightAllowed;
     /// Ordered hotbar slots touched by the active chain (origin first, latest hit last).
     private final int[] chainTrail = new int[HOTBAR_SLOTS];
     private int chainTrailLen;
@@ -86,8 +88,10 @@ public class SwapHandler
         this.swapWindowState.clear();
         this.swapFromSlot = NO_SLOT;
         this.swapToSlot = NO_SLOT;
-        this.effectsAllowed = false;
-        this.flashEffectsAllowed = false;
+        this.glyphAllowed = false;
+        this.hotbarHighlightAllowed = false;
+        this.flashGlyphAllowed = false;
+        this.flashHotbarHighlightAllowed = false;
         this.chainTrailLen = 0;
         this.itemFlashChainLen = 0;
         this.attackedLastTick = false;
@@ -146,7 +150,8 @@ public class SwapHandler
             this.swapToSlot = current.selectedSlot();
             // Latch whether the switched-to item's rule opts into the swap-hit indicators (glyph + hotbar highlight) —
             // held for this swap window's lifetime.
-            this.effectsAllowed = ItemFlash.showsEffectsFor(current.mainHand());
+            this.glyphAllowed = ItemFlash.showsGlyphFor(current.mainHand());
+            this.hotbarHighlightAllowed = ItemFlash.showsHotbarHighlightFor(current.mainHand());
         }
     }
 
@@ -165,7 +170,7 @@ public class SwapHandler
 
         // While a swap-hit flash is on screen the display belongs to the swap that started it, so gate it on the value
         // latched then (switching away mid-flash must not clobber it); before any click, use the live switched-to opt-in.
-        boolean displayAllowed = attacked ? this.flashEffectsAllowed : this.effectsAllowed;
+        boolean displayAllowed = attacked ? this.flashGlyphAllowed : this.glyphAllowed;
         HUDHandler.GLYPH.eventUpdate(
                 displayAllowed && this.swapWindowState.visible(tick),
                 attacked,
@@ -185,7 +190,8 @@ public class SwapHandler
         if (attacked && (!this.attackedLastTick || this.freshChainThisTick))
         {
             // Fresh chain: latch this swap's opt-in for the whole flash, and seed the trail with its origin+destination.
-            this.flashEffectsAllowed = this.effectsAllowed;
+            this.flashGlyphAllowed = this.glyphAllowed;
+            this.flashHotbarHighlightAllowed = this.hotbarHighlightAllowed;
             this.chainTrailLen = 0;
             addTrailSlot(this.swapFromSlot);
             addTrailSlot(this.swapToSlot);
@@ -195,14 +201,15 @@ public class SwapHandler
         else if (attacked && chainCount > this.lastChainCount)
         {
             // Chain extended this tick: append the latest swap's destination; opt the flash in if this hit did.
-            this.flashEffectsAllowed |= this.effectsAllowed;
+            this.flashGlyphAllowed |= this.glyphAllowed;
+            this.flashHotbarHighlightAllowed |= this.hotbarHighlightAllowed;
             addTrailSlot(this.swapToSlot);
             addItemFlashChainSlot(this.swapToSlot);
         }
         // Gated like the glyph, but off the value latched when the flash began — so switching away mid-flash keeps the
         // highlight on for the flash's full duration instead of hiding it.
         SwapHotbarHighlight.INSTANCE.eventUpdate(
-                attacked && this.flashEffectsAllowed, this.chainTrail, this.chainTrailLen, chainCount);
+                attacked && this.flashHotbarHighlightAllowed, this.chainTrail, this.chainTrailLen, chainCount);
     }
 
     private void addTrailSlot(int slot)

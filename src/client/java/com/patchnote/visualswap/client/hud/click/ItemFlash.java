@@ -138,13 +138,17 @@ public final class ItemFlash
         return FlashRuleIndex.forCurrentConfig().rule(stack.getItem(), forAttack);
     }
 
-    /// Whether switching to {@code stack} should show the swap-hit indicators (glyph + hotbar highlight) — true iff its
-    /// highest-precedence matching rule (regardless of input) opts in via {@link FlashRule#showSwapEffects()}. Used by
-    /// the swap driver to gate those effects per switched-to item; a stack that matches no rule never shows them.
-    public static boolean showsEffectsFor(ItemStack stack)
+    public static boolean showsGlyphFor(ItemStack stack)
     {
         if (stack == null || stack.isEmpty()) return false;
         FlashRule rule = FlashRuleIndex.forCurrentConfig().matchingRule(stack.getItem());
-        return rule != null && rule.showSwapEffects();
+        return rule != null && rule.showGlyph();
+    }
+
+    public static boolean showsHotbarHighlightFor(ItemStack stack)
+    {
+        if (stack == null || stack.isEmpty()) return false;
+        FlashRule rule = FlashRuleIndex.forCurrentConfig().matchingRule(stack.getItem());
+        return rule != null && rule.showHotbarHighlight();
     }
 }
