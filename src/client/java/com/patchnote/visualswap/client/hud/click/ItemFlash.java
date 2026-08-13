@@ -30,10 +30,10 @@ public final class ItemFlash
 
     private ItemFlash() { reset(); }
 
-    /// Call on Client Tick. {@code swapWindowOpen} reports whether a swap window is currently open (the item was just
-    /// switched to); under {@link ModConfig#flashOnlyOnSwap} a press only lights a slot while it is true.
+    /// Call on Client Tick. {@code attributeSwap} reports whether this tick's input landed inside the two-tick
+    /// attribute-swap window; under {@link ModConfig#flashOnlyOnSwap} only that qualifying input lights a slot.
     public void onTick(int tick, int currentSlot, ItemStack selectedStack, boolean attackDown, boolean useDown,
-                       boolean attackPressed, boolean usePressed, boolean swapWindowOpen)
+                       boolean attackPressed, boolean usePressed, boolean attributeSwap)
     {
         // The timeline is keyed to the client player's tickCount, which snaps back to 0 whenever the LocalPlayer is
         // recreated (respawn, dimension change). A backwards jump leaves every stored expiration a stale future tick,
@@ -47,8 +47,8 @@ public final class ItemFlash
         FlashRule useRule = getRuleFor(selectedStack, false);
         boolean validSlot = currentSlot >= 0 && currentSlot < HOTBAR_SLOTS;
 
-        // "Only on attribute swapping": a press lights the slot only when it lands inside a swap window (just switched).
-        boolean swapGate = !ModConfig.get().flashOnlyOnSwap || swapWindowOpen;
+        // "Only on attribute swapping": accept only input inside the strict two-tick attribute-swap window.
+        boolean swapGate = !ModConfig.get().flashOnlyOnSwap || attributeSwap;
 
         boolean attackPressedThisTick = validSlot && attackRule != null && attackPressed && swapGate;
         boolean usePressedThisTick = validSlot && useRule != null && usePressed && swapGate;
@@ -85,6 +85,25 @@ public final class ItemFlash
     /// @return the tint for {@code slot}.
     public int getTintFor(int slot) { return (slot >= 0 && slot < HOTBAR_SLOTS) ? this.slotsTint[slot] : DEFAULT_ARGB; }
 
+    /// End the supplied chain slots at the same tick. Slots are deliberately reactivated when their shorter prior
+    /// duration ended just before the next qualifying hit, so the completed chain disappears together.
+    public void synchronizeSlotsUntil(int[] slots, int length, int expirationTick)
+    {
+        for (int i = 0; i < Math.min(length, slots.length); i++)
+        {
+            int slot = slots[i];
+            if (slot >= 0 && slot < HOTBAR_SLOTS && this.slotsExpirationTick[slot] != NO_TICK)
+                this.slotsExpirationTick[slot] = expirationTick;
+        }
+    }
+
+    /// Drop lingering slot flashes and a sustained hold without rewinding the tick timeline.
+    public void clearActive()
+    {
+        Arrays.fill(this.slotsExpirationTick, NO_TICK);
+        this.heldSlot = NO_SLOT;
+    }
+
     public void reset()
     {
         Arrays.fill(this.slotsExpirationTick, NO_TICK);
@@ -119,13 +138,17 @@ public final class ItemFlash
         return FlashRuleIndex.forCurrentConfig().rule(stack.getItem(), forAttack);
     }
 
-    /// Whether switching to {@code stack} should show the swap-hit indicators (glyph + hotbar highlight) — true iff its
-    /// highest-precedence matching rule (regardless of input) opts in via {@link FlashRule#showSwapEffects()}. Used by
-    /// the swap driver to gate those effects per switched-to item; a stack that matches no rule never shows them.
-    public static boolean showsEffectsFor(ItemStack stack)
+    public static boolean showsGlyphFor(ItemStack stack)
     {
         if (stack == null || stack.isEmpty()) return false;
         FlashRule rule = FlashRuleIndex.forCurrentConfig().matchingRule(stack.getItem());
-        return rule != null && rule.showSwapEffects();
+        return rule != null && rule.showGlyph();
+    }
+
+    public static boolean showsHotbarHighlightFor(ItemStack stack)
+    {
+        if (stack == null || stack.isEmpty()) return false;
+        FlashRule rule = FlashRuleIndex.forCurrentConfig().matchingRule(stack.getItem());
+        return rule != null && rule.showHotbarHighlight();
     }
 }

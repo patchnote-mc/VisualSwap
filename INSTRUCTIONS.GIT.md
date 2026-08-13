@@ -15,7 +15,7 @@ Branches follow the convention **`<mc-version>-<type>`**, where `type` is either
 Each supported Minecraft version has a `main` + `staging` pair, e.g.:
 
 | Branch         | Purpose             |
-| -------------- | ------------------- |
+|----------------|---------------------|
 | `26.2-staging` | develop for MC 26.2 |
 | `26.2-main`    | release for MC 26.2 |
 
@@ -56,13 +56,13 @@ A ruleset targeting `*-main` enforces (checked-in copy:
 - **No deletions** and **no force-pushes**.
 - **Three required status checks** that must all be green before the merge is
   allowed:
-  - **`build`** — [`build.yml`](.github/workflows/build.yml); the project compiles.
-  - **`block duplicate version`** — [`version-guard.yml`](.github/workflows/version-guard.yml);
-    the version's git tag is not already taken (see Duplicate protection).
-  - **`publish dry-run`** — [`publish-dryrun.yml`](.github/workflows/publish-dryrun.yml);
-    the release _will_ publish (same build + Modrinth checks as `publish.yml`, no
-    upload), so a broken build or bad/expired `MODRINTH_TOKEN` fails **before** the
-    merge instead of after.
+    - **`build`** — [`build.yml`](.github/workflows/build.yml); the project compiles.
+    - **`block duplicate version`** — [`version-guard.yml`](.github/workflows/version-guard.yml);
+      the version's git tag is not already taken (see Duplicate protection).
+    - **`publish dry-run`** — [`publish-dryrun.yml`](.github/workflows/publish-dryrun.yml);
+      the release _will_ publish (same build + Modrinth checks as `publish.yml`, no
+      upload), so a broken build or bad/expired `MODRINTH_TOKEN` fails **before** the
+      merge instead of after.
 
 These apply to everyone, including admins (no bypass).
 
@@ -199,12 +199,12 @@ Then set `26.2-main` (or `*-main`) protection via the ruleset above, and make
 
 ## Workflows
 
-| File                                                       | Trigger                  | Does                                                                             |
-| ---------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------- |
-| [`build.yml`](.github/workflows/build.yml)                 | push / PR (all branches) | builds + uploads artifacts (CI); **required check** `build`                       |
-| [`version-guard.yml`](.github/workflows/version-guard.yml) | PR into `*-main`         | blocks merging a duplicate version (skipped for `[skip publish]` PRs); **required check** `block duplicate version` |
-| [`publish-dryrun.yml`](.github/workflows/publish-dryrun.yml) | PR into `*-main`       | dry-runs the publish build + Modrinth checks, no upload (publish steps skipped for `[skip publish]` PRs); **required check** `publish dry-run` |
-| [`publish.yml`](.github/workflows/publish.yml)             | push to `*-main`         | publishes to Modrinth, CurseForge, GitHub (skipped for `[skip publish]` commits) |
+| File                                                         | Trigger                  | Does                                                                                                                                           |
+|--------------------------------------------------------------|--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| [`build.yml`](.github/workflows/build.yml)                   | push / PR (all branches) | builds + uploads artifacts (CI); **required check** `build`                                                                                    |
+| [`version-guard.yml`](.github/workflows/version-guard.yml)   | PR into `*-main`         | blocks merging a duplicate version (skipped for `[skip publish]` PRs); **required check** `block duplicate version`                            |
+| [`publish-dryrun.yml`](.github/workflows/publish-dryrun.yml) | PR into `*-main`         | dry-runs the publish build + Modrinth checks, no upload (publish steps skipped for `[skip publish]` PRs); **required check** `publish dry-run` |
+| [`publish.yml`](.github/workflows/publish.yml)               | push to `*-main`         | publishes to Modrinth, CurseForge, GitHub (skipped for `[skip publish]` commits)                                                               |
 
 ## Maintainer configuration
 

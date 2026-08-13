@@ -60,7 +60,7 @@ public class VisualSwapClient implements ClientModInitializer
     private InteractionResult onInteractEntity(Player player, Level level, InteractionHand hand, Entity entity,
                                                HitResult hitResult)
     {
-        if (!ModConfig.get().modEnabled) return InteractionResult.PASS;
+        if (!ModConfig.get().modEnabled || hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
         return SwapHandler.INSTANCE.eventInteractEntity(player, entity);
     }
 

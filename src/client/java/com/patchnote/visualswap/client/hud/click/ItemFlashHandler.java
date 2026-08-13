@@ -22,10 +22,12 @@ public final class ItemFlashHandler
         boolean swingStarted = hasPrev && current.swinging()
                 && (!previous.swinging() || current.swingTime() < previous.swingTime());
 
-        boolean attackPressed = attackStarted || (swingStarted && !current.attackDown());
-
-        // SwapHandler.eventTick has already run this tick (see VisualSwapClient), so the swap window is up to date.
-        boolean swapWindowOpen = SwapHandler.INSTANCE.isSwapWindowOpen(current.tick());
+        // SwapHandler.eventTick has already run this tick (see VisualSwapClient), including the observation bridge for
+        // an input made on the second attribute-swap tick.
+        boolean attributeSwap = SwapHandler.INSTANCE.attributeSwapThisTick();
+        // A delayed swing while the attack key remains down is the actual qualifying attack for some weapons. Include
+        // it in swap-only mode; otherwise retain the ordinary rising-edge behavior so a held key does not re-flash.
+        boolean attackPressed = attackStarted || (swingStarted && (!current.attackDown() || attributeSwap));
 
         ItemFlash.INSTANCE.onTick(
                 current.tick(),
@@ -35,7 +37,7 @@ public final class ItemFlashHandler
                 current.useDown(),
                 attackPressed,
                 useStarted,
-                swapWindowOpen
+                attributeSwap
         );
     }
 }

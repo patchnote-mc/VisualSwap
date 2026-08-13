@@ -72,8 +72,8 @@ final class FlashRuleIndex
     }
 
     /// The highest-precedence rule whose selector matches {@code item}, regardless of the input it flashes on, or null.
-    /// The swap indicators resolve per switched-to item this way (its {@link FlashRule#showSwapEffects()} gates the
-    /// glyph + hotbar highlight), so trigger is irrelevant here. Memoised, misses included.
+    /// The swap indicators resolve per switched-to item this way, so trigger is irrelevant here. Memoised, misses
+    /// included.
     @Nullable FlashRule matchingRule(Item item)
     {
         FlashRule winner = this.matchWinners.get(item);

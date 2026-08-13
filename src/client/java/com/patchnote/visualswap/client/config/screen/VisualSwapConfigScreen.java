@@ -27,7 +27,9 @@ import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
@@ -87,6 +89,7 @@ public final class VisualSwapConfigScreen extends Screen
     private boolean workingHotbarHighlightEnabled;
     private boolean workingItemFlashEnabled;
     private boolean workingFlashOnlyOnSwap;
+    private boolean workingClearPreviousFlashOnSwap;
     private boolean workingParticlesEnabled;
 
     /// The saved config as captured on open — the baseline the working state is diffed against to detect unsaved edits,
@@ -99,6 +102,7 @@ public final class VisualSwapConfigScreen extends Screen
     private final boolean savedHotbarHighlightEnabled;
     private final boolean savedItemFlashEnabled;
     private final boolean savedFlashOnlyOnSwap;
+    private final boolean savedClearPreviousFlashOnSwap;
     private final boolean savedParticlesEnabled;
     private final List<FlashRule> savedRules;
 
@@ -121,6 +125,8 @@ public final class VisualSwapConfigScreen extends Screen
     private boolean isModified;
 
     private @Nullable Button doneButton;   // held so the live invalid-rule check can toggle whether saving is allowed
+    private @Nullable Button discardButton;   // held so in-place edits can refresh its dirty-state gate
+    private @Nullable IconButton resetColorsButton;   // held so live Custom edits can refresh the reset gate
 
     private @Nullable Button effectsButton;   // header button opening the EffectsModal; positioned in arrangeContents
 
@@ -143,6 +149,12 @@ public final class VisualSwapConfigScreen extends Screen
     /// which maps 1:1 onto the new rows — item ids can be duplicated or mid-edit, so they are no identity.
     private @Nullable FlashRule previewRule;
 
+    /// Preview-only backdrop selection for the glyph tiles; retained across widget rebuilds, never persisted.
+    private boolean glyphPreviewSky;
+
+    /// Glyph colour targets in click order. A normal click replaces the set; Shift-click adds/removes targets.
+    private final Set<String> selectedGlyphs = new LinkedHashSet<>(List.of("possible"));
+
     public VisualSwapConfigScreen(Screen parent)
     {
         super(Component.translatable("gui.visual-swap.title"));
@@ -157,6 +169,7 @@ public final class VisualSwapConfigScreen extends Screen
         this.workingHotbarHighlightEnabled = cfg.hotbarHighlightEnabled;
         this.workingItemFlashEnabled = cfg.itemFlashEnabled;
         this.workingFlashOnlyOnSwap = cfg.flashOnlyOnSwap;
+        this.workingClearPreviousFlashOnSwap = cfg.clearPreviousFlashOnSwap;
         this.workingParticlesEnabled = cfg.particlesEnabled;
 
         this.savedType = cfg.preset;
@@ -167,6 +180,7 @@ public final class VisualSwapConfigScreen extends Screen
         this.savedHotbarHighlightEnabled = cfg.hotbarHighlightEnabled;
         this.savedItemFlashEnabled = cfg.itemFlashEnabled;
         this.savedFlashOnlyOnSwap = cfg.flashOnlyOnSwap;
+        this.savedClearPreviousFlashOnSwap = cfg.clearPreviousFlashOnSwap;
         this.savedParticlesEnabled = cfg.particlesEnabled;
         this.savedRules = cfg.clickFlashRules.stream().map(FlashRule::new).toList();
         // Each saved rule is its own baseline; working copies inherit the link (copy ctor) to drive per-row markers.
@@ -212,7 +226,9 @@ public final class VisualSwapConfigScreen extends Screen
         // which config controls below are greyed: a control is disabled whenever the effect it feeds isn't active. The
         // colours + preset feed several effects at once, so they only grey when the whole mod is off.
         boolean modOn = this.workingModEnabled;
+        boolean glyphOn = this.workingModEnabled && this.workingHudEnabled;
         boolean itemFlashOn = this.workingModEnabled && this.workingHudEnabled && this.workingItemFlashEnabled;
+        boolean durationOn = this.workingModEnabled && this.workingHudEnabled;
         boolean particlesOn = this.workingModEnabled && this.workingParticlesEnabled;
 
         // top controls, a 2x3 grid:  preset | From colour | swap preview
@@ -233,7 +249,10 @@ public final class VisualSwapConfigScreen extends Screen
 
         this.slider = new SizeSlider(
                 0, 0, colW, CHIP_H, //
-                this.workingType.getNameComponent(), effectiveSize(), this.workingCustom::setSizeMultiplier
+                this.workingType.getNameComponent(), effectiveSize(), size -> {
+            this.workingCustom.setSizeMultiplier(size);
+            refreshDirtyState();
+        }
         );
         this.slider.active = particlesOn && this.workingType.isColorEditable();
         this.slider.setTooltip(particlesOn
@@ -265,15 +284,55 @@ public final class VisualSwapConfigScreen extends Screen
                 ), 0, 2
         );
 
-        IconButton resetColorsButton = new IconButton(
+        this.resetColorsButton = new IconButton(
                 CHIP_H, Icons.RESET, //
                 Component.translatable("gui.visual-swap.tooltip.reset_colors"), this::confirmResetColors
         );
-        resetColorsButton.active = modOn && resetColorsEnabled;
-        if (!modOn) resetColorsButton.setTooltip(offTooltip(modSwitch()));
-        top.addChild(resetColorsButton, 1, 2, LayoutSettings::alignHorizontallyLeft);
+        this.resetColorsButton.active = modOn && resetColorsEnabled;
+        if (!modOn) this.resetColorsButton.setTooltip(offTooltip(modSwitch()));
+        top.addChild(this.resetColorsButton, 1, 2, LayoutSettings::alignHorizontallyLeft);
 
         content.addChild(top, LayoutSettings::alignHorizontallyCenter);
+
+        content.addChild(new SpacerElement(0, 8));
+
+        LinearLayout glyphRow = LinearLayout.horizontal().spacing(COLOR_GAP);
+        glyphRow.addChild(
+                new StringWidget(
+                        COLOR_LABEL_W, CHIP_H,
+                        Component.translatable("gui.visual-swap.color.glyph").withColor(LABEL_RGB), this.font
+                ),
+                LayoutSettings::alignVerticallyMiddle
+        );
+        ColorSwatch glyphSwatch = new ColorSwatch(COLOR_SWATCH_SIZE, this::effectiveGlyph);
+        glyphSwatch.setOnPress(() -> openPicker(
+                glyphSwatch, effectiveGlyph(), this::setSelectedGlyphColors));
+        glyphSwatch.setClickable(glyphOn && this.workingType.isColorEditable());
+        if (!glyphOn) glyphSwatch.setTooltip(offTooltip(glyphOffSwitch()));
+        else if (this.workingType.isCustom()) glyphSwatch.setTooltip(Tooltip.create(
+                Component.translatable("gui.visual-swap.glyph.selection_help")));
+        glyphRow.addChild(glyphSwatch, LayoutSettings::alignVerticallyMiddle);
+        glyphRow.addChild(
+                new GlyphPreview(
+                        () -> this.workingType,
+                        glyph -> effectiveGlyph(glyph),
+                        this.selectedGlyphs::contains,
+                        this::selectGlyph,
+                        () -> this.glyphPreviewSky,
+                        this.overlays
+                ),
+                LayoutSettings::alignVerticallyMiddle
+        );
+        glyphRow.addChild(
+                new IconButton(
+                        CHIP_H,
+                        Icons.BACKGROUND,
+                        Component.translatable("gui.visual-swap.tooltip.toggle_glyph_background"),
+                        () -> this.glyphPreviewSky = !this.glyphPreviewSky
+                ),
+                LayoutSettings::alignVerticallyMiddle
+        );
+        content.addChild(glyphRow, LayoutSettings::alignHorizontallyCenter);
 
         content.addChild(new SpacerElement(0, 8));
 
@@ -281,13 +340,33 @@ public final class VisualSwapConfigScreen extends Screen
                 HotbarSwapPreview.WIDTH;
         TicksSlider ticksSlider = new TicksSlider(
                 0, 0, topWidth, CHIP_H, //
-                this.workingVisibleTicks, ticks -> this.workingVisibleTicks = ticks
+                this.workingVisibleTicks, ticks -> {
+            this.workingVisibleTicks = ticks;
+            refreshDirtyState();
+        }
         );
-        ticksSlider.active = itemFlashOn;
-        ticksSlider.setTooltip(itemFlashOn
+        ticksSlider.active = durationOn;
+        ticksSlider.setTooltip(durationOn
                                ? Tooltip.create(Component.translatable("gui.visual-swap.tooltip.ticks_slider"))
-                               : offTooltip(itemFlashOffSwitch()));
+                               : offTooltip(hudSwitch()));
         content.addChild(ticksSlider, LayoutSettings::alignHorizontallyCenter);
+
+        CycleButton<Boolean> clearPreviousButton = CycleButton.onOffBuilder(this.workingClearPreviousFlashOnSwap)
+                                                              .create(
+                                                                      0, 0, topWidth, CHIP_H,
+                                                                      Component.translatable(
+                                                                              "gui.visual-swap.clear_previous_flash.label"),
+                                                                      (button, value) -> {
+                                                                          this.workingClearPreviousFlashOnSwap = value;
+                                                                          refreshDirtyState();
+                                                                      }
+                                                              );
+        clearPreviousButton.active = itemFlashOn;
+        clearPreviousButton.setTooltip(itemFlashOn
+                                       ? Tooltip.create(Component.translatable(
+                "gui.visual-swap.clear_previous_flash.help"))
+                                       : offTooltip(itemFlashOffSwitch()));
+        content.addChild(clearPreviousButton, LayoutSettings::alignHorizontallyCenter);
 
         content.addChild(new SpacerElement(0, 8));
 
@@ -298,8 +377,7 @@ public final class VisualSwapConfigScreen extends Screen
                 rules,
                 this::rebuildWidgets,
                 rule -> this.previewRule = rule,
-                _ -> applyDoneState(
-                        this.list.invalidCount() == 0 ? DoneButtonState.ENABLED : DoneButtonState.INVALID_RULE),
+                this::onRuleValueEdited,
                 this.overlays
         );
         this.list.setFilter(this.filterText);
@@ -362,13 +440,13 @@ public final class VisualSwapConfigScreen extends Screen
 
         // --- footer: revert / leave / save ---
         LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(8));
-        Button discardButton = Button.builder(
+        this.discardButton = Button.builder(
                 Component.translatable("gui.visual-swap.button.discard"),
                 b -> confirmDiscard()
         ).width(80).build();
-        discardButton.active = this.isModified;
-        discardButton.setTooltip(Tooltip.create(Component.translatable("gui.visual-swap.tooltip.discard")));
-        footer.addChild(discardButton);
+        this.discardButton.active = this.isModified;
+        this.discardButton.setTooltip(Tooltip.create(Component.translatable("gui.visual-swap.tooltip.discard")));
+        footer.addChild(this.discardButton);
         footer.addChild(Button.builder(
                 Component.translatable("gui.visual-swap.button.cancel"),
                 b -> onClose()
@@ -580,6 +658,8 @@ public final class VisualSwapConfigScreen extends Screen
         return hotbarHighlightSwitch();
     }
 
+    private Component glyphOffSwitch() { return this.workingModEnabled ? hudSwitch() : modSwitch(); }
+
     /// The first switch that is off along the particle gate chain (mod → particles).
     private Component particlesOffSwitch() { return this.workingModEnabled ? particlesSwitch() : modSwitch(); }
 
@@ -607,7 +687,12 @@ public final class VisualSwapConfigScreen extends Screen
     /// Open the colour picker (with alpha — From/To colours are AARRGGBB) anchored under {@code anchor}.
     private void openPicker(ColorSwatch anchor, int current, IntConsumer apply)
     {
-        ColorPickerOverlay picker = new ColorPickerOverlay(current, true, apply);
+        ColorPickerOverlay picker = new ColorPickerOverlay(
+                current, true, color -> {
+            apply.accept(color);
+            refreshDirtyState();
+        }
+        );
         picker.position(anchor.getX() - 8, anchor.getY() + anchor.getHeight() + 4);
         this.overlays.open(picker);
     }
@@ -637,6 +722,38 @@ public final class VisualSwapConfigScreen extends Screen
         return this.workingType.isCustom() ? this.workingCustom.getToColor() : this.workingType.getToColor();
     }
 
+    private int effectiveGlyph()
+    {
+        return effectiveGlyph(this.selectedGlyphs.iterator().next());
+    }
+
+    private int effectiveGlyph(String glyph)
+    {
+        if (this.workingType.isCustom()) return this.workingCustom.getGlyphColor(glyph);
+        return this.workingType.getGlyphColor(glyph);
+    }
+
+    private void setSelectedGlyphColors(int color)
+    {
+        for (String glyph : this.selectedGlyphs) this.workingCustom.setGlyphColor(glyph, color);
+    }
+
+    private void selectGlyph(String glyph, boolean addToSelection)
+    {
+        if (!addToSelection)
+        {
+            this.selectedGlyphs.clear();
+            this.selectedGlyphs.add(glyph);
+            return;
+        }
+
+        if (this.selectedGlyphs.contains(glyph))
+        {
+            if (this.selectedGlyphs.size() > 1) this.selectedGlyphs.remove(glyph);
+        }
+        else this.selectedGlyphs.add(glyph);
+    }
+
     /* RULES HEADER / ACTIONS */
 
     private void onSearchEdited(String text)
@@ -661,7 +778,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         openConfirm(
                 Component.translatable("gui.visual-swap.confirm.reset_rules.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.reset_rules.body")),
+                Component.translatable("gui.visual-swap.confirm.reset_rules.body"),
                 Component.translatable("gui.visual-swap.button.reset"),
                 this::doResetRules
         );
@@ -671,7 +788,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         openConfirm(
                 Component.translatable("gui.visual-swap.confirm.reset_colors.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.reset_colors.body")),
+                Component.translatable("gui.visual-swap.confirm.reset_colors.body"),
                 Component.translatable("gui.visual-swap.button.reset"),
                 this::doResetColors
         );
@@ -681,7 +798,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         openConfirm(
                 Component.translatable("gui.visual-swap.confirm.clear.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.clear.body")),
+                Component.translatable("gui.visual-swap.confirm.clear.body"),
                 Component.translatable("gui.visual-swap.button.clear_all"),
                 () -> this.list.clear()
         );
@@ -695,7 +812,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         openConfirm(
                 Component.translatable("gui.visual-swap.confirm.set_all_colors.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.set_all_colors.body")),
+                Component.translatable("gui.visual-swap.confirm.set_all_colors.body"),
                 Component.translatable("gui.visual-swap.button.set_all"),
                 () -> this.openBulkColorPicker = true
         );
@@ -705,7 +822,7 @@ public final class VisualSwapConfigScreen extends Screen
     {
         openConfirm(
                 Component.translatable("gui.visual-swap.confirm.discard.title"),
-                List.of(Component.translatable("gui.visual-swap.confirm.discard.body")),
+                Component.translatable("gui.visual-swap.confirm.discard.body"),
                 Component.translatable("gui.visual-swap.button.discard"),
                 this::doDiscard
         );
@@ -756,6 +873,7 @@ public final class VisualSwapConfigScreen extends Screen
         this.workingHotbarHighlightEnabled = this.savedHotbarHighlightEnabled;
         this.workingItemFlashEnabled = this.savedItemFlashEnabled;
         this.workingFlashOnlyOnSwap = this.savedFlashOnlyOnSwap;
+        this.workingClearPreviousFlashOnSwap = this.savedClearPreviousFlashOnSwap;
         this.workingParticlesEnabled = this.savedParticlesEnabled;
         this.filterText = "";
         this.pendingRules = this.savedRules;
@@ -765,9 +883,9 @@ public final class VisualSwapConfigScreen extends Screen
     }
 
     /// Open a modal confirmation (its own screen) for a destructive action; only Confirm runs {@code action}.
-    private void openConfirm(Component title, List<Component> lines, Component confirmLabel, Runnable action)
+    private void openConfirm(Component title, Component body, Component confirmLabel, Runnable action)
     {
-        ConfirmModal.open(title, lines, confirmLabel, action);
+        ConfirmModal.open(title, body, confirmLabel, action);
     }
 
     /// The rule-count line above the table: "N of M shown" while a filter is active.
@@ -785,11 +903,39 @@ public final class VisualSwapConfigScreen extends Screen
                 this.workingHotbarHighlightEnabled != this.savedHotbarHighlightEnabled ||
                 this.workingItemFlashEnabled != this.savedItemFlashEnabled ||
                 this.workingFlashOnlyOnSwap != this.savedFlashOnlyOnSwap ||
+                this.workingClearPreviousFlashOnSwap != this.savedClearPreviousFlashOnSwap ||
                 this.workingParticlesEnabled != this.savedParticlesEnabled ||
                 !this.workingCustom.sameValuesAs(this.savedCustom) || !FlashRule.listsSameValues(
                 currentRules,
                 this.savedRules
         );
+    }
+
+    private void onRuleValueEdited()
+    {
+        applyDoneState(this.list.invalidCount() == 0 ? DoneButtonState.ENABLED : DoneButtonState.INVALID_RULE);
+        refreshDirtyState();
+    }
+
+    /// Refresh the cached state used while widgets edit their backing values without rebuilding the screen.
+    private void refreshDirtyState()
+    {
+        if (this.list == null) return;
+        List<FlashRule> rules = this.list.toRules();
+        this.isModified = isModified(rules);
+        if (this.discardButton != null) this.discardButton.active = this.isModified;
+        if (this.resetColorsButton != null)
+        {
+            this.resetColorsButton.active = this.workingModEnabled && this.workingType.isCustom() &&
+                    !this.workingCustom.sameValuesAs(PresetType.CUSTOM.createDefault());
+        }
+        if (this.tableHeader != null)
+        {
+            boolean itemFlashOn = this.workingModEnabled && this.workingHudEnabled && this.workingItemFlashEnabled;
+            this.tableHeader.setResetEnabled(
+                    itemFlashOn && !FlashRule.listsSameValues(rules, FlashRule.defaultFlashRules())
+            );
+        }
     }
 
     /// Enable/disable the Done button and set the matching tooltip — an invalid config can never be saved.
@@ -817,6 +963,7 @@ public final class VisualSwapConfigScreen extends Screen
         cfg.hotbarHighlightEnabled = this.workingHotbarHighlightEnabled;
         cfg.itemFlashEnabled = this.workingItemFlashEnabled;
         cfg.flashOnlyOnSwap = this.workingFlashOnlyOnSwap;
+        cfg.clearPreviousFlashOnSwap = this.workingClearPreviousFlashOnSwap;
         cfg.particlesEnabled = this.workingParticlesEnabled;
         cfg.clickFlashRules = this.list.toRules();
         AutoConfig.getConfigHolder(ModConfig.class).save();
@@ -831,7 +978,7 @@ public final class VisualSwapConfigScreen extends Screen
         {
             openConfirm(
                     Component.translatable("gui.visual-swap.confirm.leave.title"),
-                    List.of(Component.translatable("gui.visual-swap.confirm.leave.body")),
+                    Component.translatable("gui.visual-swap.confirm.leave.body"),
                     Component.translatable("gui.visual-swap.button.discard"),
                     () -> this.minecraft.setScreenAndShow(this.parent)
             );

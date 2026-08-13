@@ -5,11 +5,12 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 
 import java.util.List;
 
-/// A yes/no confirmation {@link Modal}: a title, one or more body lines, and a Cancel / Confirm button pair. Gate a
-/// destructive action behind it with {@link #open(Component, List, Component, Runnable)}.
+/// A yes/no confirmation {@link Modal}: a title, wrapped body text, and a Cancel / Confirm button pair. Gate a
+/// destructive action behind it with {@link #open(Component, Component, Component, Runnable)}.
 ///
 /// After the confirm action runs, the modal returns to its backdrop **only if the action didn't itself navigate away**
 /// (checked via the live screen) — so an action that leaves for another screen (e.g. "discard &amp; leave") isn't
@@ -24,22 +25,26 @@ public final class ConfirmModal extends Modal
     private static final int BTN_GAP = 6;
     private static final int MIN_BTN_W = 92;
     private static final int MAX_W = 300;
+    private static final int SCREEN_MARGIN = 20;
 
     private static final int PANEL_BG = 0xF00E0E14;
     private static final int PANEL_BORDER = 0xFF45454F;
     private static final int TITLE_ARGB = 0xFFFFFFFF;
     private static final int BODY_ARGB = 0xFFB9B9C0;
 
-    private final List<Component> body;
+    private final Component body;
     private final Component confirmLabel;
     private final Runnable onConfirm;
+
+    private List<FormattedCharSequence> titleLines = List.of();
+    private List<FormattedCharSequence> bodyLines = List.of();
 
     private int panelX;
     private int panelY;
     private int panelW;
     private int panelH;
 
-    private ConfirmModal(Component title, List<Component> body, Component confirmLabel, Runnable onConfirm)
+    private ConfirmModal(Component title, Component body, Component confirmLabel, Runnable onConfirm)
     {
         super(title);
         this.body = body;
@@ -48,7 +53,7 @@ public final class ConfirmModal extends Modal
     }
 
     /// Open a confirmation over the current screen.
-    public static void open(Component title, List<Component> body, Component confirmLabel, Runnable onConfirm)
+    public static void open(Component title, Component body, Component confirmLabel, Runnable onConfirm)
     {
         new ConfirmModal(title, body, confirmLabel, onConfirm).open();
     }
@@ -57,12 +62,18 @@ public final class ConfirmModal extends Modal
     protected void init()
     {
         Font font = this.font;
-        int textW = font.width(getTitle());
-        for (Component line : this.body) textW = Math.max(textW, font.width(line));
+        int availablePanelW = Math.max(2 * PAD + 1, Math.min(MAX_W, this.width - 2 * SCREEN_MARGIN));
+        int availableContentW = availablePanelW - 2 * PAD;
+        int buttonRowW = Math.min(2 * MIN_BTN_W + BTN_GAP, availableContentW);
+        int textW = Math.max(font.width(getTitle()), font.width(this.body));
+        int contentW = Math.min(availableContentW, Math.max(textW, buttonRowW));
 
-        int contentW = Math.min(MAX_W - 2 * PAD, Math.max(textW, 2 * MIN_BTN_W + BTN_GAP));
+        this.titleLines = font.split(getTitle(), contentW);
+        this.bodyLines = font.split(this.body, contentW);
         this.panelW = contentW + 2 * PAD;
-        this.panelH = PAD + LINE + TITLE_GAP + this.body.size() * LINE + TEXT_TO_BUTTONS + BTN_H + PAD;
+        int titleH = Math.max(1, this.titleLines.size()) * LINE;
+        int bodyH = Math.max(1, this.bodyLines.size()) * LINE;
+        this.panelH = PAD + titleH + TITLE_GAP + bodyH + TEXT_TO_BUTTONS + BTN_H + PAD;
         this.panelX = (this.width - this.panelW) / 2;
         this.panelY = (this.height - this.panelH) / 2;
 
@@ -93,11 +104,15 @@ public final class ConfirmModal extends Modal
 
         int cx = this.width / 2;
         int y = this.panelY + PAD;
-        g.text(this.font, getTitle().getVisualOrderText(), cx - this.font.width(getTitle()) / 2, y, TITLE_ARGB, true);
-        y += LINE + TITLE_GAP;
-        for (Component line : this.body)
+        for (FormattedCharSequence line : this.titleLines)
         {
-            g.text(this.font, line.getVisualOrderText(), cx - this.font.width(line) / 2, y, BODY_ARGB, false);
+            g.text(this.font, line, cx - this.font.width(line) / 2, y, TITLE_ARGB, true);
+            y += LINE;
+        }
+        y += TITLE_GAP;
+        for (FormattedCharSequence line : this.bodyLines)
+        {
+            g.text(this.font, line, cx - this.font.width(line) / 2, y, BODY_ARGB, false);
             y += LINE;
         }
     }
