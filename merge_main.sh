@@ -68,7 +68,7 @@ show_job_log_tail() {
   for rid in $run_ids; do
     api GET "/actions/runs/${rid}/jobs?per_page=100" || continue
     job_id="$(jq -r --arg n "$name" \
-      '[.jobs[]? | select(.name==$n) | select(.conclusion!=null and .conclusion!="success" and .conclusion!="skipped")] | last | .id // empty' \
+      '[.jobs[]? | select(.name==$n) | select(.conclusion!=null and .conclusion!="success" and .conclusion!="skipped")] | max_by(.id) | .id // empty' \
       "$TMP_BODY" 2>/dev/null)"
     [ -n "$job_id" ] && break
   done
@@ -86,10 +86,10 @@ show_check_failure() {
   ( set +e
     sha="$1"; name="$2"
     if api GET "/commits/${sha}/check-runs?per_page=100"; then
-      crid="$(jq -r --arg c "$name"    '[.check_runs[]? | select(.name==$c)] | last | .id // empty'             "$TMP_BODY" 2>/dev/null)"
-      url="$(jq -r --arg c "$name"     '[.check_runs[]? | select(.name==$c)] | last | .html_url // empty'       "$TMP_BODY" 2>/dev/null)"
-      ctitle="$(jq -r --arg c "$name"  '[.check_runs[]? | select(.name==$c)] | last | .output.title // empty'   "$TMP_BODY" 2>/dev/null)"
-      summary="$(jq -r --arg c "$name" '[.check_runs[]? | select(.name==$c)] | last | .output.summary // empty' "$TMP_BODY" 2>/dev/null)"
+      crid="$(jq -r --arg c "$name"    '[.check_runs[]? | select(.name==$c)] | max_by(.id) | .id // empty'             "$TMP_BODY" 2>/dev/null)"
+      url="$(jq -r --arg c "$name"     '[.check_runs[]? | select(.name==$c)] | max_by(.id) | .html_url // empty'       "$TMP_BODY" 2>/dev/null)"
+      ctitle="$(jq -r --arg c "$name"  '[.check_runs[]? | select(.name==$c)] | max_by(.id) | .output.title // empty'   "$TMP_BODY" 2>/dev/null)"
+      summary="$(jq -r --arg c "$name" '[.check_runs[]? | select(.name==$c)] | max_by(.id) | .output.summary // empty' "$TMP_BODY" 2>/dev/null)"
     fi
     if [ -n "${url:-}" ];     then printf '%s\n' "  ${GRAY}${url}${RESET}"; fi
     if [ -n "${ctitle:-}" ];  then printf '%s\n' "  ${YELLOW}${ctitle}${RESET}"; fi
@@ -117,8 +117,8 @@ watch_publish() {
       sleep 5
       continue
     fi
-    status="$(jq -r '[.check_runs[]? | select(.name=="publish")] | last | .status // empty'     "$TMP_BODY")"
-    concl="$(jq -r  '[.check_runs[]? | select(.name=="publish")] | last | .conclusion // empty' "$TMP_BODY")"
+    status="$(jq -r '[.check_runs[]? | select(.name=="publish")] | max_by(.id) | .status // empty'     "$TMP_BODY")"
+    concl="$(jq -r  '[.check_runs[]? | select(.name=="publish")] | max_by(.id) | .conclusion // empty' "$TMP_BODY")"
     if [ "$status" = "completed" ]; then
       if [ "$concl" = "success" ]; then success "'publish' passed - release published from ${MAIN}"; return 0; fi
       if [ "$concl" = "skipped" ]; then warn "'publish' reported skipped - no release was cut"; return 0; fi
@@ -339,46 +339,52 @@ fi
 api GET "/pulls/${PR_NUMBER}"
 HEAD_SHA="$(jq -r '.head.sha' "$TMP_BODY")"
 CHECK_LIST="$(printf "'%s' " "${REQUIRED_CHECKS[@]}")"
-log "polling ${CHECK_LIST}on ${HEAD_SHA:0:7} (every ${POLL_INTERVAL}s, up to $((POLL_INTERVAL * POLL_MAX))s)"
-attempt=0
-while :; do
-  # A single failed poll shouldn't kill the release - just retry the loop.
-  if ! api GET "/commits/${HEAD_SHA}/check-runs?per_page=100"; then
-    warn "GitHub API temporarily unavailable - retrying…"
-    sleep 5
-    continue
-  fi
-  pending=""
-  failed=false
-  for chk in "${REQUIRED_CHECKS[@]}"; do
-    cstatus="$(jq -r --arg c "$chk" '[.check_runs[]? | select(.name==$c)] | last | .status // empty' "$TMP_BODY")"
-    cconcl="$(jq -r --arg c "$chk" '[.check_runs[]? | select(.name==$c)] | last | .conclusion // empty' "$TMP_BODY")"
-    if [ "$cstatus" != "completed" ]; then
-      pending="${pending}${chk} [${cstatus:-queued}]  "
+wait_required_checks() {
+  local attempt=0 pending failed chk cstatus cconcl
+  log "polling ${CHECK_LIST}on ${HEAD_SHA:0:7} (every ${POLL_INTERVAL}s, up to $((POLL_INTERVAL * POLL_MAX))s)"
+  while :; do
+    # A single failed poll shouldn't kill the release - just retry the loop.
+    if ! api GET "/commits/${HEAD_SHA}/check-runs?per_page=100"; then
+      warn "GitHub API temporarily unavailable - retrying…"
+      sleep 5
       continue
     fi
-    if [ "$cconcl" = "success" ]; then
-      continue
+    pending=""
+    failed=false
+    for chk in "${REQUIRED_CHECKS[@]}"; do
+      # GitHub returns duplicate/rerun check names. Select the greatest run ID
+      # so an older success can never hide a newer queued or in-progress rerun.
+      cstatus="$(jq -r --arg c "$chk" '[.check_runs[]? | select(.name==$c)] | max_by(.id) | .status // empty' "$TMP_BODY")"
+      cconcl="$(jq -r --arg c "$chk" '[.check_runs[]? | select(.name==$c)] | max_by(.id) | .conclusion // empty' "$TMP_BODY")"
+      if [ "$cstatus" != "completed" ]; then
+        pending="${pending}${chk} [${cstatus:-queued}]  "
+        continue
+      fi
+      if [ "$cconcl" = "success" ]; then
+        continue
+      fi
+      fail "'${chk}' concluded '${cconcl}' - refusing to merge. See ${PR_URL}"
+      show_check_failure "$HEAD_SHA" "$chk"
+      failed=true
+    done
+    if [ "$failed" = true ]; then
+      return 1
     fi
-    fail "'${chk}' concluded '${cconcl}' - refusing to merge. See ${PR_URL}"
-    show_check_failure "$HEAD_SHA" "$chk"
-    failed=true
+    if [ -z "$pending" ]; then
+      success "all required checks passed: ${CHECK_LIST}"
+      return 0
+    fi
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge "$POLL_MAX" ]; then
+      fail "Timed out waiting for required checks. Still pending: ${pending}. Merge later from ${PR_URL}"
+      return 1
+    fi
+    printf '%s\n' "${GRAY}  … waiting: ${pending}(attempt ${attempt}/${POLL_MAX})${RESET}"
+    sleep "$POLL_INTERVAL"
   done
-  if [ "$failed" = true ]; then
-    exit 1
-  fi
-  if [ -z "$pending" ]; then
-    success "all required checks passed: ${CHECK_LIST}"
-    break
-  fi
-  attempt=$((attempt + 1))
-  if [ "$attempt" -ge "$POLL_MAX" ]; then
-    fail "Timed out waiting for required checks. Still pending: ${pending}. Merge later from ${PR_URL}"
-    exit 1
-  fi
-  printf '%s\n' "${GRAY}  … waiting: ${pending}(attempt ${attempt}/${POLL_MAX})${RESET}"
-  sleep "$POLL_INTERVAL"
-done
+}
+
+wait_required_checks || exit 1
 
 if [ "$SKIP_PUBLISH" = true ]; then
   step "Step 5/7 - Merge PR #${PR_NUMBER} into ${MAIN} (publish skipped)"
@@ -388,20 +394,36 @@ else
   MERGE_BODY="$(jq -n --arg m merge --arg t "$COMMIT_TITLE" --arg b "$CHANGELOG" \
     '{merge_method:$m, commit_title:$t, commit_message:$b}')"
 fi
-api PUT "/pulls/${PR_NUMBER}/merge" "$MERGE_BODY"
-if [ "$HTTP_CODE" = "200" ]; then
-  # The merge commit SHA is what publish.yml runs against; we watch it below.
-  MERGE_SHA="$(jq -r '.sha // empty' "$TMP_BODY")"
-  if [ "$SKIP_PUBLISH" = true ]; then
-    success "merged - publish skipped ([skip publish] in merge commit); no release cut"
-  else
-    success "merged ${MERGE_SHA:0:7} - publish.yml will now build and release from ${MAIN}"
+merge_retry=0
+while :; do
+  api PUT "/pulls/${PR_NUMBER}/merge" "$MERGE_BODY"
+  if [ "$HTTP_CODE" = "200" ]; then
+    # The merge commit SHA is what publish.yml runs against; we watch it below.
+    MERGE_SHA="$(jq -r '.sha // empty' "$TMP_BODY")"
+    if [ "$SKIP_PUBLISH" = true ]; then
+      success "merged - publish skipped ([skip publish] in merge commit); no release cut"
+    else
+      success "merged ${MERGE_SHA:0:7} - publish.yml will now build and release from ${MAIN}"
+    fi
+    break
   fi
-else
-  fail "Merge failed (HTTP ${HTTP_CODE}). See ${PR_URL}"
-  cat "$TMP_BODY"
-  exit 1
-fi
+
+  # A check can be rerun in the small gap between the final poll and this PUT.
+  # If branch protection catches that race, wait for the current runs and retry
+  # instead of aborting the whole interactive release.
+  if [ "$HTTP_CODE" = "405" ] \
+    && jq -e '.message? | contains("Required status check")' "$TMP_BODY" >/dev/null \
+    && [ "$merge_retry" -lt 3 ]; then
+    merge_retry=$((merge_retry + 1))
+    warn "GitHub reports a required check changed after polling - waiting again before merge retry ${merge_retry}/3."
+    sleep "$POLL_INTERVAL"
+    wait_required_checks || exit 1
+  else
+    fail "Merge failed (HTTP ${HTTP_CODE}). See ${PR_URL}"
+    cat "$TMP_BODY"
+    exit 1
+  fi
+done
 
 # Publish runs post-merge (on push to ${MAIN}), so it can't gate the merge itself -
 # but we watch it here and surface its Actions errors so a failed release is loud,
