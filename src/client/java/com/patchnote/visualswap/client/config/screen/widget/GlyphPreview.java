@@ -16,11 +16,7 @@ import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.NonNull;
 
 import java.util.List;
-import java.util.function.BooleanSupplier;
-import java.util.function.BiConsumer;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.function.ToIntFunction;
+import java.util.function.*;
 
 /// Pixel-accurate preview of every HUD glyph over a switchable in-world background.
 public final class GlyphPreview extends AbstractWidget

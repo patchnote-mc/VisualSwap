@@ -1,6 +1,5 @@
 {
   "gui.visual-swap.title": "Visual Swap",
-
   "gui.visual-swap.button.done": "Done",
   "gui.visual-swap.button.cancel": "Cancel",
   "gui.visual-swap.button.close": "Close",
@@ -9,12 +8,10 @@
   "gui.visual-swap.button.reset": "Reset",
   "gui.visual-swap.button.clear_all": "Clear All",
   "gui.visual-swap.button.set_all": "Apply to All",
-
   "gui.visual-swap.preset.label": "Preset",
   "gui.visual-swap.preset.vanilla": "Vanilla",
   "gui.visual-swap.preset.practice": "Practice",
   "gui.visual-swap.preset.custom": "Custom",
-
   "gui.visual-swap.color.from": "From",
   "gui.visual-swap.color.to": "To",
   "gui.visual-swap.color.glyph": "Glyph",
@@ -25,18 +22,14 @@
   "gui.visual-swap.glyph.consecutive": "Consecutive swap glyph",
   "gui.visual-swap.glyph.selection_help": "Click to select glyph. Shift-click to select multiple.",
   "gui.visual-swap.tooltip.toggle_glyph_background": "Switch glyph preview background",
-
   "gui.visual-swap.slider.size": "%s size: %sx",
   "gui.visual-swap.slider.flash_duration": "Flash duration: %s ticks",
   "gui.visual-swap.slider.flash_duration_one": "Flash duration: %s tick",
-
   "gui.visual-swap.trigger.attack": "Attack",
   "gui.visual-swap.trigger.use": "Use",
   "gui.visual-swap.trigger.both": "Both",
-
   "gui.visual-swap.intensity.low": "Low",
   "gui.visual-swap.intensity.high": "High",
-
   "gui.visual-swap.effects.title": "Toggles",
   "gui.visual-swap.effects.hint": "Hover over a toggle to see what it controls.",
   "gui.visual-swap.effects.mod.label": "Mod",
@@ -53,7 +46,6 @@
   "gui.visual-swap.clear_previous_flash.help": "On a non-consecutive attribute swap, clears older item flashes before flashing the new item. Switching alone never clears them.",
   "gui.visual-swap.effects.particles.label": "Particles",
   "gui.visual-swap.effects.particles.help": "Displays particles when on attribute swapping.",
-
   "gui.visual-swap.rules.column.trigger": "Trigger",
   "gui.visual-swap.rules.count": "%s of %s shown",
   "gui.visual-swap.rules.empty": "No rules have been added yet. Click the + button above to create one.",
@@ -63,7 +55,6 @@
   "gui.visual-swap.rules.item.narration": "Item selector (regex)",
   "gui.visual-swap.rules.item.hint": "Pattern (e.g. \".*\")",
   "gui.visual-swap.rules.preview_button": "Preview Matching Items",
-
   "gui.visual-swap.rule_config.title": "Rule Settings",
   "gui.visual-swap.rule_config.hint": "Hover over a setting to see what it controls.",
   "gui.visual-swap.rule_config.strength.label": "Strength",
@@ -72,7 +63,6 @@
   "gui.visual-swap.rule_config.glyph.help": "Show the swap-state glyph when switching to an item matched by this rule.",
   "gui.visual-swap.rule_config.hotbar_highlight.label": "Hotbar Highlight",
   "gui.visual-swap.rule_config.hotbar_highlight.help": "Highlight swap slots when switching to an item matched by this rule.",
-
   "gui.visual-swap.preview.title": "Matching Items",
   "gui.visual-swap.preview.empty_pattern": "(empty pattern)",
   "gui.visual-swap.preview.no_matches": "No matches",
@@ -82,7 +72,6 @@
   "gui.visual-swap.preview.origin.body": "The hotbar slot you swapped away from,\nhighlighted using your From colour.",
   "gui.visual-swap.preview.destination.title": "Swap Destination",
   "gui.visual-swap.preview.destination.body": "The selected hotbar slot after the swap.\nIts item flashes using the active rule's\nconfigured colour and strength.",
-
   "gui.visual-swap.picker.tab.wheel": "Wheel",
   "gui.visual-swap.picker.tab.sliders": "Sliders",
   "gui.visual-swap.picker.tab.hex": "Hex",
@@ -92,7 +81,6 @@
   "gui.visual-swap.picker.channel.s": "S",
   "gui.visual-swap.picker.channel.v": "V",
   "gui.visual-swap.picker.channel.a": "A",
-
   "gui.visual-swap.confirm.reset_rules.title": "Reset all rules?",
   "gui.visual-swap.confirm.reset_rules.body": "Remove the current rule list and add the default set?",
   "gui.visual-swap.confirm.reset_colors.title": "Reset colours?",
@@ -107,7 +95,6 @@
   "gui.visual-swap.confirm.leave.body": "You have unsaved changes. Leave without saving them?",
   "gui.visual-swap.confirm.delete_rule.title": "Delete this rule?",
   "gui.visual-swap.confirm.delete_rule.body": "Remove this rule from the list?",
-
   "gui.visual-swap.tooltip.effect_off": "%s is currently disabled. Open the Toggles menu in the top-right corner to enable it.",
   "gui.visual-swap.tooltip.effects_button": "Enable or disable the mod's visual effects.",
   "gui.visual-swap.tooltip.size_slider": "Adjusts the size of the particle burst.",

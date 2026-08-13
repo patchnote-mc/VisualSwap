@@ -15,10 +15,9 @@ import java.util.List;
 
 /// A rule's secondary settings — flash Strength plus independent Glyph and Hotbar Highlight opt-ins — moved off the
 /// table row into a {@link Modal} opened from the row's config (gear) button. Mirrors the {@link EffectsModal} look:
-/// each setting is a
-/// full-width button row, and hovering a row prints its help text in the panel's help area (the rows carry no
-/// tooltips). Every change writes straight onto the shared working rule; returning re-inits the config screen, which
-/// picks the edits up (same flow as the {@link RegexPreviewModal}).
+/// each setting is a full-width button row, and hovering a row prints its help text in the panel's help area (the rows
+/// carry no tooltips). Every change writes straight onto the shared working rule; returning re-inits the config screen,
+/// which picks the edits up (same flow as the {@link RegexPreviewModal}).
 public final class RuleConfigModal extends Modal
 {
     private static final int PANEL_W = 244;

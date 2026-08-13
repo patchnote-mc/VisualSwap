@@ -56,14 +56,13 @@ public final class HotbarSwapPreview extends AbstractWidget
     private static final int RIGHT_EDGE_U = 179;  // the bar's true right-edge columns
     private static final int RIGHT_EDGE_W = 3;
     private static final int BAR_W = LEFT_CROP_W + RIGHT_EDGE_W;  // a seamless two-slot bar
+    public static final int WIDTH = PAD + BAR_W + PAD;
     private static final int ITEM_INSET = 3;
     private static final int ITEM_SIZE = 16;
     private static final int SLOT_STRIDE = 20;
     private static final int SEL_SIZE_W = 24;
     private static final int SEL_SIZE_H = 23;
     private static final int PAD = 1;             // room for the selection frame's overhang
-
-    public static final int WIDTH = PAD + BAR_W + PAD;
     public static final int HEIGHT = PAD + BAR_H;
 
     private static final String DEFAULT_FLASH_ITEM = "minecraft:mace";
@@ -176,8 +175,8 @@ public final class HotbarSwapPreview extends AbstractWidget
     }
 
     /// Re-resolve the flashing item when the followed rule (or its selector) changes. The selector is a regex, so use
-    /// the same representative first match as its rule row instead of treating the selector text as a literal id.
-    /// While the selector is mid-edit and invalid, the last valid item stays on screen.
+    /// the same representative first match as its rule row instead of treating the selector text as a literal id. While
+    /// the selector is mid-edit and invalid, the last valid item stays on screen.
     private void refreshFlashItem()
     {
         FlashRule rule = this.flashRule.get();

@@ -114,8 +114,8 @@ public final class SwapWindowState
     /** Number of swap-hits chained into the active flash (1 = single, 0 when no flash is running). */
     public int chainCount(int tick) { return attacked(tick) ? this.chainCount : 0; }
 
-    /// Whether a newly credited attribute swap at {@code tick} extends the prior chain. Consecutive credits may land
-    /// at most two ticks apart; this uses its own click clock so visual duration cannot change classification.
+    /// Whether a newly credited attribute swap at {@code tick} extends the prior chain. Consecutive credits may land at
+    /// most two ticks apart; this uses its own click clock so visual duration cannot change classification.
     public boolean willChain(int tick)
     {
         if (this.lastCreditedClickTick == NO_TICK) return false;
@@ -124,8 +124,8 @@ public final class SwapWindowState
     }
 
     /// Chain depth to render for an entity interaction that arrives before the end-of-tick click observation. A newly
-    /// pending swap extends the active chain; an observed but not-yet-credited swap starts at one; repeated interactions
-    /// against an already-credited swap keep the existing depth.
+    /// pending swap extends the active chain; an observed but not-yet-credited swap starts at one; repeated
+    /// interactions against an already-credited swap keep the existing depth.
     public int anticipatedChainCount(int tick, boolean newSwapPending)
     {
         int current = willChain(tick) ? this.chainCount : 0;

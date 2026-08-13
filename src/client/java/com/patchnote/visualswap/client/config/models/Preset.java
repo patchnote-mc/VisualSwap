@@ -1,9 +1,8 @@
 package com.patchnote.visualswap.client.config.models;
 
 /// A preset's mutable settings — size, From/To highlight colours, and per-state glyph colours. This is a plain data
-/// object (not an enum) so its fields actually serialise; the identity and fixed defaults live on
-/// {@link PresetType}. In
-/// practice only the Custom preset's settings are edited and persisted (see {@code ModConfig.customPreset}).
+/// object (not an enum) so its fields actually serialise; the identity and fixed defaults live on {@link PresetType}.
+/// In practice only the Custom preset's settings are edited and persisted (see {@code ModConfig.customPreset}).
 public final class Preset
 {
     private double sizeMultiplier;
