@@ -1,5 +1,6 @@
 package com.patchnote.visualswap.client.config.screen.widget;
 
+import com.patchnote.visualswap.VisualSwap;
 import com.patchnote.visualswap.client.config.models.FlashIntensity;
 import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.config.models.PresetType;
@@ -41,6 +42,12 @@ public final class HotbarSwapPreview extends AbstractWidget
     // 3px outer edges; the 24x23 selection frame overhangs its slot by 1px on every side.
     private static final Identifier HOTBAR_SPRITE = Identifier.withDefaultNamespace("hud/hotbar");
     private static final Identifier HOTBAR_SELECTION_SPRITE = Identifier.withDefaultNamespace("hud/hotbar_selection");
+    private static final Identifier GRASS_BACKGROUND = Identifier.fromNamespaceAndPath(
+            VisualSwap.MOD_ID,
+            "textures/gui/backgrounds/grass.png"
+    );
+    private static final int GRASS_TEXTURE_SIZE = 621;
+    private static final int BACKGROUND_ZOOM = 3;
     private static final int TEX_W = 182;
     private static final int TEX_H = 22;
     private static final int BAR_H = 22;
@@ -118,6 +125,8 @@ public final class HotbarSwapPreview extends AbstractWidget
         int fromX = bx + ITEM_INSET;
         int toX = fromX + SLOT_STRIDE;
         int itemY = by + ITEM_INSET;
+        drawGrassBackground(g, fromX, itemY);
+        drawGrassBackground(g, toX, itemY);
         g.fill(RenderPipelines.GUI, fromX, itemY, fromX + ITEM_SIZE, itemY + ITEM_SIZE, this.fromColor.getAsInt());
         g.fill(RenderPipelines.GUI, toX, itemY, toX + ITEM_SIZE, itemY + ITEM_SIZE, this.toColor.getAsInt());
 
@@ -133,6 +142,26 @@ public final class HotbarSwapPreview extends AbstractWidget
 
         slotTooltip(ORIGIN_TOOLTIP, fromX, itemY, mouseX, mouseY);
         slotTooltip(DESTINATION_TOOLTIP, toX, itemY, mouseX, mouseY);
+    }
+
+    private static void drawGrassBackground(GuiGraphicsExtractor graphics, int x, int y)
+    {
+        int cropSize = GRASS_TEXTURE_SIZE / BACKGROUND_ZOOM;
+        int cropOffset = (GRASS_TEXTURE_SIZE - cropSize) / 2;
+        graphics.blit(
+                RenderPipelines.GUI_TEXTURED,
+                GRASS_BACKGROUND,
+                x,
+                y,
+                (float) cropOffset,
+                (float) cropOffset,
+                ITEM_SIZE,
+                ITEM_SIZE,
+                cropSize,
+                cropSize,
+                GRASS_TEXTURE_SIZE,
+                GRASS_TEXTURE_SIZE
+        );
     }
 
     /// Explain what the hovered slot represents (the preview is illustrative, so the tooltip is guidance, not an

@@ -17,8 +17,8 @@ import java.util.function.IntSupplier;
 /// clickable swatch brightens its border on hover.
 public final class ColorSwatch extends AbstractWidget
 {
-    private static final int BORDER = 0xFF4A4842;
-    private static final int BORDER_HOVERED = 0xFF8A8A94;
+    private static final int BORDER = 0xFF8A8A94;
+    private static final int BORDER_HOVERED = 0xFFFFFFFF;
 
     private final IntSupplier color;
     private @Nullable Runnable onPress;

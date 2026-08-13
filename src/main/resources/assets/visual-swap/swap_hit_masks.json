@@ -1,12 +1,8 @@
 {
-  "_comment": "Single source of truth for the swap-hit glyph shapes. '#' = filled cell. Each mask has a 'color' (ARGB HUD tint) and a 'particleColor' (ARGB particle tint), and each carries 'vanilla' and 'practice' variants selected at runtime by the Preset config. A mask with a 'particle' name bakes an OPAQUE WHITE sprite via the bakeParticleSprites Gradle task (assets/.../textures/particle/<particle>.png), tinted at render time by particleColor so one static sprite serves both variants; a HUD-only mask omits 'particle' (no particle type is registered for it and no sprite is baked). Edit a mask here and BOTH the HUD glyph and the particle update.",
+  "_comment": "Single source of truth for swap-hit glyph shapes and particle tints. '#' = filled cell. HUD glyph colours live centrally in PresetType. Each particleColor carries vanilla and practice variants selected at runtime; Custom particles use the configured From/To colours. A mask with a particle name bakes an OPAQUE WHITE sprite via bakeParticleSprites, tinted at runtime. A HUD-only mask omits particle.",
   "masks": {
     "possible": {
       "particle": "swap_possible",
-      "color": {
-        "vanilla": "0xFFFFFFFF",
-        "practice": "0xAA0000FF"
-      },
       "particleColor": {
         "vanilla": "0xAA9D97A4",
         "practice": "0xAA0000FF"
@@ -23,10 +19,6 @@
     },
     "attacked": {
       "particle": "swap_attacked",
-      "color": {
-        "vanilla": "0xFFFFFFFF",
-        "practice": "0xAA00FF00"
-      },
       "particleColor": {
         "vanilla": "0xAA9D97B8",
         "practice": "0xAA00FF00"
@@ -42,10 +34,6 @@
       ]
     },
     "failed": {
-      "color": {
-        "vanilla": "0xFFF85A5A",
-        "practice": "0xFFFF0000"
-      },
       "particleColor": {
         "vanilla": "0xFFF85A5A",
         "practice": "0xFFFF0000"
@@ -62,10 +50,6 @@
     },
     "consecutive": {
       "particle": "swap_consecutive",
-      "color": {
-        "vanilla": "0xFFFFFFFF",
-        "practice": "0xFFFFAA00"
-      },
       "particleColor": {
         "vanilla": "0xAA9D97D0",
         "practice": "0xFFFFAA00"
