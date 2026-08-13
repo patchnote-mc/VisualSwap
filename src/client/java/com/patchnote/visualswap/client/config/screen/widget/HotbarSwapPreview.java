@@ -9,6 +9,7 @@ import com.patchnote.visualswap.client.hud.click.ItemFlashPreview;
 import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
 import com.patchnote.visualswap.client.screen.overlay.TooltipOverlay;
 import com.patchnote.visualswap.client.utils.ItemIcons;
+import com.patchnote.visualswap.client.utils.ItemRegex;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -86,7 +87,8 @@ public final class HotbarSwapPreview extends AbstractWidget
     private final OverlayManager overlays;
 
     private final ItemStack fromItem;
-    private @Nullable String flashItemId;
+    private @Nullable FlashRule resolvedFlashRule;
+    private @Nullable String resolvedSelector;
     private ItemStack flashItem = ItemStack.EMPTY;
 
     public HotbarSwapPreview(IntSupplier fromColor, IntSupplier toColor, Supplier<PresetType> preset,
@@ -173,16 +175,22 @@ public final class HotbarSwapPreview extends AbstractWidget
                 TooltipOverlay.of(Minecraft.getInstance().font, lines).positionNear(mouseX, mouseY));
     }
 
-    /// Re-resolve the flashing item when the followed rule (or its item id) changes; while the id is mid-edit and
-    /// invalid, the last valid item stays on screen.
+    /// Re-resolve the flashing item when the followed rule (or its selector) changes. The selector is a regex, so use
+    /// the same representative first match as its rule row instead of treating the selector text as a literal id.
+    /// While the selector is mid-edit and invalid, the last valid item stays on screen.
     private void refreshFlashItem()
     {
         FlashRule rule = this.flashRule.get();
-        String id = (rule != null && rule.item() != null) ? rule.item() : DEFAULT_FLASH_ITEM;
-        if (Objects.equals(id, this.flashItemId)) return;
+        String selector = (rule != null) ? rule.item() : null;
+        if (rule == this.resolvedFlashRule && Objects.equals(selector, this.resolvedSelector)) return;
 
-        this.flashItemId = id;
-        Item item = ItemIcons.resolveItem(id);
+        this.resolvedFlashRule = rule;
+        this.resolvedSelector = selector;
+
+        Identifier firstMatch = (rule != null) ? ItemRegex.summarize(rule.pattern()).first() : null;
+        Item item = (firstMatch != null)
+                    ? ItemIcons.resolveItem(firstMatch.toString())
+                    : Items.AIR;
         if (item != Items.AIR) this.flashItem = ItemIcons.stackFor(item);
         else if (this.flashItem.isEmpty())
             this.flashItem = ItemIcons.stackFor(ItemIcons.resolveItem(DEFAULT_FLASH_ITEM));

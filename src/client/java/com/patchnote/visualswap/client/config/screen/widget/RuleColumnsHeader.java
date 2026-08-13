@@ -121,6 +121,9 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         this.resetButton.setTooltip(tip);
     }
 
+    /// Refresh the Reset rules gate after an in-place row edit. Effect-level disabling is handled by the caller.
+    public void setResetEnabled(boolean enabled) { this.resetButton.active = enabled; }
+
     /// Give keyboard focus to the search box (the screen calls this after a filter-triggered rebuild so typing isn't
     /// interrupted). The screen must also make this header its own focused child.
     public void focusSearch()
