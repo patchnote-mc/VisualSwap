@@ -25,7 +25,7 @@ on:
   pull_request:
     branches:
       - '*-main'
-    types: [opened, synchronize, reopened, edited]
+    types: [ opened, synchronize, reopened, edited ]
 
 env:
   MODRINTH_ID: nx3AGjVg

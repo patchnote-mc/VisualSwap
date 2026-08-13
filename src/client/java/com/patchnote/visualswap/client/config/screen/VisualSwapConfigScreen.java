@@ -298,8 +298,10 @@ public final class VisualSwapConfigScreen extends Screen
 
         LinearLayout glyphRow = LinearLayout.horizontal().spacing(COLOR_GAP);
         glyphRow.addChild(
-                new StringWidget(COLOR_LABEL_W, CHIP_H,
-                        Component.translatable("gui.visual-swap.color.glyph").withColor(LABEL_RGB), this.font),
+                new StringWidget(
+                        COLOR_LABEL_W, CHIP_H,
+                        Component.translatable("gui.visual-swap.color.glyph").withColor(LABEL_RGB), this.font
+                ),
                 LayoutSettings::alignVerticallyMiddle
         );
         ColorSwatch glyphSwatch = new ColorSwatch(COLOR_SWATCH_SIZE, this::effectiveGlyph);
@@ -350,19 +352,19 @@ public final class VisualSwapConfigScreen extends Screen
         content.addChild(ticksSlider, LayoutSettings::alignHorizontallyCenter);
 
         CycleButton<Boolean> clearPreviousButton = CycleButton.onOffBuilder(this.workingClearPreviousFlashOnSwap)
-                                                                 .create(
-                                                                         0, 0, topWidth, CHIP_H,
-                                                                         Component.translatable(
-                                                                                 "gui.visual-swap.clear_previous_flash.label"),
-                                                                         (button, value) -> {
-                                                                             this.workingClearPreviousFlashOnSwap = value;
-                                                                             refreshDirtyState();
-                                                                         }
-                                                                 );
+                                                              .create(
+                                                                      0, 0, topWidth, CHIP_H,
+                                                                      Component.translatable(
+                                                                              "gui.visual-swap.clear_previous_flash.label"),
+                                                                      (button, value) -> {
+                                                                          this.workingClearPreviousFlashOnSwap = value;
+                                                                          refreshDirtyState();
+                                                                      }
+                                                              );
         clearPreviousButton.active = itemFlashOn;
         clearPreviousButton.setTooltip(itemFlashOn
                                        ? Tooltip.create(Component.translatable(
-                                               "gui.visual-swap.clear_previous_flash.help"))
+                "gui.visual-swap.clear_previous_flash.help"))
                                        : offTooltip(itemFlashOffSwitch()));
         content.addChild(clearPreviousButton, LayoutSettings::alignHorizontallyCenter);
 
@@ -685,10 +687,12 @@ public final class VisualSwapConfigScreen extends Screen
     /// Open the colour picker (with alpha — From/To colours are AARRGGBB) anchored under {@code anchor}.
     private void openPicker(ColorSwatch anchor, int current, IntConsumer apply)
     {
-        ColorPickerOverlay picker = new ColorPickerOverlay(current, true, color -> {
+        ColorPickerOverlay picker = new ColorPickerOverlay(
+                current, true, color -> {
             apply.accept(color);
             refreshDirtyState();
-        });
+        }
+        );
         picker.position(anchor.getX() - 8, anchor.getY() + anchor.getHeight() + 4);
         this.overlays.open(picker);
     }

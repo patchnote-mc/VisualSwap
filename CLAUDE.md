@@ -12,10 +12,14 @@ to them and states the essentials):
 
 ## Stack (see `AGENTS.md` for detail)
 
-- Minecraft `26.2`, Fabric (Loader `0.19.3`, API `0.153.0+26.2`, Loom `1.17-SNAPSHOT`), Mojang mappings (never Yarn), Java 25. (Gradle wrapper `9.5.1` — loom 1.17 needs Gradle ≥9.5.)
+- Minecraft `26.2`, Fabric (Loader `0.19.3`, API `0.153.0+26.2`, Loom `1.17-SNAPSHOT`), Mojang mappings (never Yarn),
+  Java 25. (Gradle wrapper `9.5.1` — loom 1.17 needs Gradle ≥9.5.)
 - Decompiled sources vendored as git submodules:
-  - `mc_decompiled/sources/26.2/common_src/` + `mc_decompiled/sources/26.2/client_src/` (git submodule at `mc_decompiled/sources/26.2` tracking branch `26.2`, init via `mc_decompiled/setup.sh` — pre-decompiled, NOT `genSources`).
-  - `fabric_decompiled/src/` (git submodule of fabric-api @ tag `0.153.0+26.2`, init via `fabric_decompiled/setup.sh`).
+    - `mc_decompiled/sources/26.2/common_src/` + `mc_decompiled/sources/26.2/client_src/` (git submodule at
+      `mc_decompiled/sources/26.2` tracking branch `26.2`, init via `mc_decompiled/setup.sh` — pre-decompiled, NOT
+      `genSources`).
+    - `fabric_decompiled/src/` (git submodule of fabric-api @ tag `0.153.0+26.2`, init via
+      `fabric_decompiled/setup.sh`).
 
 ## How to work here (essentials)
 
@@ -28,9 +32,9 @@ to them and states the essentials):
    niche APIs, but not preferred.
 4. **Cache as you go:** when you DO consult sources, record just-enough verified
    facts (plain text, terse) so the research isn't repeated:
-   - MC/Fabric: `*_decompiled/.index/{version}/{fully.qualified.ClassName}.txt`
-     (flat, no package dirs; version `26.2` for MC, `0.153.0+26.2` for
-     Fabric) and `*_decompiled/.knowledge/{topic}.txt`. See each dir's `_GUIDE.txt`.
+    - MC/Fabric: `*_decompiled/.index/{version}/{fully.qualified.ClassName}.txt`
+      (flat, no package dirs; version `26.2` for MC, `0.153.0+26.2` for
+      Fabric) and `*_decompiled/.knowledge/{topic}.txt`. See each dir's `_GUIDE.txt`.
 5. **Match Mojang mappings exactly**; never use Yarn names or mix namespaces;
    don't invent APIs — verify against the decompilation if unsure.
 
