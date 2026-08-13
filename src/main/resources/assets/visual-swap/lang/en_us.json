@@ -99,7 +99,7 @@
   "gui.visual-swap.tooltip.effect_off": "%s is currently disabled. Open the Toggles menu in the top-right corner to enable it.",
   "gui.visual-swap.tooltip.effects_button": "Enable or disable the mod's visual effects.",
   "gui.visual-swap.tooltip.size_slider": "Adjusts the size of the particle burst.",
-  "gui.visual-swap.tooltip.ticks_slider": "Sets how long an item's flash remains visible after it is triggered.",
+  "gui.visual-swap.tooltip.ticks_slider": "Sets how long item flashes, the swap glyph, and hotbar highlights remain visible.",
   "gui.visual-swap.tooltip.reset_colors": "Restore the default colours and particle size.",
   "gui.visual-swap.tooltip.set_all_colors": "Apply the same tint colour to every rule.",
   "gui.visual-swap.tooltip.add_rule": "Create a new rule.",

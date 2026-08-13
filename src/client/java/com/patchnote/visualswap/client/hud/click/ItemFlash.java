@@ -85,6 +85,18 @@ public final class ItemFlash
     /// @return the tint for {@code slot}.
     public int getTintFor(int slot) { return (slot >= 0 && slot < HOTBAR_SLOTS) ? this.slotsTint[slot] : DEFAULT_ARGB; }
 
+    /// End the supplied chain slots at the same tick. Slots are deliberately reactivated when their shorter prior
+    /// duration ended just before the next qualifying hit, so the completed chain disappears together.
+    public void synchronizeSlotsUntil(int[] slots, int length, int expirationTick)
+    {
+        for (int i = 0; i < Math.min(length, slots.length); i++)
+        {
+            int slot = slots[i];
+            if (slot >= 0 && slot < HOTBAR_SLOTS && this.slotsExpirationTick[slot] != NO_TICK)
+                this.slotsExpirationTick[slot] = expirationTick;
+        }
+    }
+
     public void reset()
     {
         Arrays.fill(this.slotsExpirationTick, NO_TICK);

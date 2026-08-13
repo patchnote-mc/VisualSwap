@@ -16,8 +16,8 @@ import java.util.Objects;
 public final class ModConfig implements ConfigData
 {
     /// Inclusive range the clicked-item flash duration is clamped to (whole ticks).
-    public static final int MIN_VISIBLE_TICKS = 1;
-    public static final int MAX_VISIBLE_TICKS = 40;
+    public static final int MIN_VISIBLE_TICKS = 2;
+    public static final int MAX_VISIBLE_TICKS = 10;
 
     /* CONFIG */
 

@@ -214,6 +214,7 @@ public final class VisualSwapConfigScreen extends Screen
         // colours + preset feed several effects at once, so they only grey when the whole mod is off.
         boolean modOn = this.workingModEnabled;
         boolean itemFlashOn = this.workingModEnabled && this.workingHudEnabled && this.workingItemFlashEnabled;
+        boolean durationOn = this.workingModEnabled && this.workingHudEnabled;
         boolean particlesOn = this.workingModEnabled && this.workingParticlesEnabled;
 
         // top controls, a 2x3 grid:  preset | From colour | swap preview
@@ -290,10 +291,10 @@ public final class VisualSwapConfigScreen extends Screen
             refreshDirtyState();
         }
         );
-        ticksSlider.active = itemFlashOn;
-        ticksSlider.setTooltip(itemFlashOn
+        ticksSlider.active = durationOn;
+        ticksSlider.setTooltip(durationOn
                                ? Tooltip.create(Component.translatable("gui.visual-swap.tooltip.ticks_slider"))
-                               : offTooltip(itemFlashOffSwitch()));
+                               : offTooltip(hudSwitch()));
         content.addChild(ticksSlider, LayoutSettings::alignHorizontallyCenter);
 
         content.addChild(new SpacerElement(0, 8));
