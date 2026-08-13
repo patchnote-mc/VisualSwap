@@ -87,6 +87,7 @@ public final class VisualSwapConfigScreen extends Screen
     private boolean workingHotbarHighlightEnabled;
     private boolean workingItemFlashEnabled;
     private boolean workingFlashOnlyOnSwap;
+    private boolean workingClearPreviousFlashOnSwap;
     private boolean workingParticlesEnabled;
 
     /// The saved config as captured on open — the baseline the working state is diffed against to detect unsaved edits,
@@ -99,6 +100,7 @@ public final class VisualSwapConfigScreen extends Screen
     private final boolean savedHotbarHighlightEnabled;
     private final boolean savedItemFlashEnabled;
     private final boolean savedFlashOnlyOnSwap;
+    private final boolean savedClearPreviousFlashOnSwap;
     private final boolean savedParticlesEnabled;
     private final List<FlashRule> savedRules;
 
@@ -158,6 +160,7 @@ public final class VisualSwapConfigScreen extends Screen
         this.workingHotbarHighlightEnabled = cfg.hotbarHighlightEnabled;
         this.workingItemFlashEnabled = cfg.itemFlashEnabled;
         this.workingFlashOnlyOnSwap = cfg.flashOnlyOnSwap;
+        this.workingClearPreviousFlashOnSwap = cfg.clearPreviousFlashOnSwap;
         this.workingParticlesEnabled = cfg.particlesEnabled;
 
         this.savedType = cfg.preset;
@@ -168,6 +171,7 @@ public final class VisualSwapConfigScreen extends Screen
         this.savedHotbarHighlightEnabled = cfg.hotbarHighlightEnabled;
         this.savedItemFlashEnabled = cfg.itemFlashEnabled;
         this.savedFlashOnlyOnSwap = cfg.flashOnlyOnSwap;
+        this.savedClearPreviousFlashOnSwap = cfg.clearPreviousFlashOnSwap;
         this.savedParticlesEnabled = cfg.particlesEnabled;
         this.savedRules = cfg.clickFlashRules.stream().map(FlashRule::new).toList();
         // Each saved rule is its own baseline; working copies inherit the link (copy ctor) to drive per-row markers.
@@ -296,6 +300,23 @@ public final class VisualSwapConfigScreen extends Screen
                                ? Tooltip.create(Component.translatable("gui.visual-swap.tooltip.ticks_slider"))
                                : offTooltip(hudSwitch()));
         content.addChild(ticksSlider, LayoutSettings::alignHorizontallyCenter);
+
+        CycleButton<Boolean> clearPreviousButton = CycleButton.onOffBuilder(this.workingClearPreviousFlashOnSwap)
+                                                                 .create(
+                                                                         0, 0, topWidth, CHIP_H,
+                                                                         Component.translatable(
+                                                                                 "gui.visual-swap.clear_previous_flash.label"),
+                                                                         (button, value) -> {
+                                                                             this.workingClearPreviousFlashOnSwap = value;
+                                                                             refreshDirtyState();
+                                                                         }
+                                                                 );
+        clearPreviousButton.active = itemFlashOn;
+        clearPreviousButton.setTooltip(itemFlashOn
+                                       ? Tooltip.create(Component.translatable(
+                                               "gui.visual-swap.clear_previous_flash.help"))
+                                       : offTooltip(itemFlashOffSwitch()));
+        content.addChild(clearPreviousButton, LayoutSettings::alignHorizontallyCenter);
 
         content.addChild(new SpacerElement(0, 8));
 
@@ -766,6 +787,7 @@ public final class VisualSwapConfigScreen extends Screen
         this.workingHotbarHighlightEnabled = this.savedHotbarHighlightEnabled;
         this.workingItemFlashEnabled = this.savedItemFlashEnabled;
         this.workingFlashOnlyOnSwap = this.savedFlashOnlyOnSwap;
+        this.workingClearPreviousFlashOnSwap = this.savedClearPreviousFlashOnSwap;
         this.workingParticlesEnabled = this.savedParticlesEnabled;
         this.filterText = "";
         this.pendingRules = this.savedRules;
@@ -795,6 +817,7 @@ public final class VisualSwapConfigScreen extends Screen
                 this.workingHotbarHighlightEnabled != this.savedHotbarHighlightEnabled ||
                 this.workingItemFlashEnabled != this.savedItemFlashEnabled ||
                 this.workingFlashOnlyOnSwap != this.savedFlashOnlyOnSwap ||
+                this.workingClearPreviousFlashOnSwap != this.savedClearPreviousFlashOnSwap ||
                 this.workingParticlesEnabled != this.savedParticlesEnabled ||
                 !this.workingCustom.sameValuesAs(this.savedCustom) || !FlashRule.listsSameValues(
                 currentRules,
@@ -841,6 +864,7 @@ public final class VisualSwapConfigScreen extends Screen
         cfg.hotbarHighlightEnabled = this.workingHotbarHighlightEnabled;
         cfg.itemFlashEnabled = this.workingItemFlashEnabled;
         cfg.flashOnlyOnSwap = this.workingFlashOnlyOnSwap;
+        cfg.clearPreviousFlashOnSwap = this.workingClearPreviousFlashOnSwap;
         cfg.particlesEnabled = this.workingParticlesEnabled;
         cfg.clickFlashRules = this.list.toRules();
         AutoConfig.getConfigHolder(ModConfig.class).save();

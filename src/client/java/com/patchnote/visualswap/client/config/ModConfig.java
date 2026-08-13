@@ -32,6 +32,9 @@ public final class ModConfig implements ConfigData
     /// attack/use, regardless of a recent switch. Does not affect the hotbar highlight, which is always swap-driven.
     public boolean flashOnlyOnSwap = true;
 
+    /// Clear lingering item flashes when a qualifying attribute swap starts a fresh, non-consecutive hit.
+    public boolean clearPreviousFlashOnSwap = true;
+
     /* MASTER TOGGLES */
 
     /// Master switch: when false the mod does nothing at all — no swap detection, HUD effects, or particles.

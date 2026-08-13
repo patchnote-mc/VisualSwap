@@ -162,7 +162,9 @@ there are two source sets, both registered as the `visual-swap` mod:
     `ItemFlash` and `SwapWindowState`) is edited by a `TicksSlider` under the top grid and controls item flashes,
     attacked glyphs, and hotbar highlights together. A consecutive hit re-times all active chain item flashes to the
     latest hit's expiration. Chain credit itself uses a separate fixed two-tick click clock, so changing render
-    duration never changes which attribute swaps count as consecutive. **Flash trigger mode (2026-07-19):** the global
+    duration never changes which attribute swaps count as consecutive. `clearPreviousFlashOnSwap` clears older item-flash timelines only when a qualifying
+    attribute-swap input starts a fresh, non-consecutive hit; switching without that input respects their existing
+    timers. **Flash trigger mode (2026-07-19):** the global
     `ModConfig.flashOnlyOnSwap` (default on) gates the item flash — when on, a press only lights a slot when
     `SwapHandler.attributeSwapThisTick` reports that the same input belongs to `SwapWindowState.acceptsClick`'s
     two-tick attribute-swap window, including the end-of-tick observation bridge for its second valid input tick;
