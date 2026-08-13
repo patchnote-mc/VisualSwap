@@ -64,6 +64,11 @@ public class SwapHandler
         {
             int duration = ModConfig.get().flashVisibleTicks;
             boolean extendingChain = this.swapWindowState.willChain(tick);
+            // A plain item switch never clears feedback. Only a qualifying attribute-swap input may do so, and only
+            // when it is starting a fresh hit rather than extending the currently visible chain. ItemFlashHandler runs
+            // after this method, so the new slot is lit after older slot timelines are dropped.
+            if (this.attributeSwapThisTick && ModConfig.get().clearPreviousFlashOnSwap && !extendingChain)
+                ItemFlash.INSTANCE.clearActive();
             boolean credited = this.swapWindowState.eventClick(tick, duration);
             this.freshChainThisTick = credited && !extendingChain;
             if (credited && extendingChain)

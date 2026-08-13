@@ -41,6 +41,8 @@
   "gui.visual-swap.effects.item_flash.help": "Makes the selected hotbar item flash using its configured tint.",
   "gui.visual-swap.effects.only_on_swap.label": "Only on Swap",
   "gui.visual-swap.effects.only_on_swap.help": "When enabled, an item flashes only during attribute swap. When disabled, it flashes whenever the item is click or used as configured.",
+  "gui.visual-swap.clear_previous_flash.label": "Clear Previous Flash",
+  "gui.visual-swap.clear_previous_flash.help": "On a non-consecutive attribute swap, clears older item flashes before flashing the new item. Switching alone never clears them.",
   "gui.visual-swap.effects.particles.label": "Particles",
   "gui.visual-swap.effects.particles.help": "Displays particles when on attribute swapping.",
 

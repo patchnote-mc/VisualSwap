@@ -97,6 +97,13 @@ public final class ItemFlash
         }
     }
 
+    /// Drop lingering slot flashes and a sustained hold without rewinding the tick timeline.
+    public void clearActive()
+    {
+        Arrays.fill(this.slotsExpirationTick, NO_TICK);
+        this.heldSlot = NO_SLOT;
+    }
+
     public void reset()
     {
         Arrays.fill(this.slotsExpirationTick, NO_TICK);
