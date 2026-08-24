@@ -11,7 +11,7 @@ import com.patchnote.visualswap.client.screen.modal.EffectsModal;
 import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
 import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
 import me.shedaniel.autoconfig.AutoConfig;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.*;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -996,17 +996,17 @@ public final class VisualSwapConfigScreen extends Screen
     public void removed() { ItemFlashPreview.clear(); }
 
     @Override
-    public void extractRenderState(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a)
+    public void render(@NonNull GuiGraphics graphics, int mouseX, int mouseY, float a)
     {
         styleScrollPanel(graphics);
         // move mouse offscreen for screen's widget when modal is opened
         boolean modal = this.overlays.isModalOpen();
-        super.extractRenderState(graphics, modal ? -1 : mouseX, modal ? -1 : mouseY, a);
+        super.render(graphics, modal ? -1 : mouseX, modal ? -1 : mouseY, a);
         addStatusMarker(graphics);
-        this.overlays.extract(graphics, mouseX, mouseY, a);
+        this.overlays.render(graphics, mouseX, mouseY, a);
     }
 
-    private void styleScrollPanel(GuiGraphicsExtractor graphics)
+    private void styleScrollPanel(GuiGraphics graphics)
     {
         if (this.scrollArea == null) return;
 
@@ -1025,7 +1025,7 @@ public final class VisualSwapConfigScreen extends Screen
         graphics.blit(RenderPipelines.GUI_TEXTURED, footerSeparator, x, y + h, 0.0f, 0.0f, w, 2, 32, 2);
     }
 
-    private void addStatusMarker(GuiGraphicsExtractor graphics)
+    private void addStatusMarker(GuiGraphics graphics)
     {
         if (this.layout == null) return;
         int size = 8;

@@ -1,6 +1,6 @@
 package com.patchnote.visualswap.client.screen.overlay;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -37,7 +37,7 @@ final class GradientSlider extends AbstractWidget
     }
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected void renderWidget(@NonNull GuiGraphics g, int mouseX, int mouseY, float a)
     {
         int x = getX();
         int y = getY();
@@ -59,7 +59,7 @@ final class GradientSlider extends AbstractWidget
         g.fill(thumbX - 1, y - 2, thumbX + 2, y + h + 2, 0xFFF0F0F0);
     }
 
-    private static void extractChecker(GuiGraphicsExtractor g, int x, int y, int w, int h)
+    private static void extractChecker(GuiGraphics g, int x, int y, int w, int h)
     {
         for (int cy = 0; cy < h; cy += CHECKER_CELL)
         {

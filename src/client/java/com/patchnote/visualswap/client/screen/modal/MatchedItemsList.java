@@ -5,7 +5,7 @@ import com.patchnote.visualswap.client.config.screen.widget.Icons;
 import com.patchnote.visualswap.client.utils.ItemIcons;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractScrollArea;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -47,16 +47,16 @@ final class MatchedItemsList extends AbstractScrollArea
 
     MatchedItemsList(int x, int y, int width, int height, FlashRule rule, List<Row> rows)
     {
-        super(
-                x, y, width, height, Component.translatable("gui.visual-swap.preview.title"),
-                AbstractScrollArea.defaultSettings(SCROLL_RATE)
-        );
+        super(x, y, width, height, Component.translatable("gui.visual-swap.preview.title"));
         this.rule = rule;
         this.rows = rows;
     }
 
     @Override
     protected int contentHeight() { return this.rows.size() * ROW_H; }
+
+    @Override
+    protected double scrollRate() { return SCROLL_RATE; }
 
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick)
@@ -84,7 +84,7 @@ final class MatchedItemsList extends AbstractScrollArea
     }
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected void renderWidget(@NonNull GuiGraphics g, int mouseX, int mouseY, float a)
     {
         g.enableScissor(getX(), getY(), getRight(), getBottom());
         int scroll = (int) scrollAmount();
@@ -93,10 +93,10 @@ final class MatchedItemsList extends AbstractScrollArea
         for (int i = first; i < last; i++) drawRow(g, i, getY() - scroll + i * ROW_H, mouseX, mouseY);
         g.disableScissor();
 
-        extractScrollbar(g, mouseX, mouseY);
+        renderScrollbar(g, mouseX, mouseY);
     }
 
-    private void drawRow(GuiGraphicsExtractor g, int i, int rowY, int mouseX, int mouseY)
+    private void drawRow(GuiGraphics g, int i, int rowY, int mouseX, int mouseY)
     {
         Row row = this.rows.get(i);
         boolean included = !this.rule.isExcluded(row.id().toString());
@@ -124,19 +124,19 @@ final class MatchedItemsList extends AbstractScrollArea
         }
         else
         {
-            g.item(stack, iconX, iconY);
+            g.renderItem(stack, iconX, iconY);
         }
 
         // id text — matched substrings highlighted, dimmed as a whole when excluded
         int textX = iconX + ICON + GAP;
         int textY = rowY + (ROW_H - this.font.lineHeight) / 2;
         if (included) drawHighlighted(g, row.text(), row.spans(), textX, textY);
-        else g.text(this.font, row.text(), textX, textY, EXCLUDED_ARGB, false);
+        else g.drawString(this.font, row.text(), textX, textY, EXCLUDED_ARGB, false);
     }
 
     /// Draw {@code id} run by run, colouring the regex-matched spans with {@link #HIT_ARGB} and the rest with
     /// {@link #ID_ARGB}. {@code spans} is a sorted, non-overlapping {@code [start,end,…]} list.
-    private void drawHighlighted(GuiGraphicsExtractor g, String id, int[] spans, int x, int y)
+    private void drawHighlighted(GuiGraphics g, String id, int[] spans, int x, int y)
     {
         int cursor = x;
         int i = 0;
@@ -146,7 +146,7 @@ final class MatchedItemsList extends AbstractScrollArea
             boolean inSpan = s < spans.length && i >= spans[s] && i < spans[s + 1];
             int runEnd = inSpan ? spans[s + 1] : (s < spans.length ? spans[s] : id.length());
             String run = id.substring(i, runEnd);
-            g.text(this.font, run, cursor, y, inSpan ? HIT_ARGB : ID_ARGB, false);
+            g.drawString(this.font, run, cursor, y, inSpan ? HIT_ARGB : ID_ARGB, false);
             cursor += this.font.width(run);
             i = runEnd;
             if (inSpan) s += 2;

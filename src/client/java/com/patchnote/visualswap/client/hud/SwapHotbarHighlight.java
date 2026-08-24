@@ -4,7 +4,7 @@ import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.mixin.HudHotbarHighlightMixin;
 import com.patchnote.visualswap.client.utils.ColorHelpers;
 import com.patchnote.visualswap.client.utils.HotbarGeometry;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 
 /// Highlights the Hotbar Slots when Swapped
@@ -42,7 +42,7 @@ public final class SwapHotbarHighlight
     /* MIXIN CALLS */
 
     /// Called Via {@link HudHotbarHighlightMixin}
-    public void highlightSlot(GuiGraphicsExtractor graphics, int slotX, int slotY)
+    public void highlightSlot(GuiGraphics graphics, int slotX, int slotY)
     {
         if (!this.active || this.trailLen == 0 || !ModConfig.get().hotbarHighlightActive()) return;
 
@@ -72,7 +72,7 @@ public final class SwapHotbarHighlight
         return ColorHelpers.lerpColorHSV(fromColor, toColor, t);
     }
 
-    private static void fillSlot(GuiGraphicsExtractor graphics, int x, int y, int color)
+    private static void fillSlot(GuiGraphics graphics, int x, int y, int color)
     {
         graphics.fill(RenderPipelines.GUI, x, y, x + HotbarGeometry.SLOT_SIZE, y + HotbarGeometry.SLOT_SIZE, color);
     }

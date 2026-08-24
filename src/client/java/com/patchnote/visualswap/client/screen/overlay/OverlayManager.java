@@ -1,16 +1,16 @@
 package com.patchnote.visualswap.client.screen.overlay;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import org.jspecify.annotations.Nullable;
 
 /// Hosts one {@link Overlay} (plus a transient hover tooltip) on top of a screen. The owning screen delegates every
-/// input event here FIRST (a consumed event never reaches the page) and calls {@link #extract} LAST so overlays render
+/// input event here FIRST (a consumed event never reaches the page) and calls {@link #render} LAST so overlays render
 /// above all normal content, on their own strata.
 ///
-/// Hover tooltips are immediate-mode: a widget calls {@link #showTooltip} every frame it is hovered (from its extract
+/// Hover tooltips are immediate-mode: a widget calls {@link #showTooltip} every frame it is hovered (from its render
 /// pass); the tooltip disappears the first frame it is not re-requested.
 public final class OverlayManager
 {
@@ -104,20 +104,20 @@ public final class OverlayManager
 
     /* RENDER */
 
-    /// Draw the overlay layer — call at the END of the screen's extract so overlays sit above everything.
-    public void extract(GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    /// Draw the overlay layer — call at the end of the screen render so overlays sit above everything.
+    public void render(GuiGraphics g, int mouseX, int mouseY, float a)
     {
         if (this.overlay != null)
         {
             g.nextStratum();
-            this.overlay.extractRenderState(g, mouseX, mouseY, a);
+            this.overlay.render(g, mouseX, mouseY, a);
         }
         if (this.tooltip != null)
         {
             if (this.tooltipRequested)
             {
                 g.nextStratum();
-                this.tooltip.extractRenderState(g, mouseX, mouseY, a);
+                this.tooltip.render(g, mouseX, mouseY, a);
             }
             else
             {

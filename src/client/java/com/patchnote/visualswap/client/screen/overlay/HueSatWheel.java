@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import com.patchnote.visualswap.VisualSwap;
 import com.patchnote.visualswap.client.utils.ColorHelpers;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -74,7 +74,7 @@ final class HueSatWheel extends AbstractWidget
     }
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected void renderWidget(@NonNull GuiGraphics g, int mouseX, int mouseY, float a)
     {
         float[] hsv = this.hsv.get();
 

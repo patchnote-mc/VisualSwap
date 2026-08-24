@@ -2,7 +2,7 @@ package com.patchnote.visualswap.client.screen.overlay;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
@@ -71,12 +71,12 @@ public final class TooltipOverlay extends Overlay
     public boolean isModal() { return false; }
 
     @Override
-    protected void extractContent(GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected void renderContent(GuiGraphics g, int mouseX, int mouseY, float a)
     {
         int y = contentY();
         for (int i = 0; i < this.lines.size(); i++)
         {
-            g.text(this.font, this.lines.get(i), contentX(), y, 0xFFFFFFFF, true);
+            g.drawString(this.font, this.lines.get(i), contentX(), y, 0xFFFFFFFF, true);
             y += LINE_HEIGHT + (i == 0 ? TITLE_GAP : 0);
         }
     }

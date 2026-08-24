@@ -6,7 +6,7 @@ import com.patchnote.visualswap.client.particles.SwapHitMasks;
 import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
 import com.patchnote.visualswap.client.screen.overlay.TooltipOverlay;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -67,7 +67,7 @@ public final class GlyphPreview extends AbstractWidget
     }
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a)
+    protected void renderWidget(@NonNull GuiGraphics graphics, int mouseX, int mouseY, float a)
     {
         int x = getX();
         for (Entry entry : ENTRIES)
@@ -94,7 +94,7 @@ public final class GlyphPreview extends AbstractWidget
         if (entry != null) this.onSelect.accept(entry.mask().name(), event.hasShiftDown());
     }
 
-    private void drawTile(GuiGraphicsExtractor graphics, Entry entry, int x, int y, boolean hovered)
+    private void drawTile(GuiGraphics graphics, Entry entry, int x, int y, boolean hovered)
     {
         SwapHitMasks.Mask mask = entry.mask();
         boolean isSelected = this.preset.get().isCustom() && this.selected.test(mask.name());
@@ -167,7 +167,7 @@ public final class GlyphPreview extends AbstractWidget
         if ("consecutive".equals(mask.name())) drawCounterBars(graphics, type, left, top, mask, glyphColor);
     }
 
-    private static void drawCounterBars(GuiGraphicsExtractor graphics, PresetType type, int left, int top,
+    private static void drawCounterBars(GuiGraphics graphics, PresetType type, int left, int top,
                                         SwapHitMasks.Mask mask, int color)
     {
         int rightStart = left + mask.width() * GLYPH_SCALE + COUNTER_GAP;

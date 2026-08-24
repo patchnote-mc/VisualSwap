@@ -2,7 +2,7 @@ package com.patchnote.visualswap.client.screen.overlay;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -39,7 +39,7 @@ final class TabButton extends AbstractWidget
     public void onClick(@NonNull MouseButtonEvent event, boolean doubleClick) { this.onPress.run(); }
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected void renderWidget(@NonNull GuiGraphics g, int mouseX, int mouseY, float a)
     {
         boolean sel = this.selected.getAsBoolean();
         int bg = sel ? BG_SELECTED : isHovered() ? BG_HOVERED : BG_IDLE;
@@ -50,7 +50,7 @@ final class TabButton extends AbstractWidget
 
         int tx = getX() + (this.width - this.font.width(getMessage())) / 2;
         int ty = getY() + (this.height - this.font.lineHeight) / 2 + 1;
-        g.text(this.font, getMessage(), tx, ty, sel ? TEXT_SELECTED : TEXT_IDLE, false);
+        g.drawString(this.font, getMessage(), tx, ty, sel ? TEXT_SELECTED : TEXT_IDLE, false);
     }
 
     @Override

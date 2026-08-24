@@ -1,7 +1,7 @@
 package com.patchnote.visualswap.client.config.screen.widget;
 
 import com.patchnote.visualswap.client.utils.ColorHelpers;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -56,7 +56,7 @@ public final class ColorSwatch extends AbstractWidget
     }
 
     @Override
-    protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float a)
     {
         int x = getX();
         int y = getY();

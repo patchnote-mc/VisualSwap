@@ -2,7 +2,7 @@ package com.patchnote.visualswap.client.config.screen.widget;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -43,7 +43,7 @@ final class ItemPreviewButton extends AbstractWidget
     }
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected void renderWidget(@NonNull GuiGraphics g, int mouseX, int mouseY, float a)
     {
         int x = getX();
         int y = getY();
@@ -57,14 +57,14 @@ final class ItemPreviewButton extends AbstractWidget
         }
         else
         {
-            g.item(item, x, y);
+            g.renderItem(item, x, y);
         }
 
         int count = this.matchCount.getAsInt();
         if (count > 1)
         {
             String badge = "×" + count;   // ×N
-            g.text(
+            g.drawString(
                     this.font,
                     badge,
                     x + ICON - this.font.width(badge),
