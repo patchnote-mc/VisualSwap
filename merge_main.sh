@@ -154,10 +154,6 @@ require jq   # json processor
 
 # config
 REPO="patchnote-mc/VisualSwap"
-# release line: <MC_VERSION>-staging -> <MC_VERSION>-main
-MC_VERSION="26.1"
-STAGING="${MC_VERSION}-staging"
-MAIN="${MC_VERSION}-main"
 
 # read a property from gradle.properties (script must be run from the repo root)
 prop() { grep -E "^$1[[:space:]]*=" gradle.properties 2>/dev/null | head -1 | cut -d= -f2- | tr -d '[:space:]'; }
@@ -170,6 +166,9 @@ MC_VERSION_PROP="$(prop minecraft_version || true)"
 LOADER_VERSION="$(prop loader_version || true)"
 FABRIC_API_VERSION="$(prop fabric_api_version || true)"
 [ -n "$MOD_VERSION" ] && [ -n "$MC_VERSION_PROP" ] || { fail "Could not read mod_version / minecraft_version from gradle.properties - run this from the repo root."; exit 1; }
+# release line: <minecraft_version>-staging -> <minecraft_version>-main
+STAGING="${MC_VERSION_PROP}-staging"
+MAIN="${MC_VERSION_PROP}-main"
 FULL_VERSION="v${MOD_VERSION}+mc-${MC_VERSION_PROP}"
 PR_TITLE="$FULL_VERSION"
 
