@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-clear
-clear
-clear
+clear || true
+clear || true
+clear || true
 
 RED=$'\033[0;31m'
 GREEN=$'\033[0;32m'
@@ -27,13 +27,19 @@ run() {
 }
 
 REPO="https://github.com/FabricMC/fabric-api.git"
-TAG="0.145.1+26.1"
-DEST="fabric_decompiled/sources/$TAG"
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+REPO_ROOT=$(cd -- "$SCRIPT_DIR/.." && pwd)
+TAG=$(grep -E '^fabric_api_version[[:space:]]*=' "$REPO_ROOT/gradle.properties" | head -1 | cut -d= -f2- | tr -d '[:space:]')
+[[ -n "$TAG" ]] || {
+  fail "fabric_api_version is missing from $REPO_ROOT/gradle.properties"
+  exit 1
+}
+DEST="$SCRIPT_DIR/sources/$TAG"
 
-step "Remove Existing ... "
+step "Step 1/3 — Remove existing Fabric API $TAG sources"
 run rm -rf "$DEST"
 
-step "Cloning ... "
+step "Step 2/3 — Clone Fabric API $TAG"
 run git clone \
     --branch "$TAG" \
     --depth 1 \
@@ -41,7 +47,7 @@ run git clone \
     "$REPO" \
     "$DEST"
 
-step "Removing Git ... "
+step "Step 3/3 — Remove nested Git metadata"
 run rm -rf "$DEST/.git"
 
 success "Fabric API $TAG cloned into $DEST"
