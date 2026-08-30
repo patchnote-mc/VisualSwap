@@ -179,8 +179,8 @@ public final class FlashRuleRow extends AbstractContainerWidget
         input.setMaxLength(256);
         input.setHint(Component.translatable("gui.visual-swap.rules.item.hint"));
         input.setValue(rule.item() == null ? "" : rule.item());
-        input.setResponder(this::onItemEdited);
         input.moveCursorToStart(false);
+        input.setResponder(this::onItemEdited);
         return input;
     }
 
