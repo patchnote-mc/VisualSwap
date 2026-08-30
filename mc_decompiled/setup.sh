@@ -30,7 +30,8 @@ usage() {
   cat <<'EOF'
 Usage: mc_decompiled/setup.sh [--gradle-cache] [--version VERSION]
 
-Without flags, downloads and decompiles Minecraft 26.2 as before.
+Without flags, downloads and decompiles the minecraft_version configured in
+gradle.properties.
 
   --gradle-cache     Copy Loom-mapped jars and generated sources from the
                      repository's local Gradle cache. Uses minecraft_version
@@ -137,8 +138,7 @@ download() {
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/.." && pwd)
 MODE="download"
-VERSION="26.2"
-VERSION_SET="false"
+VERSION=""
 
 while (( $# > 0 )); do
   case "$1" in
@@ -153,7 +153,6 @@ while (( $# > 0 )); do
         exit 2
       }
       VERSION="$2"
-      VERSION_SET="true"
       shift 2
       ;;
     -h|--help)
@@ -168,7 +167,7 @@ while (( $# > 0 )); do
   esac
 done
 
-if [[ "$MODE" == "gradle-cache" && "$VERSION_SET" == "false" ]]; then
+if [[ -z "$VERSION" ]]; then
   VERSION=$(project_minecraft_version)
 fi
 
