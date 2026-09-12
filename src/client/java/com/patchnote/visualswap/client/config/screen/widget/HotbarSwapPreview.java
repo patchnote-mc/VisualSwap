@@ -11,7 +11,7 @@ import com.patchnote.visualswap.client.screen.overlay.TooltipOverlay;
 import com.patchnote.visualswap.client.utils.ItemIcons;
 import com.patchnote.visualswap.client.utils.ItemRegex;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -39,7 +39,7 @@ import java.util.function.Supplier;
 /// back to the mace rule), so its id/colour/intensity are re-read live every frame.
 public final class HotbarSwapPreview extends AbstractWidget
 {
-    // Vanilla hotbar geometry (Hud.extractItemHotbar): 182x22 texture; slot items 16px at u=3+20i, v=3; 4px dividers;
+    // Vanilla hotbar geometry (Gui.renderItemHotbar): 182x22 texture; slot items 16px at u=3+20i, v=3; 4px dividers;
     // 3px outer edges; the 24x23 selection frame overhangs its slot by 1px on every side.
     private static final Identifier HOTBAR_SPRITE = Identifier.withDefaultNamespace("hud/hotbar");
     private static final Identifier HOTBAR_SELECTION_SPRITE = Identifier.withDefaultNamespace("hud/hotbar_selection");
@@ -104,7 +104,7 @@ public final class HotbarSwapPreview extends AbstractWidget
     }
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected void renderWidget(@NonNull GuiGraphics g, int mouseX, int mouseY, float a)
     {
         int bx = getX() + PAD;
         int by = getY() + PAD;
@@ -131,13 +131,13 @@ public final class HotbarSwapPreview extends AbstractWidget
         g.fill(RenderPipelines.GUI, fromX, itemY, fromX + ITEM_SIZE, itemY + ITEM_SIZE, this.fromColor.getAsInt());
         g.fill(RenderPipelines.GUI, toX, itemY, toX + ITEM_SIZE, itemY + ITEM_SIZE, this.toColor.getAsInt());
 
-        if (!this.fromItem.isEmpty()) g.item(this.fromItem, fromX, itemY);
+        if (!this.fromItem.isEmpty()) g.renderItem(this.fromItem, fromX, itemY);
 
         refreshFlashItem();
         ItemFlashPreview.clear();
         if (!this.flashItem.isEmpty())
         {
-            g.item(this.flashItem, toX, itemY);
+            g.renderItem(this.flashItem, toX, itemY);
             ItemFlashPreview.register(toX, itemY, flashTint());
         }
 
@@ -145,7 +145,7 @@ public final class HotbarSwapPreview extends AbstractWidget
         slotTooltip(DESTINATION_TOOLTIP, toX, itemY, mouseX, mouseY);
     }
 
-    private static void drawGrassBackground(GuiGraphicsExtractor graphics, int x, int y)
+    private static void drawGrassBackground(GuiGraphics graphics, int x, int y)
     {
         int cropSize = GRASS_TEXTURE_SIZE / BACKGROUND_ZOOM;
         int cropOffset = (GRASS_TEXTURE_SIZE - cropSize) / 2;

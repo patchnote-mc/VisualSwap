@@ -1,4 +1,4 @@
-<!-- last updated: 2026-07-19 -->
+<!-- last updated: 2026-08-24 -->
 
 # AGENTS.md — Visual Swap architecture & flows
 
@@ -8,7 +8,7 @@ longer design notes in `.llm/`.
 
 ## What this mod is
 
-Visual Swap is a **client-side-only** Fabric mod for Minecraft `26.2` that
+Visual Swap is a **client-side-only** Fabric mod for Minecraft `1.21.11` that
 visualizes the *attribute-swapping* behavior (the "swap hit" bug) — the case
 where a follow-up attack lands using a stale/swapped attribute snapshot. The
 mod's job is purely cosmetic/diagnostic: surface when a swap-hit happens via an
@@ -24,7 +24,7 @@ on the client.
 > the items. All driven from `swap_hit_masks.json`. **Stun slam (2026-06-30):** two
 > or more swap-hits chained back-to-back (a second qualifying swap landing while the
 > first's flash is still on screen) escalate the display — the glyph switches to the
-> `consecutive` mask with an `xN` chain counter, and the hotbar lights the whole chain
+> `consecutive` mask with mirrored chain-count marks, and the hotbar lights the whole chain
 > of slots as a heat gradient (origin → latest hit) instead of the single from→to pair.
 
 ## Client-only contract (important)
@@ -88,7 +88,7 @@ there are two source sets, both registered as the `visual-swap` mod:
       icon buttons on the right (aligned above each row's duplicate/delete icons), all off
       the same right-anchored column maths as the rows. The whole middle is a `ScrollableLayout` styled like a
       vanilla list panel (`menu_list_background` + header/footer separators drawn
-      in the screen's `extractRenderState` override). Content: a 2×3 `GridLayout`
+      in the screen's `render` override). Content: a 2×3 `GridLayout`
       on top — preset selector & size slider | From/To colour **swatches** |
       `HotbarSwapPreview` + a **Reset colours** icon button in the bottom-right cell — followed by a Custom-only glyph
       colour swatch with a live `GlyphPreview`, the shared feedback-duration slider, and the configurable
@@ -132,7 +132,7 @@ there are two source sets, both registered as the `visual-swap` mod:
       now survive restarts. `ModConfig` holds `preset` (active `PresetType`) + `customPresetData`
       (the Custom `Preset` data object); `ModConfig.getFromColor/getToColor/getGlyphColor/getSize()` resolve
       to `customPresetData` under Custom else the type's default, and the render consumers
-      (`SwapHotbarHighlight`, `SwapHitMasks`, `SwapParticleProvider`) read those. The glyph preview renders all four
+      (`SwapHotbarHighlight`, `SwapHitMasks`, `ParticlesHandler`) read those. The glyph preview renders all four
       masks
       at their in-game pixel scale on switchable grass/sky crops; clicking selects a Custom colour target and
       Shift-click
@@ -192,14 +192,14 @@ there are two source sets, both registered as the `visual-swap` mod:
       / **clear-all** rows, a live rule count + **empty state**, an invalid-item warning on
       Done (`FlashRulesList.invalidCount()`), and vanilla `.setTooltip` hints on the preset /
       trigger / intensity / size / action controls. Destructive actions confirm through a
-      `ConfirmModal` (see the `screen.modal` package below). Uses the 26.2 extract-render
-      model — see `mc_decompiled/.knowledge/screen-and-widget-api.txt` and
-      `mc_decompiled/.knowledge/gui-layouts.txt`.
+      `ConfirmModal` (see the `screen.modal` package below). Uses the 1.21.11
+      immediate `GuiGraphics` render model; verify exact APIs against
+      `mc_decompiled/sources/1.21.11/{common_src,client_src}`.
     - `com.patchnote.visualswap.client.screen.overlay.*` — a reusable floating-layer
       framework for any screen (built for the config screen; intended for onboarding
       callouts later). `Overlay` (abstract, vanilla tooltip nine-slice panel, child
       widgets move with it, modal vs passive) + `OverlayManager` (one per screen: the
-      screen routes every input event to it FIRST and calls `extract` LAST on its own
+      screen routes every input event to it FIRST and calls `render` LAST on its own
       strata; modal overlays capture input, click-outside/Esc dismisses; hover tooltips
       are immediate-mode — re-request each frame via `showTooltip`). Subclasses:
       `TooltipOverlay` (vanilla-look tooltip at any position from arbitrary `Component`
@@ -217,13 +217,13 @@ there are two source sets, both registered as the `visual-swap` mod:
     - `com.patchnote.visualswap.client.screen.modal.*` — modals that are their *own*
       `Screen` (vs. the in-screen overlays above). `Modal` (abstract) captures whatever
       screen was open as its **backdrop**, renders it dimmed behind a centred panel (via a
-      scrim + the backdrop's `extractRenderState` with an off-screen mouse), and returns to
+      scrim + the backdrop's `render` with an off-screen mouse), and returns to
       it on close — so it owns all screen routing and can be opened from anywhere with
       `open()`. `ConfirmModal` is the yes/no dialog (title + wrapped body + Cancel/Confirm); its panel height follows
       the rendered title/body line count so translated copy cannot overflow. It gates the
       reset/clear/discard/leave-unsaved actions; after Confirm runs the action it
       returns to the backdrop **only if the action didn't itself navigate away** (checked
-      via `Minecraft.gui.screen()`). `RegexPreviewModal` (+ `MatchedItemsList`, an `AbstractScrollArea`) previews a
+      via `Minecraft.getInstance().screen`). `RegexPreviewModal` (+ `MatchedItemsList`, an `AbstractScrollArea`) previews a
       rule's
       regex: a scrollable table of every matched item (icon + id, the matched substring highlighted via
       `ItemRegex.spans`),
@@ -231,7 +231,7 @@ there are two source sets, both registered as the `visual-swap` mod:
       but
       drop `cod_bucket` without touching the pattern. Edits land on the shared working rule; returning re-inits the
       config
-      screen (which always re-`init`s on show), which picks them up. `utils/ItemIcons` builds the bind-safe item stacks.
+      screen (which always re-`init`s on show), which picks them up. `utils/ItemIcons` builds the preview item stacks.
       `RuleConfigModal` hosts a rule's secondary settings — the flash Strength cycler plus independent Glyph and Hotbar
       Highlight toggles — opened from the row's config (gear) button; it mirrors the `EffectsModal` look (full-width
       rows, hovering a
@@ -250,7 +250,7 @@ Mixins:
       hotbar slot (hotbar keys and scroll both route through `setSelectedSlot`), so a
       switch is registered even when it lands on the slot already held or on an
       identical item — cases the held-item comparison can't see.
-    - `HudHotbarHighlightMixin` (`Hud.extractSlot` HEAD) — draws the swap
+    - `HudHotbarHighlightMixin` (`Gui.renderSlot` HEAD) — draws the swap
       highlight fill behind hotbar items, which the HUD-element API can't reach.
     - `HotbarItemGlowMixin` (`GuiRenderer.submitBlitFromItemAtlas` TAIL) —
       re-blits a flashing hotbar item as a `WHITE_SILHOUETTE` tint silhouette
@@ -259,7 +259,7 @@ Mixins:
       preview: re-blits any GUI item registered in `ItemFlashPreview`
       (position-keyed, frame-scoped) through the same silhouette path.
 
-Both target `compatibilityLevel: JAVA_25` and require annotations
+Both target `compatibilityLevel: JAVA_21` and require annotations
 (`overwrites.requireAnnotations = true`, `injectors.defaultRequire = 1`).
 
 ## Build pipeline
@@ -290,8 +290,8 @@ Standard Loom build (`./gradlew build`) with one project-specific wrinkle: the
   (`sourceSets.main.resources.srcDir generatedParticleDir`), so the PNGs ship in
   the jar **without being committed**. `processResources` and `sourcesJar`
   `dependsOn bakeParticleSprites`.
-- `processResources` also expands `${version}` in `fabric.mod.json` from
-  `project.version` (`mod_version` in `gradle.properties`).
+- `processResources` expands the version, Minecraft, Loader, and Cloth Config
+  placeholders in `fabric.mod.json` from `gradle.properties`.
 
 Edit a mask in the JSON and **both** the HUD glyph (read at runtime by
 `SwapHitGlyph`) and the baked particle update from the same data.
@@ -299,12 +299,14 @@ Edit a mask in the JSON and **both** the HUD glyph (read at runtime by
 ## Toolchain / versions
 
 See `CLAUDE.md` and `gradle.properties` for the authoritative list. In short:
-Minecraft `26.2`, Fabric Loader `0.19.3`, Fabric API `0.153.0+26.2`, Loom
-`1.17-SNAPSHOT`, Gradle wrapper `9.5.1`, Java `25`, **Mojang mappings only**
-(never Yarn). Decompiled sources are vendored as git submodules, initialized via the
-`mc_decompiled/` and `fabric_decompiled/` setup scripts — consult them only when
-something won't compile or an API is genuinely unclear, and cache findings under
-the `*_decompiled/.index` / `.knowledge` dirs (see `.github/copilot-instructions.md`).
+Minecraft `1.21.11`, Fabric Loader `0.19.3`, Fabric API `0.141.6+1.21.11`, Loom
+`1.17.19`, Gradle wrapper `9.5.1`, Java `21`, **Mojang mappings only** (never
+Yarn). Run `./gradlew genSources` followed by
+`./mc_decompiled/setup.sh --gradle-cache` for local Minecraft sources; use
+`fabric_decompiled/setup.sh` for the configured Fabric API tag. Consult them only
+when something will not compile or an API is genuinely unclear, and cache findings
+under the `*_decompiled/.index` / `.knowledge` dirs (see
+`.github/copilot-instructions.md`).
 
 ## Swap-window detection & rendering
 
@@ -352,12 +354,11 @@ pushes render state each tick.
   when that flash began (OR-extended across a chain), so switching away mid-flash does not cut it short. It rasterizes
   the
   mask `rows` (shared, cached `SwapHitMasks`) with the active `PresetType`/Custom per-state colour to the HUD
-  (`GuiGraphicsExtractor.fill`), registered `attachElementAfter(HOTBAR)` and drawn
+  (`GuiGraphics.fill`), registered `attachElementAfter(HOTBAR)` and drawn
   centred horizontally at screen-centre + `VERTICAL_OFFSET`. Mask priority is
   `consecutive > failed > attacked > possible`. Under Custom each HUD mask uses its own persisted glyph colour
-  (particles remain tied to From/To). When `chainCount >= 2` an `xN`
-  counter (`GuiGraphicsExtractor.text`, `Minecraft.font`) is drawn to the right of
-  the glyph in the mask's colour.
+  (particles remain tied to From/To). When `chainCount >= 2`, one vertical mark per
+  hit is drawn on both sides of the glyph in the mask's colour.
 - **Failed glyph** — *not* a separate state; it is the **`attacked` flash rendered
   with the `failed` mask**. `eventSwap(tick, failed)` records whether the swap landed
   on a **piercing weapon** (`PIERCING_WEAPON` component, via `ClickTickState.hasPiercingComponent`)
@@ -411,4 +412,4 @@ footprint. **Do not reintroduce a `ParticleType`/`ParticleOptions`.** See
 
 Tunable constants: `SwapWindowState.WINDOW_TICKS`,
 `SwapHitGlyph.SCALE`/`VERTICAL_OFFSET`, `ParticlesHandler.PARTICLES_PER_HIT`/`MAX_CHAIN_HITS`,
-the `SwapParticleOptions` per-tier presets, and the `AttackParticleProps` style params.
+the `ParticlesHandler.Tier` per-tier presets, and the `AttackParticleProps` style params.

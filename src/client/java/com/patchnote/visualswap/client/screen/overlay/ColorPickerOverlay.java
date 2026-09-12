@@ -3,7 +3,7 @@ package com.patchnote.visualswap.client.screen.overlay;
 import com.patchnote.visualswap.client.utils.ColorHelpers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
@@ -258,7 +258,7 @@ public final class ColorPickerOverlay extends Overlay
     /* RENDER */
 
     @Override
-    protected void extractBackground(GuiGraphicsExtractor g)
+    protected void renderBackground(GuiGraphics g)
     {
         int x0 = getX();
         int y0 = getY();
@@ -272,7 +272,7 @@ public final class ColorPickerOverlay extends Overlay
     }
 
     @Override
-    protected void extractContent(GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected void renderContent(GuiGraphics g, int mouseX, int mouseY, float a)
     {
         extractColorChip(g);
         g.fill(contentX(), bodyY() - 4, contentX() + CONTENT_W, bodyY() - 3, DIVIDER);  // under the tabs
@@ -295,14 +295,14 @@ public final class ColorPickerOverlay extends Overlay
         }
     }
 
-    private void sliderLabel(GuiGraphicsExtractor g, String channel, int sliderY)
+    private void sliderLabel(GuiGraphics g, String channel, int sliderY)
     {
         String label = Component.translatable("gui.visual-swap.picker.channel." + channel).getString();
-        g.text(this.font, label, contentX(), sliderY + (SLIDER_H - this.font.lineHeight) / 2 + 1, LABEL_ARGB, false);
+        g.drawString(this.font, label, contentX(), sliderY + (SLIDER_H - this.font.lineHeight) / 2 + 1, LABEL_ARGB, false);
     }
 
     /// The live colour, top-right beside the tabs (over a checker when translucent).
-    private void extractColorChip(GuiGraphicsExtractor g)
+    private void extractColorChip(GuiGraphics g)
     {
         int x = contentX() + CONTENT_W - CHIP;
         int y = contentY();

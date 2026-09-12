@@ -5,11 +5,11 @@ import com.patchnote.visualswap.client.hud.click.ItemFlash;
 import com.patchnote.visualswap.client.hud.click.ItemFlashPipeline;
 import com.patchnote.visualswap.client.utils.Constants;
 import com.patchnote.visualswap.client.utils.HotbarGeometry;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.render.GuiItemAtlas;
 import net.minecraft.client.gui.render.GuiRenderer;
-import net.minecraft.client.renderer.state.gui.GuiItemRenderState;
-import net.minecraft.client.renderer.state.gui.GuiRenderState;
+import net.minecraft.client.gui.render.state.GuiItemRenderState;
+import net.minecraft.client.gui.render.state.GuiRenderState;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -27,11 +27,15 @@ public class HotbarItemGlowMixin
     @Final
     private GuiRenderState renderState;
 
+    @Shadow
+    private GpuTextureView itemsAtlasView;
+
     @Inject(
-            method = "submitBlitFromItemAtlas(Lnet/minecraft/client/renderer/state/gui/GuiItemRenderState;Lnet/minecraft/client/gui/render/GuiItemAtlas$SlotView;)V",
+            method = "submitBlitFromItemAtlas(Lnet/minecraft/client/gui/render/state/GuiItemRenderState;FFII)V",
             at = @At("TAIL")
     )
-    private void visualswap$glowClickedSlot(GuiItemRenderState itemState, GuiItemAtlas.SlotView slotView,
+    private void visualswap$glowClickedSlot(GuiItemRenderState itemState, float u, float v,
+                                            int itemSize, int atlasSize,
                                             CallbackInfo ci)
     {
         if (!ModConfig.get().itemFlashActive()) return;
@@ -44,7 +48,7 @@ public class HotbarItemGlowMixin
         if (slot == Constants.NO_SLOT) return;
         if (mc.player == null || !ItemFlash.INSTANCE.isActive(slot, mc.player.tickCount)) return;
 
-        this.renderState.addBlitToCurrentLayer(
-                ItemFlashPipeline.silhouetteBlit(itemState, slotView, ItemFlash.INSTANCE.getTintFor(slot)));
+        this.renderState.submitBlitToCurrentLayer(ItemFlashPipeline.silhouetteBlit(
+                itemState, this.itemsAtlasView, u, v, itemSize, atlasSize, ItemFlash.INSTANCE.getTintFor(slot)));
     }
 }

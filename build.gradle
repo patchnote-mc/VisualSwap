@@ -3,7 +3,7 @@ import javax.imageio.ImageIO
 import java.awt.image.BufferedImage
 
 plugins {
-    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+    id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
     id 'maven-publish'
 }
 
@@ -46,15 +46,15 @@ dependencies {
     // To change the versions see the gradle.properties file
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
 
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     // Fabric API. This is technically optional, but you probably want it anyway.
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
-    // Loom 1.17 on MC 26.x no longer remaps mods (Mojang mappings ship deobfuscated),
-    // so mod deps use plain implementation — there is no modImplementation/modApi.
-    implementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
-    implementation "maven.modrinth:modmenu:${project.modmenu_version}"
+    // Minecraft 1.21.11 is obfuscated, so Loom remaps mod dependencies and the output jar.
+    modImplementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
+    modImplementation "maven.modrinth:modmenu:${project.modmenu_version}"
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.0"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.10.0"
@@ -129,16 +129,21 @@ tasks.named("processResources") { dependsOn tasks.named("bakeParticleSprites") }
 tasks.matching { it.name == "sourcesJar" }.configureEach { dependsOn tasks.named("bakeParticleSprites") }
 
 processResources {
-    def version = project.version
-    inputs.property "version", version
+    def resourceProperties = [
+            version             : project.version,
+            minecraft_version   : project.minecraft_version,
+            loader_version      : project.loader_version,
+            cloth_config_version: project.cloth_config_version
+    ]
+    inputs.properties resourceProperties
 
     filesMatching("fabric.mod.json") {
-        expand "version": version
+        expand resourceProperties
     }
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 25
+    it.options.release = 21
 }
 
 java {
@@ -147,8 +152,8 @@ java {
     // If you remove this line, sources will not be generated.
     withSourcesJar()
 
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 jar {

@@ -7,7 +7,7 @@ import java.util.Map;
 
 /// Frame-scoped registry that lets a screen widget flash arbitrary GUI items through the real
 /// {@link ItemFlashPipeline#WHITE_SILHOUETTE} shader path. A widget registers each preview item's exact draw position
-/// and packed tint during its extract pass; the {@code GuiItemFlashPreviewMixin} then re-blits any atlas item whose
+/// and packed tint during its render pass; the {@code GuiItemFlashPreviewMixin} then re-blits any atlas item whose
 /// position matches. Position is the only correlation available — {@code GuiItemRenderState} carries no source info.
 ///
 /// Render-thread only. The owning widget clears + re-registers every frame; the owning screen clears on

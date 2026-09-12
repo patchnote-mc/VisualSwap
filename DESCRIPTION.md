@@ -45,7 +45,7 @@ This Mod allows you to configure:
 
 Any of the following Minecraft version
 
-|        Version        |
-| :-------------------: |
-|         26.2          |
-| 1.21.11 (Coming Soon) |
+| Version |
+| :-----: |
+|  26.2   |
+| 1.21.11 |

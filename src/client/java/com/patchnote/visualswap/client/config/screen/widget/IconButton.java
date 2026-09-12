@@ -1,6 +1,6 @@
 package com.patchnote.visualswap.client.config.screen.widget;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -37,7 +37,7 @@ public final class IconButton extends AbstractWidget
     }
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected void renderWidget(@NonNull GuiGraphics g, int mouseX, int mouseY, float a)
     {
         boolean hovered = this.active && isHovered();
         if (hovered) g.fill(getX(), getY(), getX() + this.width, getY() + this.height, HOVER_BG);

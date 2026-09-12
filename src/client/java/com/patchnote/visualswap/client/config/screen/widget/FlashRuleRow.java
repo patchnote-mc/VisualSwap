@@ -10,7 +10,7 @@ import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
 import com.patchnote.visualswap.client.utils.ItemIcons;
 import com.patchnote.visualswap.client.utils.ItemRegex;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.*;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -50,7 +50,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
     private final IconButton duplicateButton;
     private final IconButton deleteButton;
     /// Occupies the delete slot in place of {@link #deleteButton} while the rule is modified (see the swap in
-    /// {@link #extractWidgetRenderState}); reverts just this rule to its saved value.
+    /// {@link #renderWidget}); reverts just this rule to its saved value.
     private final IconButton revertButton;
 
     // state — derived from the rule's regex selector
@@ -107,7 +107,7 @@ public final class FlashRuleRow extends AbstractContainerWidget
                 DELETE_WIDTH, Icons.RESET, Component.translatable("gui.visual-swap.tooltip.revert_rule"),
                 () -> this.list.revertRule(this)
         );
-        this.revertButton.visible = false;   // delete is shown until the first extract flips this per the rule's state
+        this.revertButton.visible = false;   // delete is shown until the first render flips this per the rule's state
 
         this.colorSwatch.setOnPress(this::openColorPicker);
         this.colorSwatch.setClickable(list.preset().isColorEditable());
@@ -179,8 +179,8 @@ public final class FlashRuleRow extends AbstractContainerWidget
         input.setMaxLength(256);
         input.setHint(Component.translatable("gui.visual-swap.rules.item.hint"));
         input.setValue(rule.item() == null ? "" : rule.item());
-        input.setResponder(this::onItemEdited);
         input.moveCursorToStart(false);
+        input.setResponder(this::onItemEdited);
         return input;
     }
 
@@ -274,7 +274,10 @@ public final class FlashRuleRow extends AbstractContainerWidget
     protected int contentHeight() { return getHeight(); }  // == height, so there is nothing to scroll
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected double scrollRate() { return 0.0; }
+
+    @Override
+    protected void renderWidget(@NonNull GuiGraphics g, int mouseX, int mouseY, float a)
     {
         int left = getX() + CONTENT_PAD;
         int right = getX() + getWidth() - CONTENT_PAD;
@@ -317,15 +320,15 @@ public final class FlashRuleRow extends AbstractContainerWidget
         this.itemBox.setY(widgetY);
         this.itemBox.setWidth(boxW);
 
-        this.previewButton.extractRenderState(g, mouseX, mouseY, a);
-        this.itemBox.extractRenderState(g, mouseX, mouseY, a);
-        this.onButton.extractRenderState(g, mouseX, mouseY, a);
-        this.configButton.extractRenderState(g, mouseX, mouseY, a);
-        this.colorSwatch.extractRenderState(g, mouseX, mouseY, a);
-        this.moveUpButton.extractRenderState(g, mouseX, mouseY, a);
-        this.moveDownButton.extractRenderState(g, mouseX, mouseY, a);
-        this.duplicateButton.extractRenderState(g, mouseX, mouseY, a);
-        actionButton.extractRenderState(g, mouseX, mouseY, a);
+        this.previewButton.render(g, mouseX, mouseY, a);
+        this.itemBox.render(g, mouseX, mouseY, a);
+        this.onButton.render(g, mouseX, mouseY, a);
+        this.configButton.render(g, mouseX, mouseY, a);
+        this.colorSwatch.render(g, mouseX, mouseY, a);
+        this.moveUpButton.render(g, mouseX, mouseY, a);
+        this.moveDownButton.render(g, mouseX, mouseY, a);
+        this.duplicateButton.render(g, mouseX, mouseY, a);
+        actionButton.render(g, mouseX, mouseY, a);
 
         // left-gutter marker: the unsaved-changes dot — green when newly added, orange when an existing rule was edited.
         int marker = this.rule.isNew() ? NEW_ARGB : this.rule.isModified() ? MODIFIED_ARGB : 0;

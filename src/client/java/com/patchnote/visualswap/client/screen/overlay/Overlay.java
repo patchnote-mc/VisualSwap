@@ -1,7 +1,7 @@
 package com.patchnote.visualswap.client.screen.overlay;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -15,7 +15,7 @@ import java.util.List;
 
 /// A floating panel drawn above a screen's normal content, managed by an {@link OverlayManager}. Subclasses add child
 /// widgets via {@link #addChild} (positioned relative to the overlay, then moved with it) and draw free-form content in
-/// {@link #extractContent}. The panel background is the vanilla tooltip nine-slice, so overlays read as native chrome.
+/// {@link #renderContent}. The panel background is the vanilla tooltip nine-slice, so overlays read as native chrome.
 ///
 /// Two kinds:
 /// - modal ({@link #isModal} true, the default) — captures all screen input while open; clicking outside dismisses it;
@@ -52,12 +52,12 @@ public abstract class Overlay extends AbstractContainerWidget
     }
 
     /// Free-form drawing under the child widgets (labels, swatches, custom tracks).
-    protected void extractContent(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) { }
+    protected void renderContent(GuiGraphics g, int mouseX, int mouseY, float a) { }
 
     /// The panel chrome behind the content — the vanilla tooltip nine-slice by default; override for a solid panel.
-    protected void extractBackground(GuiGraphicsExtractor g)
+    protected void renderBackground(GuiGraphics g)
     {
-        TooltipRenderUtil.extractTooltipBackground(
+        TooltipRenderUtil.renderTooltipBackground(
                 g, contentX(), contentY(), getWidth() - 2 * pad(),
                 getHeight() - 2 * pad(), null
         );
@@ -112,13 +112,16 @@ public abstract class Overlay extends AbstractContainerWidget
     protected int contentHeight() { return getHeight(); }  // == height: overlays never self-scroll
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected double scrollRate() { return 0.0; }
+
+    @Override
+    protected void renderWidget(@NonNull GuiGraphics g, int mouseX, int mouseY, float a)
     {
-        extractBackground(g);
-        extractContent(g, mouseX, mouseY, a);
+        renderBackground(g);
+        renderContent(g, mouseX, mouseY, a);
         for (GuiEventListener child : this.children)
         {
-            if (child instanceof AbstractWidget w) w.extractRenderState(g, mouseX, mouseY, a);
+            if (child instanceof AbstractWidget w) w.render(g, mouseX, mouseY, a);
         }
     }
 

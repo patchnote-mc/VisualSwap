@@ -1,6 +1,6 @@
 # Visual Swap
 
-A **client-side-only** Fabric mod for Minecraft `26.2` that visualizes
+A **client-side-only** Fabric mod for Minecraft `1.21.11` that visualizes
 Minecraft's *attribute-swapping* behavior — the "swap hit" case where a
 follow-up attack lands using a stale/swapped attribute snapshot. It's purely
 cosmetic/diagnostic: it surfaces swap hits with an on-screen glyph and a world
@@ -15,9 +15,9 @@ server — it is never registered there and none of its code runs. There is no
 
 ## Status
 
-Early scaffold. The client-only setup and the glyph/particle build pipeline are
-in place; swap-hit detection and rendering are not implemented yet. See
-[AGENTS.md](AGENTS.md) for architecture and the roadmap.
+Swap-window detection, HUD glyphs, hotbar highlights, item flashes, particle
+bursts, consecutive-chain feedback, and the configuration screen are
+implemented. See [AGENTS.md](AGENTS.md) for the current architecture and flows.
 
 ## Build
 
@@ -31,8 +31,8 @@ sprites (see [AGENTS.md](AGENTS.md) → "Build pipeline").
 
 ## Stack
 
-Minecraft `26.2` · Fabric (Loader `0.19.3`, API `0.153.0+26.2`, Loom
-`1.17-SNAPSHOT`) · Java `25` · Mojang mappings.
+Minecraft `1.21.11` · Fabric (Loader `0.19.3`, API `0.141.6+1.21.11`, Loom
+`1.17.19`) · Java `21` · Mojang mappings.
 
 ## For contributors / agents
 

@@ -1,6 +1,6 @@
 package com.patchnote.visualswap.client.screen.modal;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.network.chat.Component;
@@ -115,7 +115,7 @@ public final class EffectsModal extends Modal
     }
 
     @Override
-    protected void extractPanel(@NonNull GuiGraphicsExtractor g)
+    protected void renderPanel(@NonNull GuiGraphics g)
     {
         int x1 = this.panelX + PANEL_W;
         int y1 = this.panelY + this.panelH;
@@ -126,7 +126,7 @@ public final class EffectsModal extends Modal
         g.fill(x1 - 1, this.panelY, x1, y1, PANEL_BORDER);
 
         int cx = this.width / 2;
-        g.text(
+        g.drawString(
                 this.font, getTitle().getVisualOrderText(), cx - this.font.width(getTitle()) / 2,
                 this.panelY + PAD, TITLE_ARGB, true
         );
@@ -141,7 +141,7 @@ public final class EffectsModal extends Modal
         int hy = this.helpY;
         for (int i = 0; i < Math.min(lines.size(), HELP_LINES); i++)
         {
-            g.text(this.font, lines.get(i), this.panelX + PAD, hy, HELP_ARGB, false);
+            g.drawString(this.font, lines.get(i), this.panelX + PAD, hy, HELP_ARGB, false);
             hy += LINE;
         }
     }

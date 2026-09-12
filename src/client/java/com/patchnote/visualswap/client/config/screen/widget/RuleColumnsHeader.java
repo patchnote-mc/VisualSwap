@@ -4,7 +4,7 @@ import com.patchnote.visualswap.client.screen.overlay.ColorPickerOverlay;
 import com.patchnote.visualswap.client.screen.overlay.OverlayManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
@@ -140,7 +140,10 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
     protected int contentHeight() { return getHeight(); }
 
     @Override
-    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float a)
+    protected double scrollRate() { return 0.0; }
+
+    @Override
+    protected void renderWidget(@NonNull GuiGraphics g, int mouseX, int mouseY, float a)
     {
         int left = getX() + CONTENT_PAD;
         int right = getX() + getWidth() - CONTENT_PAD;
@@ -153,7 +156,7 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         int onX = colorX - GAP - ON_WIDTH;
 
         // caption over the trigger column; the config column's gear icons are self-describing
-        g.centeredText(
+        g.drawCenteredString(
                 this.font, Component.translatable("gui.visual-swap.rules.column.trigger").getString(),
                 onX + ON_WIDTH / 2, midY - this.font.lineHeight / 2, CAPTION_ARGB
         );
@@ -174,16 +177,16 @@ public final class RuleColumnsHeader extends AbstractContainerWidget
         this.searchBox.setY(widgetY);
         this.searchBox.setWidth(Math.max(20, (onX - GAP) - boxX));
 
-        this.searchBox.extractRenderState(g, mouseX, mouseY, a);
-        this.colorSwatch.extractRenderState(g, mouseX, mouseY, a);
-        this.addButton.extractRenderState(g, mouseX, mouseY, a);
-        this.clearButton.extractRenderState(g, mouseX, mouseY, a);
-        this.resetButton.extractRenderState(g, mouseX, mouseY, a);
+        this.searchBox.render(g, mouseX, mouseY, a);
+        this.colorSwatch.render(g, mouseX, mouseY, a);
+        this.addButton.render(g, mouseX, mouseY, a);
+        this.clearButton.render(g, mouseX, mouseY, a);
+        this.resetButton.render(g, mouseX, mouseY, a);
     }
 
     /// The X of the colour-column swatch, derived from the same right-anchored maths as the rows so it lines up above
     /// each {@code FlashRuleRow}'s swatch. Computed from the header's own geometry so it is valid right after layout
-    /// (the swatch's rendered position is only set during extract, i.e. one frame behind).
+    /// (the swatch's rendered position is only set during render, i.e. one frame behind).
     private int colorSwatchX()
     {
         return configX() - GAP - COLOR_SWATCH;

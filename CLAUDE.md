@@ -1,4 +1,4 @@
-<!-- last updated: 2026-07-01 -- tracks the codebase; refresh (and bump the date) when the workflow/doc layout below changes. -->
+<!-- last updated: 2026-08-24 -- tracks the codebase; refresh (and bump the date) when the workflow/doc layout below changes. -->
 
 # CLAUDE.md — instructions for Claude Code
 
@@ -12,14 +12,14 @@ to them and states the essentials):
 
 ## Stack (see `AGENTS.md` for detail)
 
-- Minecraft `26.2`, Fabric (Loader `0.19.3`, API `0.153.0+26.2`, Loom `1.17-SNAPSHOT`), Mojang mappings (never Yarn),
-  Java 25. (Gradle wrapper `9.5.1` — loom 1.17 needs Gradle ≥9.5.)
-- Decompiled sources vendored as git submodules:
-    - `mc_decompiled/sources/26.2/common_src/` + `mc_decompiled/sources/26.2/client_src/` (git submodule at
-      `mc_decompiled/sources/26.2` tracking branch `26.2`, init via `mc_decompiled/setup.sh` — pre-decompiled, NOT
-      `genSources`).
-    - `fabric_decompiled/src/` (git submodule of fabric-api @ tag `0.153.0+26.2`, init via
-      `fabric_decompiled/setup.sh`).
+- Minecraft `1.21.11`, Fabric (Loader `0.19.3`, API `0.141.6+1.21.11`, Loom `1.17.19`), Mojang mappings (never Yarn),
+  Java 21. (Gradle wrapper `9.5.1` — Loom 1.17 needs Gradle ≥9.5.)
+- Local decompiled/source trees (ignored by Git):
+    - `mc_decompiled/sources/1.21.11/common_src/` + `mc_decompiled/sources/1.21.11/client_src/`. Run
+      `./gradlew genSources`, then `./mc_decompiled/setup.sh --gradle-cache` to copy and extract Loom's mapped jars and
+      sources from the repository-local Gradle cache.
+    - `fabric_decompiled/sources/0.141.6+1.21.11/`, cloned by `fabric_decompiled/setup.sh` from the
+      `fabric_api_version` configured in `gradle.properties`.
 
 ## How to work here (essentials)
 
@@ -33,7 +33,7 @@ to them and states the essentials):
 4. **Cache as you go:** when you DO consult sources, record just-enough verified
    facts (plain text, terse) so the research isn't repeated:
     - MC/Fabric: `*_decompiled/.index/{version}/{fully.qualified.ClassName}.txt`
-      (flat, no package dirs; version `26.2` for MC, `0.153.0+26.2` for
+      (flat, no package dirs; version `1.21.11` for MC, `0.141.6+1.21.11` for
       Fabric) and `*_decompiled/.knowledge/{topic}.txt`. See each dir's `_GUIDE.txt`.
 5. **Match Mojang mappings exactly**; never use Yarn names or mix namespaces;
    don't invent APIs — verify against the decompilation if unsure.

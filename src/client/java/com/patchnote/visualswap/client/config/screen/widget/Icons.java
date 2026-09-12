@@ -1,7 +1,7 @@
 package com.patchnote.visualswap.client.config.screen.widget;
 
 import com.patchnote.visualswap.VisualSwap;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
@@ -31,7 +31,7 @@ public final class Icons
     /// Draw {@code icon} as a {@code size}×{@code size} square at ({@code x},{@code y}), multiply-tinted by
     /// {@code argb} (the art is white, so the tint sets its colour). The 128px source is scaled down with linear
     /// filtering.
-    public static void blit(GuiGraphicsExtractor g, Identifier icon, int x, int y, int size, int argb)
+    public static void blit(GuiGraphics g, Identifier icon, int x, int y, int size, int argb)
     {
         g.blit(RenderPipelines.GUI_TEXTURED, icon, x, y, 0.0f, 0.0f, size, size, TEX, TEX, TEX, TEX, argb);
     }

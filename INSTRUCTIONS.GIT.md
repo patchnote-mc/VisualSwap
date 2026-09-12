@@ -16,11 +16,11 @@ Each supported Minecraft version has a `main` + `staging` pair, e.g.:
 
 | Branch         | Purpose             |
 | -------------- | ------------------- |
-| `26.2-staging` | develop for MC 26.2 |
-| `26.2-main`    | release for MC 26.2 |
+| `1.21.11-staging` | develop for MC 1.21.11 |
+| `1.21.11-main`    | release for MC 1.21.11 |
 
 > The current `main` branch predates this convention. To turn on releases,
-> create `26.2-staging` and `26.2-main` from it (see _Migrating from `main`_ below).
+> create `1.21.11-staging` and `1.21.11-main` from it (see _Migrating from `main`_ below).
 
 The **mod version is deliberately not in the branch name.** Branches are
 long-lived, but the mod version changes every release — the exact released
@@ -74,7 +74,7 @@ The published version is built in [`build.gradle`](build.gradle) as:
 v${mod_version}+mc-${minecraft_version}
 ```
 
-e.g. `v1.0.0+mc-26.2`. Both values come from
+e.g. `v1.0.0+mc-1.21.11`. Both values come from
 [`gradle.properties`](gradle.properties) (`mod_version`, `minecraft_version`).
 
 - The `+mc-<version>` suffix keeps the same mod version from colliding across
@@ -116,7 +116,7 @@ prompts for the two per-release inputs:
 (the same channel `[skip publish]` already uses):
 
 ```
-Release 26.2-main [sources]      <- subject: markers
+Release 1.21.11-main [sources]  <- subject: markers
 
 - Master toggles collapsed …     <- body: the changelog
 - Config rows disabled …
@@ -174,21 +174,21 @@ The repo currently has a single `main` branch. To adopt the release flow once:
 
 ```
 git switch main
-git switch -c 26.2-staging
-git push -u origin 26.2-staging
-git switch -c 26.2-main
-git push -u origin 26.2-main
+git switch -c 1.21.11-staging
+git push -u origin 1.21.11-staging
+git switch -c 1.21.11-main
+git push -u origin 1.21.11-main
 ```
 
-Then set `26.2-main` (or `*-main`) protection via the ruleset above, and make
+Then set `1.21.11-main` (or `*-main`) protection via the ruleset above, and make
 `build`, `block duplicate version`, and `publish dry-run` required status checks.
 
 ## Adding a new Minecraft version
 
 1. Create a new pair from the closest existing one, e.g.:
    ```
-   git switch -c 26.3-staging 26.2-staging
-   git switch -c 26.3-main    26.2-main
+   git switch -c 1.21.12-staging 1.21.11-staging
+   git switch -c 1.21.12-main    1.21.11-main
    ```
 2. Update `gradle.properties` (`minecraft_version`, `fabric_api_version`,
    `loader_version`, and the mod-dependency versions as needed) and the

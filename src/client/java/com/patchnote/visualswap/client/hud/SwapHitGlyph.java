@@ -4,7 +4,7 @@ import com.patchnote.visualswap.client.config.ModConfig;
 import com.patchnote.visualswap.client.particles.SwapHitMasks;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.minecraft.client.DeltaTracker;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 import org.jspecify.annotations.NonNull;
 
@@ -47,7 +47,7 @@ public final class SwapHitGlyph implements HudElement
     /* OVERRIDES */
 
     @Override
-    public void extractRenderState(@NonNull GuiGraphicsExtractor graphics, @NonNull DeltaTracker deltaTracker)
+    public void render(@NonNull GuiGraphics graphics, @NonNull DeltaTracker deltaTracker)
     {
         if (!this.visible || !ModConfig.get().hudActive()) { return; }
 

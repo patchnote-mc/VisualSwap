@@ -2,7 +2,7 @@ package com.patchnote.visualswap.client.screen.modal;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
@@ -88,11 +88,11 @@ public final class ConfirmModal extends Modal
     private void confirm()
     {
         this.onConfirm.run();
-        if (Minecraft.getInstance().gui.screen() == this) close();
+        if (Minecraft.getInstance().screen == this) close();
     }
 
     @Override
-    protected void extractPanel(GuiGraphicsExtractor g)
+    protected void renderPanel(GuiGraphics g)
     {
         int x1 = this.panelX + this.panelW;
         int y1 = this.panelY + this.panelH;
@@ -106,13 +106,13 @@ public final class ConfirmModal extends Modal
         int y = this.panelY + PAD;
         for (FormattedCharSequence line : this.titleLines)
         {
-            g.text(this.font, line, cx - this.font.width(line) / 2, y, TITLE_ARGB, true);
+            g.drawString(this.font, line, cx - this.font.width(line) / 2, y, TITLE_ARGB, true);
             y += LINE;
         }
         y += TITLE_GAP;
         for (FormattedCharSequence line : this.bodyLines)
         {
-            g.text(this.font, line, cx - this.font.width(line) / 2, y, BODY_ARGB, false);
+            g.drawString(this.font, line, cx - this.font.width(line) / 2, y, BODY_ARGB, false);
             y += LINE;
         }
     }

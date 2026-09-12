@@ -2,7 +2,7 @@ package com.patchnote.visualswap.client.screen.modal;
 
 import com.patchnote.visualswap.client.config.models.FlashRule;
 import com.patchnote.visualswap.client.utils.ItemRegex;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -95,7 +95,7 @@ public final class RegexPreviewModal extends Modal
     }
 
     @Override
-    protected void extractPanel(@NonNull GuiGraphicsExtractor g)
+    protected void renderPanel(@NonNull GuiGraphics g)
     {
         int x1 = this.panelX + this.panelW;
         int y1 = this.panelY + this.panelH;
@@ -110,19 +110,19 @@ public final class RegexPreviewModal extends Modal
         String pattern = (this.rule.item() == null || this.rule.item().isBlank())
                          ? Component.translatable("gui.visual-swap.preview.empty_pattern").getString()
                          : this.rule.item();
-        g.text(this.font, pattern, this.panelX + PAD, y, TITLE_ARGB, true);
+        g.drawString(this.font, pattern, this.panelX + PAD, y, TITLE_ARGB, true);
         y += TITLE_LINE + 2;
         String count = this.rows.isEmpty()
                        ? Component.translatable("gui.visual-swap.preview.no_matches").getString()
                        : Component.translatable("gui.visual-swap.preview.count", includedCount(), this.rows.size())
                                   .getString();
-        g.text(this.font, count, this.panelX + PAD, y, COUNT_ARGB, false);
+        g.drawString(this.font, count, this.panelX + PAD, y, COUNT_ARGB, false);
 
         // list backdrop + empty state (the list widget, if any, draws over this)
         g.fill(this.panelX + PAD, this.listTop, this.panelX + this.panelW - PAD, this.listTop + this.listH, LIST_BG);
         if (this.rows.isEmpty())
         {
-            g.centeredText(
+            g.drawCenteredString(
                     this.font, Component.translatable("gui.visual-swap.preview.no_match").getString(),
                     this.panelX + this.panelW / 2,
                     this.listTop + this.listH / 2 - this.font.lineHeight / 2, EMPTY_ARGB
