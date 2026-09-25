@@ -32,7 +32,7 @@ public final class ClickTickTracker
     public boolean attacked()
     {
         // swing check for spear
-        return (current.swinging() && (!previous.swinging() || current.swingTime() < previous.swingTime())) ||
+        return current.startedSwingSince(previous) ||
                 current.attackDown() && !previous.attackDown() // left click
                 || current.useDown() && !previous.useDown(); // right click
     }
@@ -63,8 +63,7 @@ public final class ClickTickTracker
                 player.getInventory().getSelectedSlot(),
                 client.options.keyAttack.isDown(),
                 client.options.keyUse.isDown(),
-                player.swinging,
-                player.swingTime,
+                player.getCurrentSwing(),
                 // get item cooldown
                 player.getAttackStrengthScale(0.0f), // param (0.0f) for exact last tick
                 mainHand.get(DataComponents.PIERCING_WEAPON) != null,

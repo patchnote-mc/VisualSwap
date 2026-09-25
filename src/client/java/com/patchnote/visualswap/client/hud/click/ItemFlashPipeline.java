@@ -1,12 +1,12 @@
 package com.patchnote.visualswap.client.hud.click;
 
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.textures.FilterMode;
 import com.patchnote.visualswap.VisualSwap;
 import com.patchnote.visualswap.client.utils.HotbarGeometry;
 import net.minecraft.client.gui.render.GuiItemAtlas;
@@ -30,12 +30,12 @@ public final class ItemFlashPipeline
                           .withVertexShader(SHADER)
                           .withFragmentShader(SHADER)
                           .withBindGroupLayout(BindGroupLayouts.GLOBALS)
-                          .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+                          .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+                          .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
                           .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
                           .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
                           .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
                           .withPrimitiveTopology(PrimitiveTopology.QUADS)
-                          .withUsePipelineDrawModeForGui(true)
                           .build();
 
     private ItemFlashPipeline() { }
