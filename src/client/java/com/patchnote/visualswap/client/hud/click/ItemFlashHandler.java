@@ -19,8 +19,7 @@ public final class ItemFlashHandler
         boolean hasPrev = previous.initialized();
         boolean attackStarted = hasPrev && current.attackDown() && !previous.attackDown();
         boolean useStarted = hasPrev && current.useDown() && !previous.useDown();
-        boolean swingStarted = hasPrev && current.swinging()
-                && (!previous.swinging() || current.swingTime() < previous.swingTime());
+        boolean swingStarted = hasPrev && current.startedSwingSince(previous);
 
         // SwapHandler.eventTick has already run this tick (see VisualSwapClient), including the observation bridge for
         // an input made on the second attribute-swap tick.
